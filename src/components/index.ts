@@ -58,3 +58,7 @@ export * from './QadrAssistantPanel';
 export * from './WorldMonitoringHubPanel';
 export * from './PremiumBenchmarkPanel';
 export * from './DarkwebDefensivePanel';
+export * from './IranMediaMatrixPanel';
+export * from './RegionalSlicesPanel';
+export * from './InfraTrafficCyberPanel';
+export * from './MediaPipelinesPanel';

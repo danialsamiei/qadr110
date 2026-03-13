@@ -65,6 +65,10 @@ const FULL_PANELS: Record<string, PanelConfig> = {
   'world-monitoring-hub': { name: 'سامانه یکپارچه DSS / ESS', enabled: true, priority: 1 },
   'premium-benchmark': { name: 'مقایسه با سامانه‌های پریمیوم', enabled: true, priority: 1 },
   'darkweb-defensive': { name: 'رصد دفاعی DarkWeb/DarkNet', enabled: true, priority: 1 },
+  'iran-media-matrix': { name: 'ماتریس رسانه‌ای ایران', enabled: true, priority: 1 },
+  'regional-slices': { name: 'برش‌های منطقه‌ای/شهری/استانی', enabled: true, priority: 1 },
+  'infra-traffic-cyber': { name: 'پایش زیرساخت/ترافیک/سایبر', enabled: true, priority: 1 },
+  'media-pipelines': { name: 'پایپلاین‌های رسانه‌ای ایران/اسرائیل', enabled: true, priority: 1 },
 };
 
 const FULL_MAP_LAYERS: MapLayers = {
@@ -229,6 +233,10 @@ const TECH_PANELS: Record<string, PanelConfig> = {
   'world-monitoring-hub': { name: 'سامانه یکپارچه DSS / ESS', enabled: true, priority: 1 },
   'premium-benchmark': { name: 'مقایسه با سامانه‌های پریمیوم', enabled: true, priority: 1 },
   'darkweb-defensive': { name: 'رصد دفاعی DarkWeb/DarkNet', enabled: true, priority: 1 },
+  'iran-media-matrix': { name: 'ماتریس رسانه‌ای ایران', enabled: true, priority: 1 },
+  'regional-slices': { name: 'برش‌های منطقه‌ای/شهری/استانی', enabled: true, priority: 1 },
+  'infra-traffic-cyber': { name: 'پایش زیرساخت/ترافیک/سایبر', enabled: true, priority: 1 },
+  'media-pipelines': { name: 'پایپلاین‌های رسانه‌ای ایران/اسرائیل', enabled: true, priority: 1 },
   monitors: { name: 'My Monitors', enabled: true, priority: 2 },
 };
 
@@ -395,6 +403,10 @@ const FINANCE_PANELS: Record<string, PanelConfig> = {
   'world-monitoring-hub': { name: 'سامانه یکپارچه DSS / ESS', enabled: true, priority: 1 },
   'premium-benchmark': { name: 'مقایسه با سامانه‌های پریمیوم', enabled: true, priority: 1 },
   'darkweb-defensive': { name: 'رصد دفاعی DarkWeb/DarkNet', enabled: true, priority: 1 },
+  'iran-media-matrix': { name: 'ماتریس رسانه‌ای ایران', enabled: true, priority: 1 },
+  'regional-slices': { name: 'برش‌های منطقه‌ای/شهری/استانی', enabled: true, priority: 1 },
+  'infra-traffic-cyber': { name: 'پایش زیرساخت/ترافیک/سایبر', enabled: true, priority: 1 },
+  'media-pipelines': { name: 'پایپلاین‌های رسانه‌ای ایران/اسرائیل', enabled: true, priority: 1 },
   monitors: { name: 'My Monitors', enabled: true, priority: 2 },
 };
 
@@ -682,6 +694,10 @@ const COMMODITY_PANELS: Record<string, PanelConfig> = {
   'world-monitoring-hub': { name: 'سامانه یکپارچه DSS / ESS', enabled: true, priority: 1 },
   'premium-benchmark': { name: 'مقایسه با سامانه‌های پریمیوم', enabled: true, priority: 1 },
   'darkweb-defensive': { name: 'رصد دفاعی DarkWeb/DarkNet', enabled: true, priority: 1 },
+  'iran-media-matrix': { name: 'ماتریس رسانه‌ای ایران', enabled: true, priority: 1 },
+  'regional-slices': { name: 'برش‌های منطقه‌ای/شهری/استانی', enabled: true, priority: 1 },
+  'infra-traffic-cyber': { name: 'پایش زیرساخت/ترافیک/سایبر', enabled: true, priority: 1 },
+  'media-pipelines': { name: 'پایپلاین‌های رسانه‌ای ایران/اسرائیل', enabled: true, priority: 1 },
   monitors: { name: 'My Monitors', enabled: true, priority: 2 },
 };
 
