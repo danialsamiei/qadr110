@@ -771,9 +771,9 @@ export class Panel {
 
     const ctaBtn = h('button', { type: 'button', className: 'panel-locked-cta' }, t('premium.joinWaitlist'));
     if (isDesktopRuntime()) {
-      ctaBtn.addEventListener('click', () => void invokeTauri<void>('open_url', { url: 'https://gadr.alefba.dev/pro' }).catch(() => window.open('https://gadr.alefba.dev/pro', '_blank')));
+      ctaBtn.addEventListener('click', () => void invokeTauri<void>('open_url', { url: 'https://qadr.alefba.dev/pro' }).catch(() => window.open('https://qadr.alefba.dev/pro', '_blank')));
     } else {
-      ctaBtn.addEventListener('click', () => window.open('https://gadr.alefba.dev/pro', '_blank'));
+      ctaBtn.addEventListener('click', () => window.open('https://qadr.alefba.dev/pro', '_blank'));
     }
     lockedChildren.push(ctaBtn);
 

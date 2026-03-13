@@ -62,6 +62,7 @@ const FULL_PANELS: Record<string, PanelConfig> = {
   'world-clock': { name: 'World Clock', enabled: true, priority: 2 },
   'persian-analysis': { name: 'تحلیل راهبردی فارسی', enabled: true, priority: 1 },
   'qadr-assistant': { name: 'چت‌بات راهنمای QADR110', enabled: true, priority: 1 },
+  'world-monitoring-hub': { name: 'سامانه یکپارچه DSS / ESS', enabled: true, priority: 1 },
 };
 
 const FULL_MAP_LAYERS: MapLayers = {
@@ -223,6 +224,7 @@ const TECH_PANELS: Record<string, PanelConfig> = {
   'world-clock': { name: 'World Clock', enabled: true, priority: 2 },
   'persian-analysis': { name: 'تحلیل راهبردی فارسی', enabled: true, priority: 1 },
   'qadr-assistant': { name: 'چت‌بات راهنمای QADR110', enabled: true, priority: 1 },
+  'world-monitoring-hub': { name: 'سامانه یکپارچه DSS / ESS', enabled: true, priority: 1 },
   monitors: { name: 'My Monitors', enabled: true, priority: 2 },
 };
 
@@ -386,6 +388,7 @@ const FINANCE_PANELS: Record<string, PanelConfig> = {
   'world-clock': { name: 'World Clock', enabled: true, priority: 2 },
   'persian-analysis': { name: 'تحلیل راهبردی فارسی', enabled: true, priority: 1 },
   'qadr-assistant': { name: 'چت‌بات راهنمای QADR110', enabled: true, priority: 1 },
+  'world-monitoring-hub': { name: 'سامانه یکپارچه DSS / ESS', enabled: true, priority: 1 },
   monitors: { name: 'My Monitors', enabled: true, priority: 2 },
 };
 
@@ -670,6 +673,7 @@ const COMMODITY_PANELS: Record<string, PanelConfig> = {
   'world-clock': { name: 'World Clock', enabled: true, priority: 2 },
   'persian-analysis': { name: 'تحلیل راهبردی فارسی', enabled: true, priority: 1 },
   'qadr-assistant': { name: 'چت‌بات راهنمای QADR110', enabled: true, priority: 1 },
+  'world-monitoring-hub': { name: 'سامانه یکپارچه DSS / ESS', enabled: true, priority: 1 },
   monitors: { name: 'My Monitors', enabled: true, priority: 2 },
 };
 

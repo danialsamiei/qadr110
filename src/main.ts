@@ -12,7 +12,7 @@ const sentryDsn = import.meta.env.VITE_SENTRY_DSN?.trim();
 Sentry.init({
   dsn: sentryDsn || undefined,
   release: `qadr110@${__APP_VERSION__}`,
-  environment: location.hostname === 'gadr.alefba.dev' ? 'production'
+  environment: location.hostname === 'qadr.alefba.dev' ? 'production'
     : location.hostname.includes('vercel.app') ? 'preview'
     : 'development',
   enabled: Boolean(sentryDsn) && !location.hostname.startsWith('localhost') && !('__TAURI_INTERNALS__' in window),
@@ -311,7 +311,7 @@ initMetaTags();
 
 // In desktop mode, route /api/* calls to the local Tauri sidecar backend.
 installRuntimeFetchPatch();
-// In web production, route RPC calls through api.gadr.alefba.dev (Cloudflare edge).
+// In web production, route RPC calls through api.qadr.alefba.dev (Cloudflare edge).
 installWebApiRedirect();
 loadDesktopSecrets().catch(() => {});
 

@@ -2,7 +2,7 @@
 
 سامانه‌ی **QADR110** یک پلتفرم پیشرفته رصد، تحلیل و تصمیم‌سازی داده‌محور در حوزه OSINT، تنش‌های ژئوپلیتیک، تاب‌آوری ملی، جنگ روایت و مدیریت بحران است.
 
-> دامنه عملیاتی پیشنهادی: `https://gadr.alefba.dev`
+> دامنه عملیاتی پیشنهادی: `https://qadr.alefba.dev`
 
 ---
 
@@ -34,7 +34,7 @@
 ### استقرار روی سرور Ubuntu + Cloudflared Tunnel
 
 1. اجرای سرویس اصلی روی پورت داخلی (مثلاً `localhost:4173`)
-2. تنظیم Cloudflared ingress برای `gadr.alefba.dev`
+2. تنظیم Cloudflared ingress برای `qadr.alefba.dev`
 3. فعال‌سازی TLS/Zero Trust در داشبورد Cloudflare
 4. مانیتورینگ با Grafana + Prometheus
 5. ذخیره‌سازی شاخص‌ها/بردارها با Redis + Qdrant
@@ -43,7 +43,7 @@
 
 ```yaml
 ingress:
-  - hostname: gadr.alefba.dev
+  - hostname: qadr.alefba.dev
     service: http://localhost:4173
   - service: http_status:404
 ```

@@ -38,6 +38,7 @@ import {
   AviationCommandBar,
   PersianStrategicPanel,
   QadrAssistantPanel,
+  WorldMonitoringHubPanel,
 } from '@/components';
 import { SatelliteFiresPanel } from '@/components/SatelliteFiresPanel';
 import { focusInvestmentOnMap } from '@/services/investments-focus';
@@ -127,7 +128,7 @@ export class PanelLayoutManager implements AppModule {
         const vHref = (v: string, prod: string) => local || SITE_VARIANT === v ? '#' : prod;
         const vTarget = (_v: string) => '';
         return `
-            <a href="${vHref('full', 'https://gadr.alefba.dev')}"
+            <a href="${vHref('full', 'https://qadr.alefba.dev')}"
                class="variant-option ${SITE_VARIANT === 'full' ? 'active' : ''}"
                data-variant="full"
                ${vTarget('full')}
@@ -136,7 +137,7 @@ export class PanelLayoutManager implements AppModule {
               <span class="variant-label">${t('header.world')}</span>
             </a>
             <span class="variant-divider"></span>
-            <a href="${vHref('tech', 'https://gadr.alefba.dev')}"
+            <a href="${vHref('tech', 'https://qadr.alefba.dev')}"
                class="variant-option ${SITE_VARIANT === 'tech' ? 'active' : ''}"
                data-variant="tech"
                ${vTarget('tech')}
@@ -145,7 +146,7 @@ export class PanelLayoutManager implements AppModule {
               <span class="variant-label">${t('header.tech')}</span>
             </a>
             <span class="variant-divider"></span>
-            <a href="${vHref('finance', 'https://gadr.alefba.dev')}"
+            <a href="${vHref('finance', 'https://qadr.alefba.dev')}"
                class="variant-option ${SITE_VARIANT === 'finance' ? 'active' : ''}"
                data-variant="finance"
                ${vTarget('finance')}
@@ -154,7 +155,7 @@ export class PanelLayoutManager implements AppModule {
               <span class="variant-label">${t('header.finance')}</span>
             </a>
             <span class="variant-divider"></span>
-            <a href="${vHref('commodity', 'https://gadr.alefba.dev')}"
+            <a href="${vHref('commodity', 'https://qadr.alefba.dev')}"
                class="variant-option ${SITE_VARIANT === 'commodity' ? 'active' : ''}"
                data-variant="commodity"
                ${vTarget('commodity')}
@@ -163,7 +164,7 @@ export class PanelLayoutManager implements AppModule {
               <span class="variant-label">${t('header.commodity')}</span>
             </a>
             <span class="variant-divider"></span>
-            <a href="${vHref('happy', 'https://gadr.alefba.dev')}"
+            <a href="${vHref('happy', 'https://qadr.alefba.dev')}"
                class="variant-option ${SITE_VARIANT === 'happy' ? 'active' : ''}"
                data-variant="happy"
                ${vTarget('happy')}
@@ -284,6 +285,9 @@ export class PanelLayoutManager implements AppModule {
           <span class="region-sheet-check">${r.value === 'global' ? '✓' : ''}</span>
         </button>`
       ).join('')}
+      </div>
+      <div class="analysis-nav" style="display:flex;gap:8px;flex-wrap:wrap;padding:8px 14px;border-bottom:1px solid var(--border-color);background:var(--bg-secondary)">
+        ${['رسانه','تعارضات','جنگ شناختی','تاب‌آوری','DSS','ESS','OSINT','گزارش‌ساز'].map((item) => `<button class="analysis-nav-chip" style="padding:6px 10px;border-radius:999px;border:1px solid var(--border-color);background:var(--bg-tertiary);color:var(--text-primary);font-size:12px;cursor:default">${item}</button>`).join('')}
       </div>
       <div class="main-content">
         <div class="map-section" id="mapSection">
@@ -691,6 +695,10 @@ export class PanelLayoutManager implements AppModule {
 
     if (this.shouldCreatePanel('qadr-assistant')) {
       this.ctx.panels['qadr-assistant'] = new QadrAssistantPanel();
+    }
+
+    if (this.shouldCreatePanel('world-monitoring-hub')) {
+      this.ctx.panels['world-monitoring-hub'] = new WorldMonitoringHubPanel();
     }
 
     if (this.shouldCreatePanel('airline-intel')) {
