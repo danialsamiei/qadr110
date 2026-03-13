@@ -98,7 +98,7 @@ export async function initLiveChannelsWindow(containerEl?: HTMLElement): Promise
   }
 
   if (!containerEl) {
-    document.title = `${t('components.liveNews.manage') ?? 'Channel management'} - RasadV3`;
+    document.title = `${t('components.liveNews.manage') ?? 'Channel management'} - QADR110`;
   }
 
   channels = loadChannelsFromStorage();

@@ -11,8 +11,8 @@ const sentryDsn = import.meta.env.VITE_SENTRY_DSN?.trim();
 // Initialize Sentry error tracking (early as possible)
 Sentry.init({
   dsn: sentryDsn || undefined,
-  release: `worldmonitor@${__APP_VERSION__}`,
-  environment: location.hostname === 'worldmonitor.app' ? 'production'
+  release: `qadr110@${__APP_VERSION__}`,
+  environment: location.hostname === 'gadr.alefba.dev' ? 'production'
     : location.hostname.includes('vercel.app') ? 'preview'
     : 'development',
   enabled: Boolean(sentryDsn) && !location.hostname.startsWith('localhost') && !('__TAURI_INTERNALS__' in window),
@@ -311,7 +311,7 @@ initMetaTags();
 
 // In desktop mode, route /api/* calls to the local Tauri sidecar backend.
 installRuntimeFetchPatch();
-// In web production, route RPC calls through api.worldmonitor.app (Cloudflare edge).
+// In web production, route RPC calls through api.gadr.alefba.dev (Cloudflare edge).
 installWebApiRedirect();
 loadDesktopSecrets().catch(() => {});
 
@@ -342,6 +342,51 @@ localStorage.removeItem('wm-settings-open');
 // Standalone windows: ?settings=1 = panel display settings, ?live-channels=1 = channel management
 // Both need i18n initialized so t() does not return undefined.
 const urlParams = new URL(location.href).searchParams;
+
+function showAccessGate(): Promise<boolean> {
+  const key = 'qadr110-auth-ok';
+  if (sessionStorage.getItem(key) === '1') return Promise.resolve(true);
+
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:100000;background:#05070b;display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.innerHTML = `
+      <div style="width:min(460px,100%);background:#0f1720;border:1px solid #223244;border-radius:14px;padding:18px;color:#e5edf5;direction:rtl;text-align:right;font-family:inherit;">
+        <h2 style="margin:0 0 10px;font-size:20px;">ورود به QADR110</h2>
+        <p style="margin:0 0 14px;color:#9fb3c8;line-height:1.8">برای مشاهده سامانه نام کاربری و رمز عبور را وارد کنید.</p>
+        <label style="display:block;margin-bottom:8px">نام کاربری</label>
+        <input id="qadr-user" style="width:100%;padding:10px;border-radius:8px;border:1px solid #34495e;background:#0b1118;color:#fff;margin-bottom:10px" />
+        <label style="display:block;margin-bottom:8px">رمز عبور</label>
+        <input id="qadr-pass" type="password" style="width:100%;padding:10px;border-radius:8px;border:1px solid #34495e;background:#0b1118;color:#fff;margin-bottom:12px" />
+        <button id="qadr-submit" style="width:100%;padding:10px;border-radius:8px;border:0;background:#0ea5e9;color:#03121a;font-weight:700;cursor:pointer">ورود</button>
+        <div id="qadr-error" style="margin-top:10px;color:#fca5a5;min-height:20px"></div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    const userInput = overlay.querySelector<HTMLInputElement>('#qadr-user')!;
+    const passInput = overlay.querySelector<HTMLInputElement>('#qadr-pass')!;
+    const submitBtn = overlay.querySelector<HTMLButtonElement>('#qadr-submit')!;
+    const errEl = overlay.querySelector<HTMLElement>('#qadr-error')!;
+
+    const attempt = (): void => {
+      const ok = userInput.value.trim() === 'Hojjat' && passInput.value === 'Mojtaba';
+      if (!ok) {
+        errEl.textContent = 'اطلاعات ورود صحیح نیست.';
+        return;
+      }
+      sessionStorage.setItem(key, '1');
+      overlay.remove();
+      resolve(true);
+    };
+
+    submitBtn.addEventListener('click', attempt);
+    passInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') attempt();
+    });
+    userInput.focus();
+  });
+}
+
 if (urlParams.get('settings') === '1') {
   void Promise.all([import('./services/i18n'), import('./settings-window')]).then(
     async ([i18n, m]) => {
@@ -358,13 +403,16 @@ if (urlParams.get('settings') === '1') {
   );
 } else {
   installUtmInterceptor();
-  const app = new App('app');
-  app
-    .init()
-    .then(() => {
-      clearChunkReloadGuard(chunkReloadStorageKey);
-    })
-    .catch(console.error);
+  void showAccessGate().then((allowed) => {
+    if (!allowed) return;
+    const app = new App('app');
+    app
+      .init()
+      .then(() => {
+        clearChunkReloadGuard(chunkReloadStorageKey);
+      })
+      .catch(console.error);
+  });
 }
 
 // Debug helpers for geo-convergence testing (remove in production)
@@ -376,13 +424,13 @@ if (urlParams.get('settings') === '1') {
 // Beta mode toggle: type `beta=true` / `beta=false` in console
 Object.defineProperty(window, 'beta', {
   get() {
-    const on = localStorage.getItem('worldmonitor-beta-mode') === 'true';
+    const on = localStorage.getItem('qadr110-beta-mode') === 'true';
     console.log(`[Beta] ${on ? 'ON' : 'OFF'}`);
     return on;
   },
   set(v: boolean) {
-    if (v) localStorage.setItem('worldmonitor-beta-mode', 'true');
-    else localStorage.removeItem('worldmonitor-beta-mode');
+    if (v) localStorage.setItem('qadr110-beta-mode', 'true');
+    else localStorage.removeItem('qadr110-beta-mode');
     location.reload();
   },
 });

@@ -61,6 +61,7 @@ const FULL_PANELS: Record<string, PanelConfig> = {
   'tech-readiness': { name: 'Tech Readiness Index', enabled: true, priority: 2 },
   'world-clock': { name: 'World Clock', enabled: true, priority: 2 },
   'persian-analysis': { name: 'تحلیل راهبردی فارسی', enabled: true, priority: 1 },
+  'qadr-assistant': { name: 'چت‌بات راهنمای QADR110', enabled: true, priority: 1 },
 };
 
 const FULL_MAP_LAYERS: MapLayers = {
@@ -221,6 +222,7 @@ const TECH_PANELS: Record<string, PanelConfig> = {
   'airline-intel': { name: 'Airline Intelligence', enabled: true, priority: 2 },
   'world-clock': { name: 'World Clock', enabled: true, priority: 2 },
   'persian-analysis': { name: 'تحلیل راهبردی فارسی', enabled: true, priority: 1 },
+  'qadr-assistant': { name: 'چت‌بات راهنمای QADR110', enabled: true, priority: 1 },
   monitors: { name: 'My Monitors', enabled: true, priority: 2 },
 };
 
@@ -383,6 +385,7 @@ const FINANCE_PANELS: Record<string, PanelConfig> = {
   'airline-intel': { name: 'Airline Intelligence', enabled: true, priority: 2 },
   'world-clock': { name: 'World Clock', enabled: true, priority: 2 },
   'persian-analysis': { name: 'تحلیل راهبردی فارسی', enabled: true, priority: 1 },
+  'qadr-assistant': { name: 'چت‌بات راهنمای QADR110', enabled: true, priority: 1 },
   monitors: { name: 'My Monitors', enabled: true, priority: 2 },
 };
 
@@ -666,6 +669,7 @@ const COMMODITY_PANELS: Record<string, PanelConfig> = {
   polymarket: { name: 'Commodity Predictions', enabled: true, priority: 2 },
   'world-clock': { name: 'World Clock', enabled: true, priority: 2 },
   'persian-analysis': { name: 'تحلیل راهبردی فارسی', enabled: true, priority: 1 },
+  'qadr-assistant': { name: 'چت‌بات راهنمای QADR110', enabled: true, priority: 1 },
   monitors: { name: 'My Monitors', enabled: true, priority: 2 },
 };
 

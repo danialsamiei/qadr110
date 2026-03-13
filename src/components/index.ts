@@ -54,3 +54,4 @@ export { AirlineIntelPanel } from './AirlineIntelPanel';
 export { AviationCommandBar } from './AviationCommandBar';
 
 export * from './PersianStrategicPanel';
+export * from './QadrAssistantPanel';
