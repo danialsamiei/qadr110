@@ -10783,7 +10783,7 @@ a.prediction-link:hover {
     display: none !important;
   }
 
-  /* Mobile: show "World Monitor" instead of "MONITOR" */
+  /* Mobile: show "QADR110" instead of "MONITOR" */
   .logo {
     display: none;
   }
@@ -17722,11 +17722,11 @@ body.has-breaking-alert .panels-grid {
 .community-widget {
   position: fixed;
   bottom: 24px;
-  right: 24px;
+  left: 24px;
   z-index: 9000;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 6px;
   animation: cw-float-in 0.4s cubic-bezier(0.22, 1, 0.36, 1);
 }
