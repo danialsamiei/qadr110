@@ -1,14 +1,14 @@
 {
   "app": {
-    "title": "World Monitor",
-    "description": "Global Situation with AI Insights"
+    "title": "RasadV3",
+    "description": "داشبورد هوشمند رصد و تحلیل جهانی با هوش مصنوعی"
   },
   "countryBrief": {
-    "identifying": "Identifying country...",
-    "locating": "Locating region...",
+    "identifying": "در حال شناسایی کشور...",
+    "locating": "در حال تعیین منطقه...",
     "geocodeFailed": "Could not identify a country at this location",
-    "retryBtn": "Retry",
-    "closeBtn": "Close",
+    "retryBtn": "تلاش مجدد",
+    "closeBtn": "بستن",
     "limitedCoverage": "Limited coverage",
     "instabilityIndex": "Instability Index",
     "notTracked": "Not tracked — {{country}} is not in the CII tier-1 list",
@@ -581,8 +581,8 @@
       }
     },
     "countryIntel": {
-      "identifying": "Identifying country...",
-      "locating": "Locating region...",
+      "identifying": "در حال شناسایی کشور...",
+      "locating": "در حال تعیین منطقه...",
       "instabilityIndex": "Instability Index",
       "protests": "protests",
       "militaryAircraft": "mil. aircraft",
@@ -599,8 +599,8 @@
       "unavailable": "AI brief unavailable — configure GROQ_API_KEY in Settings."
     },
     "countryBrief": {
-      "identifying": "Identifying country...",
-      "locating": "Locating region...",
+      "identifying": "در حال شناسایی کشور...",
+      "locating": "در حال تعیین منطقه...",
       "limitedCoverage": "Limited coverage",
       "instabilityIndex": "Instability Index",
       "notTracked": "Not tracked — {{country}} is not in the CII tier-1 list",
