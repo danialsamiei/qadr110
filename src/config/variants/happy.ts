@@ -1,4 +1,4 @@
-// Happy variant - happy.worldmonitor.app
+// Happy variant - qadr.alefba.dev
 import type { PanelConfig, MapLayers } from '@/types';
 import type { VariantConfig } from './base';
 
