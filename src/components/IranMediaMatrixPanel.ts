@@ -1,57 +1,47 @@
 import { Panel } from './Panel';
+import { loadMediaMatrixProvider } from '@/services/media-pipelines';
 
-type MediaGroup = { title: string; items: Array<{ name: string; url: string; tag: string }> };
-
-const GROUPS: MediaGroup[] = [
-  {
-    title: 'رسانه‌های حکومتی/رسمی ایران',
-    items: [
-      { name: 'IRIB News', url: 'https://www.iribnews.ir', tag: 'حکومتی' },
-      { name: 'خبرگزاری ایرنا', url: 'https://www.irna.ir', tag: 'رسمی' },
-      { name: 'خبرگزاری فارس', url: 'https://www.farsnews.ir', tag: 'حکومتی' },
-      { name: 'تلوبیون', url: 'https://www.telewebion.com', tag: 'پخش زنده' },
-      { name: 'آپارات', url: 'https://www.aparat.com', tag: 'ویدئو' },
-    ],
-  },
-  {
-    title: 'رسانه‌های مستقل/تحلیلی فارسی',
-    items: [
-      { name: 'ایسنا', url: 'https://www.isna.ir', tag: 'مستقل' },
-      { name: 'خبرآنلاین', url: 'https://www.khabaronline.ir', tag: 'تحلیلی' },
-      { name: 'دنیای اقتصاد', url: 'https://donya-e-eqtesad.com', tag: 'اقتصادی' },
-    ],
-  },
-  {
-    title: 'رسانه‌های برون‌مرزی/اپوزیسیون',
-    items: [
-      { name: 'Iran International', url: 'https://www.iranintl.com', tag: 'برون‌مرزی' },
-      { name: 'BBC Persian', url: 'https://www.bbc.com/persian', tag: 'برون‌مرزی' },
-      { name: 'Radio Farda', url: 'https://www.radiofarda.com', tag: 'اپوزیسیون' },
-      { name: 'VOA Persian', url: 'https://ir.voanews.com', tag: 'برون‌مرزی' },
-    ],
-  },
-];
+type MediaGroup = { title: string; items: Array<{ name: string; url: string; tag: string; health: string }> };
 
 export class IranMediaMatrixPanel extends Panel {
+  private groups: MediaGroup[] = [];
+
   constructor() {
     super({ id: 'iran-media-matrix', title: 'ماتریس رسانه‌ای ایران (درون/برون‌مرزی)', className: 'panel-wide' });
+    this.content.addEventListener('click', (event) => {
+      const target = event.target as HTMLElement;
+      const refresh = target.closest<HTMLButtonElement>('button[data-action="refresh-media-matrix"]');
+      if (!refresh) return;
+      void this.loadAndRender();
+    });
+    void this.loadAndRender();
+  }
+
+  private async loadAndRender(): Promise<void> {
+    this.setContent('<div style="direction:rtl;text-align:right">در حال دریافت داده از collector/API...</div>');
+    this.groups = await loadMediaMatrixProvider().catch(() => []);
     this.renderPanel();
   }
 
   private renderPanel(): void {
-    const html = GROUPS.map((g) => `
+    const html = this.groups.map((group) => `
       <section>
-        <h4 style="margin:0 0 6px">${g.title}</h4>
+        <h4 style="margin:0 0 6px">${group.title}</h4>
         <ul style="margin:0;padding-inline-start:18px;display:grid;gap:5px">
-          ${g.items.map((i) => `<li><a href="${i.url}" target="_blank" rel="noopener">${i.name}</a> <small style="opacity:.75">(${i.tag})</small></li>`).join('')}
+          ${group.items.map((item) => `<li><a href="${item.url}" target="_blank" rel="noopener">${item.name}</a> <small style="opacity:.75">(${item.tag})</small> <small style="opacity:.7">collector: ${item.health}</small></li>`).join('')}
         </ul>
       </section>
     `).join('');
 
+    const body = this.groups.length > 0
+      ? html
+      : '<p style="opacity:.8">داده زنده از API/collector در دسترس نبود. لطفاً مجدداً تلاش کنید.</p>';
+
     this.setContent(`
       <div style="direction:rtl;text-align:right;display:grid;gap:12px;line-height:1.8">
-        <p>این پنل برای رصد علمی و حرفه‌ای جریان روایت، سوگیری سیاسی-ایدئولوژیک و مقایسه پوشش رسانه‌ای در بلوک‌های مختلف طراحی شده است.</p>
-        ${html}
+        <p>این پنل از لایه data provider برای دریافت داده واقعی از collectors/API استفاده می‌کند تا ماتریس روایت قابل ممیزی بماند.</p>
+        <div><button data-action="refresh-media-matrix" style="border:1px solid var(--border-color);border-radius:8px;padding:5px 10px;background:var(--bg-secondary);cursor:pointer">بازخوانی داده</button></div>
+        ${body}
       </div>
     `);
   }
