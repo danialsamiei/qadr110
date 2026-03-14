@@ -2,6 +2,77 @@ import { getCorsHeaders, isDisallowedOrigin } from './_cors.js';
 
 export const config = { runtime: 'edge' };
 
+function hoursSince(dateValue) {
+  const ts = Date.parse(dateValue || '');
+  if (!Number.isFinite(ts)) return Number.POSITIVE_INFINITY;
+  return Math.max(0, (Date.now() - ts) / 36e5);
+}
+
+function freshnessFromHours(hours) {
+  if (hours <= 2) return 'fresh';
+  if (hours <= 10) return 'aging';
+  return 'stale';
+}
+
+function parseGoogleTrendsRss(rawRss) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(rawRss, 'text/xml');
+  const items = Array.from(doc.querySelectorAll('item'));
+
+  const topics = items.map((item) => ({
+    title: (item.querySelector('title')?.textContent || '').trim(),
+    pubDate: item.querySelector('pubDate')?.textContent || '',
+  })).filter((item) => item.title);
+
+  const avgAgeHours = topics.length
+    ? topics.reduce((sum, item) => sum + hoursSince(item.pubDate), 0) / topics.length
+    : Number.POSITIVE_INFINITY;
+
+  const newestAge = topics.length
+    ? Math.min(...topics.map((item) => hoursSince(item.pubDate)))
+    : Number.POSITIVE_INFINITY;
+
+  const titleTokens = topics
+    .flatMap((item) => item.title.split(/[\s\-/:،,.]+/g).map((x) => x.trim()).filter(Boolean))
+    .filter((token) => token.length >= 3);
+
+  const tokenCounts = new Map();
+  titleTokens.forEach((token) => tokenCounts.set(token, (tokenCounts.get(token) || 0) + 1));
+
+  const entitySummary = [...tokenCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([entity]) => entity);
+
+  const contradictionFlags = [];
+  if (topics.length < 6) contradictionFlags.push('low_sample_size');
+  if (newestAge > 6) contradictionFlags.push('slow_feed_update');
+
+  const repeatedEntity = [...tokenCounts.values()].some((count) => count >= 4);
+  if (repeatedEntity && topics.length >= 8) contradictionFlags.push('sudden_trend_shift');
+
+  const sourceConfidence = Math.max(
+    0.2,
+    Math.min(
+      0.95,
+      (topics.length >= 8 ? 0.62 : 0.42)
+      + (newestAge <= 4 ? 0.2 : 0)
+      - (contradictionFlags.includes('low_sample_size') ? 0.14 : 0)
+      - (contradictionFlags.includes('slow_feed_update') ? 0.12 : 0),
+    ),
+  );
+
+  return {
+    feedType: 'google-trends',
+    itemCount: topics.length,
+    sourceConfidence,
+    freshness: freshnessFromHours(avgAgeHours),
+    contradictionFlags,
+    entitySummary,
+    samples: topics.slice(0, 10),
+  };
+}
+
 export default async function handler(req) {
   const corsHeaders = getCorsHeaders(req, 'GET, OPTIONS');
   if (isDisallowedOrigin(req)) {
@@ -17,7 +88,8 @@ export default async function handler(req) {
   try {
     const res = await fetch(trendsRss, { headers: { 'User-Agent': 'QADR110/1.0' } });
     const text = await res.text();
-    return new Response(JSON.stringify({ geo, source: trendsRss, rawRss: text.slice(0, 200000) }), {
+    const analytical = parseGoogleTrendsRss(text);
+    return new Response(JSON.stringify({ geo, source: trendsRss, ...analytical, rawRss: text.slice(0, 200000) }), {
       status: res.ok ? 200 : 502,
       headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, s-maxage=120', ...corsHeaders },
     });
