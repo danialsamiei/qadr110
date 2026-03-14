@@ -547,20 +547,20 @@ export class CountryDeepDivePanel implements CountryBriefPanel {
 
       const link = sanitizeUrl(market.url || '');
       if (link) {
-        const anchor = this.el('a', 'cdp-market-link', 'Open');
+        const anchor = this.el('a', 'cdp-market-link', t('common.open'));
         anchor.setAttribute('href', link);
         anchor.setAttribute('target', '_blank');
         anchor.setAttribute('rel', 'noopener');
         top.append(anchor);
       }
 
-      const prob = this.el('div', 'cdp-market-prob', `Probability: ${Math.round(market.yesPrice)}%`);
-      const meta = this.el('div', 'cdp-market-meta', market.endDate ? `Ends ${this.shortDate(market.endDate)}` : 'Active');
+      const prob = this.el('div', 'cdp-market-prob', `${t('countryBrief.probability')}: ${Math.round(market.yesPrice).toLocaleString('fa-IR')}٪`);
+      const meta = this.el('div', 'cdp-market-meta', market.endDate ? `${t('countryBrief.ends')}: ${this.shortDate(market.endDate)}` : t('countryBrief.active'));
       item.append(top, prob, meta);
 
       const expanded = this.el('div', 'cdp-expanded-only');
       if (market.volume != null) {
-        expanded.append(this.el('div', 'cdp-market-volume', `Volume: $${market.volume.toLocaleString()}`));
+        expanded.append(this.el('div', 'cdp-market-volume', `${t('countryBrief.volume')}: $${market.volume.toLocaleString('fa-IR')}`));
       }
       const yesPercent = Math.round(market.yesPrice);
       const noPercent = 100 - yesPercent;
@@ -719,10 +719,10 @@ export class CountryDeepDivePanel implements CountryBriefPanel {
     this.briefBody = briefBody;
 
     this.renderInitialSignals(signals);
-    newsBody.append(this.makeLoading('Loading country headlines…'));
-    militaryBody.append(this.makeLoading('Loading flights, vessels, and nearby bases…'));
-    infraBody.append(this.makeLoading('Computing nearby critical infrastructure…'));
-    economicBody.append(this.makeLoading('Loading available indicators…'));
+    newsBody.append(this.makeLoading(t('countryBrief.loadingHeadlines')));
+    militaryBody.append(this.makeLoading(t('countryBrief.loadingMilitary')));
+    infraBody.append(this.makeLoading(t('countryBrief.loadingInfrastructure')));
+    economicBody.append(this.makeLoading(t('countryBrief.loadingIndicators')));
     marketsBody.append(this.makeLoading(t('countryBrief.loadingMarkets')));
     briefBody.append(this.makeLoading(t('countryBrief.generatingBrief')));
 
@@ -779,7 +779,7 @@ export class CountryDeepDivePanel implements CountryBriefPanel {
       recentHigh: [],
     };
     this.renderSignalBreakdown(seeded);
-    this.signalRecentBody.append(this.makeLoading('Loading top high-severity signals…'));
+    this.signalRecentBody.append(this.makeLoading(t('countryBrief.loadingSignals')));
   }
 
   private addSignalChip(container: HTMLElement, count: number, label: string, icon: string, cls: string): void {
@@ -925,7 +925,7 @@ export class CountryDeepDivePanel implements CountryBriefPanel {
     const shell = this.el('div', 'country-deep-dive-shell');
     const close = this.el('button', 'panel-close', '×') as HTMLButtonElement;
     close.id = 'deep-dive-close';
-    close.setAttribute('aria-label', 'Close');
+    close.setAttribute('aria-label', t('common.close'));
 
     const content = this.el('div', 'panel-content');
     content.id = 'deep-dive-content';

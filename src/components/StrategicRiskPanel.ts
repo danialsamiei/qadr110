@@ -434,7 +434,7 @@ export class StrategicRiskPanel extends Panel {
         : '';
 
       return `
-              <div class="risk-alert ${clickableClass}" style="border-left: 3px solid ${this.getPriorityColor(alert.priority)}" ${locationAttrs}>
+              <div class="risk-alert ${clickableClass}" style="border-inline-start: 3px solid ${this.getPriorityColor(alert.priority)}" ${locationAttrs}>
                 <div class="risk-alert-header">
                   <span class="risk-alert-type">${this.getTypeEmoji(alert.type)}</span>
                   <span class="risk-alert-priority">${this.getPriorityEmoji(alert.priority)}</span>

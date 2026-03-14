@@ -642,7 +642,7 @@ fn open_settings_window(app: &AppHandle) -> Result<(), String> {
     }
 
     let _settings_window = WebviewWindowBuilder::new(app, "settings", WebviewUrl::App("settings.html".into()))
-        .title("World Monitor Settings")
+        .title("تنظیمات QADR110")
         .title_bar_style(tauri::TitleBarStyle::Overlay)
         .inner_size(980.0, 600.0)
         .min_inner_size(820.0, 480.0)
@@ -680,7 +680,7 @@ fn open_live_channels_window(app: &AppHandle, base_url: Option<String>) -> Resul
     };
 
     let _live_channels_window = WebviewWindowBuilder::new(app, "live-channels", url)
-    .title("Channel management - World Monitor")
+    .title("QADR110 | مدیریت کانال‌ها")
     .title_bar_style(tauri::TitleBarStyle::Overlay)
     .inner_size(680.0, 760.0)
     .min_inner_size(520.0, 600.0)
@@ -710,7 +710,7 @@ fn open_youtube_login_window(app: &AppHandle) -> Result<(), String> {
     );
 
     let _yt_window = WebviewWindowBuilder::new(app, "youtube-login", url)
-        .title("Sign in to YouTube")
+        .title("ورود به YouTube")
         .inner_size(500.0, 700.0)
         .resizable(true)
         .build()
@@ -732,33 +732,33 @@ fn build_app_menu(handle: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let settings_item = MenuItem::with_id(
         handle,
         MENU_FILE_SETTINGS_ID,
-        "Settings...",
+        "تنظیمات...",
         true,
         Some("CmdOrCtrl+,"),
     )?;
     let separator = PredefinedMenuItem::separator(handle)?;
-    let quit_item = PredefinedMenuItem::quit(handle, Some("Quit"))?;
+    let quit_item = PredefinedMenuItem::quit(handle, Some("خروج"))?;
     let file_menu = Submenu::with_items(
         handle,
-        "File",
+        "فایل",
         true,
         &[&settings_item, &separator, &quit_item],
     )?;
 
     let about_metadata = AboutMetadata {
-        name: Some("World Monitor".into()),
+        name: Some("QADR110".into()),
         version: Some(env!("CARGO_PKG_VERSION").into()),
         copyright: Some("\u{00a9} 2025 Elie Habib".into()),
-        website: Some("https://worldmonitor.app".into()),
-        website_label: Some("worldmonitor.app".into()),
+        website: Some("https://qadr.alefba.dev".into()),
+        website_label: Some("qadr.alefba.dev".into()),
         ..Default::default()
     };
     let about_item =
-        PredefinedMenuItem::about(handle, Some("About World Monitor"), Some(about_metadata))?;
+        PredefinedMenuItem::about(handle, Some("درباره QADR110"), Some(about_metadata))?;
     let github_item = MenuItem::with_id(
         handle,
         MENU_HELP_GITHUB_ID,
-        "GitHub Repository",
+        "مخزن GitHub",
         true,
         None::<&str>,
     )?;
@@ -769,13 +769,13 @@ fn build_app_menu(handle: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         let devtools_item = MenuItem::with_id(
             handle,
             MENU_HELP_DEVTOOLS_ID,
-            "Toggle Developer Tools",
+            "نمایش/عدم نمایش ابزار توسعه",
             true,
             Some("CmdOrCtrl+Alt+I"),
         )?;
         Submenu::with_items(
             handle,
-            "Help",
+            "راهنما",
             true,
             &[&about_item, &help_separator, &github_item, &devtools_item],
         )?
@@ -784,7 +784,7 @@ fn build_app_menu(handle: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     #[cfg(not(feature = "devtools"))]
     let help_menu = Submenu::with_items(
         handle,
-        "Help",
+        "راهنما",
         true,
         &[&about_item, &help_separator, &github_item],
     )?;

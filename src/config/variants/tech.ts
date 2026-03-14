@@ -1,4 +1,4 @@
-// Tech/AI variant - tech.worldmonitor.app
+// Tech/AI variant - qadr.alefba.dev
 import type { PanelConfig, MapLayers } from '@/types';
 import type { VariantConfig } from './base';
 
@@ -235,6 +235,7 @@ export const DEFAULT_MAP_LAYERS: MapLayers = {
   datacenters: true,
   protests: false,
   flights: false,
+  roadTraffic: false,
   military: false,
   natural: true,
   spaceports: false,
@@ -294,6 +295,7 @@ export const MOBILE_DEFAULT_MAP_LAYERS: MapLayers = {
   datacenters: true,
   protests: false,
   flights: false,
+  roadTraffic: false,
   military: false,
   natural: true,
   spaceports: false,

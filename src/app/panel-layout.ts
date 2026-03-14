@@ -37,6 +37,7 @@ import {
   AirlineIntelPanel,
   AviationCommandBar,
   PersianStrategicPanel,
+  NarrativeAnalysisPanel,
 } from '@/components';
 import { SatelliteFiresPanel } from '@/components/SatelliteFiresPanel';
 import { focusInvestmentOnMap } from '@/services/investments-focus';
@@ -126,7 +127,7 @@ export class PanelLayoutManager implements AppModule {
         const vHref = (v: string, prod: string) => local || SITE_VARIANT === v ? '#' : prod;
         const vTarget = (_v: string) => '';
         return `
-            <a href="${vHref('full', 'https://worldmonitor.app')}"
+            <a href="${vHref('full', 'https://qadr.alefba.dev')}"
                class="variant-option ${SITE_VARIANT === 'full' ? 'active' : ''}"
                data-variant="full"
                ${vTarget('full')}
@@ -135,7 +136,7 @@ export class PanelLayoutManager implements AppModule {
               <span class="variant-label">${t('header.world')}</span>
             </a>
             <span class="variant-divider"></span>
-            <a href="${vHref('tech', 'https://tech.worldmonitor.app')}"
+            <a href="${vHref('tech', 'https://qadr.alefba.dev')}"
                class="variant-option ${SITE_VARIANT === 'tech' ? 'active' : ''}"
                data-variant="tech"
                ${vTarget('tech')}
@@ -144,7 +145,7 @@ export class PanelLayoutManager implements AppModule {
               <span class="variant-label">${t('header.tech')}</span>
             </a>
             <span class="variant-divider"></span>
-            <a href="${vHref('finance', 'https://finance.worldmonitor.app')}"
+            <a href="${vHref('finance', 'https://qadr.alefba.dev')}"
                class="variant-option ${SITE_VARIANT === 'finance' ? 'active' : ''}"
                data-variant="finance"
                ${vTarget('finance')}
@@ -153,7 +154,7 @@ export class PanelLayoutManager implements AppModule {
               <span class="variant-label">${t('header.finance')}</span>
             </a>
             <span class="variant-divider"></span>
-            <a href="${vHref('commodity', 'https://commodity.worldmonitor.app')}"
+            <a href="${vHref('commodity', 'https://qadr.alefba.dev')}"
                class="variant-option ${SITE_VARIANT === 'commodity' ? 'active' : ''}"
                data-variant="commodity"
                ${vTarget('commodity')}
@@ -162,7 +163,7 @@ export class PanelLayoutManager implements AppModule {
               <span class="variant-label">${t('header.commodity')}</span>
             </a>
             <span class="variant-divider"></span>
-            <a href="${vHref('happy', 'https://happy.worldmonitor.app')}"
+            <a href="${vHref('happy', 'https://qadr.alefba.dev')}"
                class="variant-option ${SITE_VARIANT === 'happy' ? 'active' : ''}"
                data-variant="happy"
                ${vTarget('happy')}
@@ -171,12 +172,12 @@ export class PanelLayoutManager implements AppModule {
               <span class="variant-label">Good News</span>
             </a>`;
       })()}</div>
-          <span class="logo">RasadV3</span><span class="logo-mobile">RasadV3</span><span class="version">v${__APP_VERSION__}</span>${BETA_MODE ? '<span class="beta-badge">BETA</span>' : ''}
+          <span class="logo">QADR110</span><span class="logo-mobile">QADR110</span><span class="version">v${__APP_VERSION__}</span>${BETA_MODE ? '<span class="beta-badge">BETA</span>' : ''}
           <a href="https://x.com/danialsamiei" target="_blank" rel="noopener" class="credit-link">
             <svg class="x-logo" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
             <span class="credit-text">@danialsamiei</span>
           </a>
-          <a href="https://github.com/danialsamiei/worldmonitor" target="_blank" rel="noopener" class="github-link" title="${t('header.viewOnGitHub')}">
+          <a href="https://github.com/danialsamiei/qadr110" target="_blank" rel="noopener" class="github-link" title="${t('header.viewOnGitHub')}">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
           </a>
           <button class="mobile-settings-btn" id="mobileSettingsBtn" title="${t('header.settings')}">
@@ -203,13 +204,6 @@ export class PanelLayoutManager implements AppModule {
           </button>
         </div>
         <div class="header-right">
-          ${this.ctx.isDesktopApp ? '' : `<div class="download-wrapper" id="downloadWrapper">
-            <button class="download-btn" id="downloadBtn" title="${t('header.downloadApp')}">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              <span id="downloadBtnLabel">${t('header.downloadApp')}</span>
-            </button>
-            <div class="download-dropdown" id="downloadDropdown"></div>
-          </div>`}
           <button class="search-btn" id="searchBtn"><kbd>⌘K</kbd> ${t('header.search')}</button>
           ${this.ctx.isDesktopApp ? '' : `<button class="copy-link-btn" id="copyLinkBtn">${t('header.copyLink')}</button>`}
           ${this.ctx.isDesktopApp ? '' : `<button class="fullscreen-btn" id="fullscreenBtn" title="${t('header.fullscreen')}">⛶</button>`}
@@ -220,7 +214,7 @@ export class PanelLayoutManager implements AppModule {
       <div class="mobile-menu-overlay" id="mobileMenuOverlay"></div>
       <nav class="mobile-menu" id="mobileMenu">
         <div class="mobile-menu-header">
-          <span class="mobile-menu-title">RasadV3</span>
+          <span class="mobile-menu-title">QADR110</span>
           <button class="mobile-menu-close" id="mobileMenuClose" aria-label="Close menu">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
@@ -284,6 +278,9 @@ export class PanelLayoutManager implements AppModule {
         </button>`
       ).join('')}
       </div>
+      <div class="analysis-nav" style="display:flex;gap:8px;flex-wrap:wrap;padding:8px 14px;border-bottom:1px solid var(--border-color);background:var(--bg-secondary)">
+        ${['رسانه','Pipeline','Telegram','Instagram','X','Aparat','Telewebion','GDELT','NetBlocks','GoogleTrends','ترافیک','سایبر','IXP','DSS','ESS'].map((item) => `<button class="analysis-nav-chip" style="padding:6px 10px;border-radius:999px;border:1px solid var(--border-color);background:var(--bg-tertiary);color:var(--text-primary);font-size:12px;cursor:default">${item}</button>`).join('')}
+      </div>
       <div class="main-content">
         <div class="map-section" id="mapSection">
           <div class="panel-header">
@@ -316,16 +313,16 @@ export class PanelLayoutManager implements AppModule {
       </div>
       <footer class="site-footer">
         <div class="site-footer-brand">
-          <img src="/favico/favicon-32x32.png" alt="" width="28" height="28" class="site-footer-icon" />
+          <img src="/branding/qadr-logo.svg" alt="" width="28" height="28" class="site-footer-icon" />
           <div class="site-footer-brand-text">
-            <span class="site-footer-name">RasadV3</span>
+            <span class="site-footer-name">QADR110</span>
             <span class="site-footer-sub">BY ADMIN@DANIAL.AI</span>
           </div>
         </div>
         <nav>
           <span>admin@danial.ai</span>
         </nav>
-        <span class="site-footer-copy">&copy; ${new Date().getFullYear()} RasadV3</span>
+        <span class="site-footer-copy">&copy; ${new Date().getFullYear()} QADR110</span>
       </footer>
     `;
 
@@ -546,6 +543,28 @@ export class PanelLayoutManager implements AppModule {
     this.createPanel('trade-policy', () => new TradePolicyPanel());
     this.createPanel('supply-chain', () => new SupplyChainPanel());
 
+    this.createPanel('scenario-planner', () => {
+      const panel = new ScenarioPlannerPanel();
+      panel.setScenarioComputedHandler((output) => {
+        this.ctx.mapLayers.ciiChoropleth = true;
+        this.ctx.map?.setLayers(this.ctx.mapLayers);
+
+        const topCountry = output.countryRiskIndex[0];
+        if (topCountry) {
+          this.ctx.map?.highlightCountry(topCountry.code);
+        }
+
+        this.ctx.map?.setCIIScores(
+          output.countryRiskIndex.map((c) => ({
+            code: c.code,
+            score: c.baseline,
+            level: c.baseline >= 75 ? 'critical' : c.baseline >= 60 ? 'high' : c.baseline >= 45 ? 'elevated' : c.baseline >= 30 ? 'normal' : 'low',
+          })),
+        );
+      });
+      return panel;
+    });
+
     this.createNewsPanel('africa', 'panels.africa');
     this.createNewsPanel('latam', 'panels.latam');
     this.createNewsPanel('asia', 'panels.asia');
@@ -686,6 +705,10 @@ export class PanelLayoutManager implements AppModule {
 
     if (this.shouldCreatePanel('persian-analysis')) {
       this.ctx.panels['persian-analysis'] = new PersianStrategicPanel();
+    }
+
+    if (this.shouldCreatePanel('narrative-analysis')) {
+      this.ctx.panels['narrative-analysis'] = new NarrativeAnalysisPanel();
     }
 
     if (this.shouldCreatePanel('airline-intel')) {

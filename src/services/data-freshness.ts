@@ -21,6 +21,7 @@ export type DataSourceId =
   | 'outages'    // Internet outages
   | 'cyber_threats' // Cyber threat IOC layer
   | 'weather'    // Weather alerts
+  | 'road_traffic' // Road traffic congestion
   | 'economic'   // Economic indicators (FRED)
   | 'oil'        // EIA oil analytics
   | 'spending'        // USASpending.gov
@@ -88,6 +89,7 @@ const SOURCE_METADATA: Record<DataSourceId, { name: string; requiredForRisk: boo
   outages: { name: 'Internet Outages', requiredForRisk: false, panelId: 'outages' },
   cyber_threats: { name: 'Cyber Threat IOCs', requiredForRisk: false, panelId: 'map' },
   weather: { name: 'Weather Alerts', requiredForRisk: false, panelId: 'weather' },
+  road_traffic: { name: 'Road Traffic', requiredForRisk: false, panelId: 'map' },
   economic: { name: 'Economic Data (FRED)', requiredForRisk: false, panelId: 'economic' },
   oil: { name: 'Oil Analytics (EIA)', requiredForRisk: false, panelId: 'economic' },
   spending: { name: 'Gov Spending', requiredForRisk: false, panelId: 'economic' },
@@ -348,6 +350,7 @@ const INTELLIGENCE_GAP_MESSAGES: Record<DataSourceId, string> = {
   outages: 'Internet disruptions may be unreported—outage monitoring offline',
   cyber_threats: 'Cyber IOC map points unavailable—malicious infrastructure visibility reduced',
   weather: 'Severe weather warnings may be missed—weather alerts unavailable',
+  road_traffic: 'Road congestion coverage unavailable—urban traffic conditions may be incomplete',
   economic: 'Economic indicators stale—Fed/Treasury data not updating',
   oil: 'Oil market analytics unavailable—EIA data not updating',
   spending: 'Government spending data unavailable',

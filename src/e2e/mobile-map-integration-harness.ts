@@ -105,6 +105,7 @@ const layers = {
   datacenters: false,
   protests: false,
   flights: false,
+  roadTraffic: false,
   military: false,
   natural: false,
   spaceports: false,

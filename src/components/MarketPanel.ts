@@ -25,8 +25,8 @@ export class MarketPanel extends Panel {
   private createSettingsButton(): void {
     this.settingsBtn = document.createElement('button');
     this.settingsBtn.className = 'live-news-settings-btn';
-    this.settingsBtn.title = 'Customize market watchlist';
-    this.settingsBtn.textContent = 'Watchlist';
+    this.settingsBtn.title = t('components.market.watchlist.customize');
+    this.settingsBtn.textContent = t('components.market.watchlist.button');
     this.settingsBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       this.openWatchlistModal();
@@ -55,23 +55,20 @@ export class MarketPanel extends Panel {
 
     modal.innerHTML = `
       <div class="modal-header">
-        <span class="modal-title">Market watchlist</span>
-        <button class="modal-close" aria-label="Close">×</button>
+        <span class="modal-title">${t('components.market.watchlist.title')}</span>
+        <button class="modal-close" aria-label="${t('common.close')}">×</button>
       </div>
       <div style="padding:14px 16px 16px 16px">
         <div style="color:var(--text-dim);font-size:12px;line-height:1.4;margin-bottom:10px">
-          Add extra tickers (comma or newline separated). Friendly labels supported: SYMBOL|Label.
-          Example: TSLA|Tesla, AAPL|Apple, ^GSPC|S&P 500
-          <br/>
-          Tip: keep it under ~30 unless you enjoy scrolling.
+          ${t('components.market.watchlist.help')}<br/>${t('components.market.watchlist.example')}<br/>${t('components.market.watchlist.tip')}
         </div>
         <textarea id="wmMarketWatchlistInput"
           style="width:100%;min-height:120px;resize:vertical;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:10px;font-family:inherit;font-size:12px;outline:none"
           spellcheck="false"></textarea>
         <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
-          <button type="button" class="panels-reset-layout" id="wmMarketResetBtn">Reset</button>
-          <button type="button" class="panels-reset-layout" id="wmMarketCancelBtn">Cancel</button>
-          <button type="button" class="panels-reset-layout" id="wmMarketSaveBtn" style="border-color:var(--text-dim);color:var(--text)">Save</button>
+          <button type="button" class="panels-reset-layout" id="wmMarketResetBtn">${t('common.reset')}</button>
+          <button type="button" class="panels-reset-layout" id="wmMarketCancelBtn">${t('common.cancel')}</button>
+          <button type="button" class="panels-reset-layout" id="wmMarketSaveBtn" style="border-color:var(--text-dim);color:var(--text)">${t('common.save')}</button>
         </div>
       </div>
     `;

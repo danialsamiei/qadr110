@@ -1,6 +1,7 @@
 import type { Hotspot } from '@/types';
 import { getRpcBaseUrl } from '@/services/rpc-client';
-import { t } from '@/services/i18n';
+import { t, getLocale } from '@/services/i18n';
+import { dataFreshness } from '@/services/data-freshness';
 import {
   IntelligenceServiceClient,
   type GdeltArticle as ProtoGdeltArticle,
@@ -134,6 +135,13 @@ const emptyGdeltFallback: SearchGdeltDocumentsResponse = { articles: [], query: 
 const CACHE_TTL = 5 * 60 * 1000;
 const articleCache = new Map<string, { articles: GdeltArticle[]; timestamp: number }>();
 
+let gdeltLastSuccessfulAt: string | null = null;
+let gdeltHealth: 'healthy' | 'degraded' | 'unavailable' = 'degraded';
+
+export function getGdeltIntelHealth(): { status: 'healthy' | 'degraded' | 'unavailable'; lastSuccessfulAt: string | null } {
+  return { status: gdeltHealth, lastSuccessfulAt: gdeltLastSuccessfulAt };
+}
+
 /** Map proto GdeltArticle (all required strings) to service GdeltArticle (optional fields) */
 function toGdeltArticle(a: ProtoGdeltArticle): GdeltArticle {
   return {
@@ -170,11 +178,16 @@ export async function fetchGdeltArticles(
   }, emptyGdeltFallback);
 
   if (resp.error) {
+    gdeltHealth = cached?.articles?.length ? 'degraded' : 'unavailable';
+    dataFreshness.recordError('gdelt_doc', String(resp.error));
     console.warn(`[GDELT-Intel] RPC error: ${resp.error}`);
     return cached?.articles || [];
   }
 
   const articles: GdeltArticle[] = (resp.articles || []).map(toGdeltArticle);
+  gdeltHealth = articles.length > 0 ? 'healthy' : 'degraded';
+  gdeltLastSuccessfulAt = new Date().toISOString();
+  dataFreshness.recordUpdate('gdelt_doc', articles.length);
 
   articleCache.set(cacheKey, { articles, timestamp: Date.now() });
   return articles;
@@ -207,7 +220,6 @@ export async function fetchAllTopicIntelligence(): Promise<TopicIntelligence[]> 
 export function formatArticleDate(dateStr: string): string {
   if (!dateStr) return '';
   try {
-    // GDELT returns compact format: "20260111T093000Z"
     const year = dateStr.slice(0, 4);
     const month = dateStr.slice(4, 6);
     const day = dateStr.slice(6, 8);
@@ -217,13 +229,16 @@ export function formatArticleDate(dateStr: string): string {
     const date = new Date(`${year}-${month}-${day}T${hour}:${min}:${sec}Z`);
     if (isNaN(date.getTime())) return '';
 
-    const now = Date.now();
-    const diff = now - date.getTime();
-
-    if (diff < 0) return 'just now';
-    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-    return `${Math.floor(diff / 86400000)}d ago`;
+    const diffMs = date.getTime() - Date.now();
+    const diffMinutes = Math.round(diffMs / 60000);
+    if (Math.abs(diffMinutes) < 1) return t('components.cii.time.justNow');
+    const locale = getLocale();
+    const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
+    if (Math.abs(diffMinutes) < 60) return rtf.format(diffMinutes, 'minute');
+    const diffHours = Math.round(diffMinutes / 60);
+    if (Math.abs(diffHours) < 24) return rtf.format(diffHours, 'hour');
+    const diffDays = Math.round(diffHours / 24);
+    return rtf.format(diffDays, 'day');
   } catch {
     return '';
   }

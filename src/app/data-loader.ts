@@ -16,6 +16,7 @@ import {
 } from '@/config';
 import { INTEL_HOTSPOTS, CONFLICT_ZONES } from '@/config/geo';
 import { tokenizeForMatch, matchKeyword } from '@/utils/keyword-match';
+import { buildConvergenceSignals } from '@/services/spatial-convergence';
 import {
   fetchCategoryFeeds,
   getFeedFailures,
@@ -24,6 +25,7 @@ import {
   fetchPredictions,
   fetchEarthquakes,
   fetchWeatherAlerts,
+  fetchRoadTraffic,
   fetchFredData,
   fetchInternetOutages,
   isOutagesConfigured,
@@ -126,6 +128,7 @@ import {
   UcdpEventsPanel,
   TradePolicyPanel,
   SupplyChainPanel,
+  NarrativeAnalysisPanel,
 } from '@/components';
 import { SatelliteFiresPanel } from '@/components/SatelliteFiresPanel';
 import { classifyNewsItem } from '@/services/positive-classifier';
@@ -462,6 +465,7 @@ export class DataLoaderManager implements AppModule {
     if (SITE_VARIANT !== 'happy' && this.ctx.mapLayers.cables) tasks.push({ name: 'cables', task: runGuarded('cables', () => this.loadCableActivity()) });
     if (SITE_VARIANT !== 'happy' && this.ctx.mapLayers.cables) tasks.push({ name: 'cableHealth', task: runGuarded('cableHealth', () => this.loadCableHealth()) });
     if (SITE_VARIANT !== 'happy' && this.ctx.mapLayers.flights) tasks.push({ name: 'flights', task: runGuarded('flights', () => this.loadFlightDelays()) });
+    if (SITE_VARIANT !== 'happy' && this.ctx.mapLayers.roadTraffic) tasks.push({ name: 'roadTraffic', task: runGuarded('roadTraffic', () => this.loadRoadTraffic()) });
     if (SITE_VARIANT !== 'happy' && CYBER_LAYER_ENABLED && this.ctx.mapLayers.cyberThreats) tasks.push({ name: 'cyberThreats', task: runGuarded('cyberThreats', () => this.loadCyberThreats()) });
     if (SITE_VARIANT !== 'happy' && !isDesktopRuntime()) tasks.push({ name: 'iranAttacks', task: runGuarded('iranAttacks', () => this.loadIranEvents()) });
     if (SITE_VARIANT !== 'happy' && (this.ctx.mapLayers.techEvents || SITE_VARIANT === 'tech')) tasks.push({ name: 'techEvents', task: runGuarded('techEvents', () => this.loadTechEvents()) });
@@ -542,6 +546,9 @@ export class DataLoaderManager implements AppModule {
           break;
         case 'flights':
           await this.loadFlightDelays();
+          break;
+        case 'roadTraffic':
+          await this.loadRoadTraffic();
           break;
         case 'military':
           await this.loadMilitary();
@@ -1035,6 +1042,8 @@ export class DataLoaderManager implements AppModule {
 
     this.updateMonitorResults();
 
+    const narrativePanel = this.ctx.panels['narrative-analysis'] as NarrativeAnalysisPanel | undefined;
+
     try {
       this.ctx.latestClusters = mlWorker.isAvailable
         ? await clusterNewsHybrid(this.ctx.allNews)
@@ -1042,6 +1051,7 @@ export class DataLoaderManager implements AppModule {
 
       const insightsPanel = this.ctx.panels['insights'] as InsightsPanel | undefined;
       insightsPanel?.updateInsights(this.ctx.latestClusters);
+      narrativePanel?.renderNarratives(this.ctx.allNews, this.ctx.latestClusters);
 
       const geoLocated = this.ctx.latestClusters
         .filter((c): c is typeof c & { lat: number; lon: number } => c.lat != null && c.lon != null)
@@ -1059,6 +1069,7 @@ export class DataLoaderManager implements AppModule {
       console.error('[App] Clustering failed, clusters unchanged:', error);
       const insightsPanel = this.ctx.panels['insights'] as InsightsPanel | undefined;
       insightsPanel?.updateInsights([]);
+      narrativePanel?.renderNarratives(this.ctx.allNews, []);
     }
 
     // Happy variant: run multi-stage positive news pipeline + map layers
@@ -1336,11 +1347,27 @@ export class DataLoaderManager implements AppModule {
     }
   }
 
+
+  private refreshConvergenceOverlay(): void {
+    try {
+      const gdeltEvents = (this.ctx.intelligenceCache.protests?.events || []).filter((e) => e.sourceType === 'gdelt');
+      const cyber = this.ctx.cyberThreatsCache || [];
+      const polymarket = this.ctx.latestPredictions || [];
+      const conv = buildConvergenceSignals({ polymarket, gdelt: gdeltEvents, cyber });
+      this.ctx.map?.setConvergenceSignals(conv.convergence, conv.normalized);
+      const panel = this.ctx.panels['polymarket'] as PredictionPanel | undefined;
+      panel?.setConvergenceSummary(conv.convergence.slice(0, 6));
+    } catch (error) {
+      console.warn('[Convergence] failed to refresh overlay', error);
+    }
+  }
+
   async loadPredictions(): Promise<void> {
     try {
       const predictions = await fetchPredictions({ region: this.ctx.resolvedLocation });
       this.ctx.latestPredictions = predictions;
       (this.ctx.panels['polymarket'] as PredictionPanel | undefined)?.renderPredictions(predictions);
+      this.refreshConvergenceOverlay();
 
       this.ctx.statusPanel?.updateFeed('Polymarket', { status: 'ok', itemCount: predictions.length });
       this.ctx.statusPanel?.updateApi('Polymarket', { status: 'ok' });
@@ -1511,6 +1538,7 @@ export class DataLoaderManager implements AppModule {
         if (protestData.sources.gdelt > 0) dataFreshness.recordUpdate('gdelt_doc', protestData.sources.gdelt);
         if (this.ctx.mapLayers.protests) {
           this.ctx.map?.setProtests(protestData.events);
+          this.refreshConvergenceOverlay();
           this.ctx.map?.setLayerReady('protests', protestData.events.length > 0);
           const status = getProtestStatus();
           this.ctx.statusPanel?.updateFeed('Protests', {
@@ -1821,6 +1849,7 @@ export class DataLoaderManager implements AppModule {
       ingestCyberThreatsForCII(this.ctx.cyberThreatsCache);
       this.refreshCiiAndBrief();
       this.ctx.statusPanel?.updateFeed('Cyber Threats', { status: 'ok', itemCount: this.ctx.cyberThreatsCache.length });
+      this.refreshConvergenceOverlay();
       return;
     }
 
@@ -1832,6 +1861,7 @@ export class DataLoaderManager implements AppModule {
       ingestCyberThreatsForCII(threats);
       this.refreshCiiAndBrief();
       this.ctx.statusPanel?.updateFeed('Cyber Threats', { status: 'ok', itemCount: threats.length });
+      this.refreshConvergenceOverlay();
       this.ctx.statusPanel?.updateApi('Cyber Threats API', { status: 'ok' });
       dataFreshness.recordUpdate('cyber_threats', threats.length);
     } catch (error) {
@@ -2026,6 +2056,28 @@ export class DataLoaderManager implements AppModule {
       this.ctx.map?.setLayerReady('flights', false);
       this.ctx.statusPanel?.updateFeed('Flights', { status: 'error', errorMessage: String(error) });
       this.ctx.statusPanel?.updateApi('FAA', { status: 'error' });
+    }
+  }
+
+  async loadRoadTraffic(): Promise<void> {
+    try {
+      const result = await fetchRoadTraffic();
+      this.ctx.map?.setRoadTraffic(result.points);
+      this.ctx.map?.setLayerReady('roadTraffic', result.points.length > 0);
+      this.ctx.statusPanel?.updateFeed('Road Traffic', {
+        status: result.points.length > 0 ? (result.providerConfigured ? 'ok' : 'warning') : 'warning',
+        itemCount: result.points.length,
+        errorMessage: result.message,
+      });
+      if (result.providerConfigured) {
+        dataFreshness.recordUpdate('road_traffic', result.points.length);
+      } else {
+        dataFreshness.recordError('road_traffic', result.message || 'Road traffic provider not configured');
+      }
+    } catch (error) {
+      this.ctx.map?.setLayerReady('roadTraffic', false);
+      this.ctx.statusPanel?.updateFeed('Road Traffic', { status: 'error', errorMessage: String(error) });
+      dataFreshness.recordError('road_traffic', String(error));
     }
   }
 

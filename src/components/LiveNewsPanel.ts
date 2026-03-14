@@ -464,7 +464,7 @@ export class LiveNewsPanel extends Panel {
 
   private get embedOrigin(): string {
     if (isDesktopRuntime()) return `http://localhost:${getLocalApiPort()}`;
-    try { return new URL(getRemoteApiBaseUrl()).origin; } catch { return 'https://worldmonitor.app'; }
+    try { return new URL(getRemoteApiBaseUrl()).origin; } catch { return 'https://qadr.alefba.dev'; }
   }
 
   private setupBridgeMessageListener(): void {
@@ -502,8 +502,8 @@ export class LiveNewsPanel extends Panel {
 
   private static resolveYouTubeOrigin(): string | null {
     const fallbackOrigin = SITE_VARIANT === 'tech'
-      ? 'https://worldmonitor.app'
-      : 'https://worldmonitor.app';
+      ? 'https://qadr.alefba.dev'
+      : 'https://qadr.alefba.dev';
 
     try {
       const { protocol, origin, host } = window.location;
@@ -839,7 +839,7 @@ export class LiveNewsPanel extends Panel {
     const openBtn = document.createElement('button');
     openBtn.type = 'button';
     openBtn.className = 'live-news-settings-btn';
-    openBtn.title = t('components.liveNews.channelSettings') ?? 'Channel Settings';
+    openBtn.title = t('components.liveNews.channelSettings');
     openBtn.innerHTML =
       '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
     openBtn.addEventListener('click', () => {
@@ -862,7 +862,7 @@ export class LiveNewsPanel extends Panel {
     const closeBtn = document.createElement('button');
     closeBtn.type = 'button';
     closeBtn.className = 'live-channels-modal-close';
-    closeBtn.setAttribute('aria-label', t('common.close') ?? 'Close');
+    closeBtn.setAttribute('aria-label', t('common.close'));
     closeBtn.innerHTML = '&times;';
 
     const container = document.createElement('div');
@@ -1095,7 +1095,7 @@ export class LiveNewsPanel extends Panel {
     if (quality !== 'auto') params.set('vq', quality);
     // origin = canonical site origin YouTube trusts for embed restrictions.
     // parentOrigin = actual parent frame origin so postMessage round-trips work.
-    params.set('origin', this.youtubeOrigin || 'https://worldmonitor.app');
+    params.set('origin', this.youtubeOrigin || 'https://qadr.alefba.dev');
     params.set('parentOrigin', window.location.origin);
     const embedUrl = `http://localhost:${getLocalApiPort()}/api/youtube-embed?${params.toString()}`;
 
@@ -1430,7 +1430,7 @@ export class LiveNewsPanel extends Panel {
 
     const retryBtn = document.createElement('button');
     retryBtn.className = 'offline-retry bot-check-retry';
-    retryBtn.textContent = t('common.retry') || 'Retry';
+    retryBtn.textContent = t('common.retry');
     retryBtn.addEventListener('click', () => {
       this.ensurePlayerContainer();
       if (this.useDesktopEmbedProxy) {
@@ -1445,7 +1445,7 @@ export class LiveNewsPanel extends Panel {
     ytLink.href = watchUrl;
     ytLink.target = '_blank';
     ytLink.rel = 'noopener noreferrer';
-    ytLink.textContent = t('components.liveNews.openOnYouTube') || 'Open on YouTube';
+    ytLink.textContent = t('components.liveNews.openOnYouTube');
 
     actions.append(signinBtn, retryBtn, ytLink);
     wrapper.append(icon, text, actions);

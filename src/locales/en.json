@@ -1,6 +1,6 @@
 {
   "app": {
-    "title": "World Monitor",
+    "title": "QADR110",
     "description": "Global Situation with AI Insights"
   },
   "countryBrief": {
@@ -133,7 +133,16 @@
       "languages": "Languages",
       "currencies": "Currencies",
       "area": "Area"
-    }
+    },
+    "probability": "Probability",
+    "ends": "Ends",
+    "active": "Active",
+    "volume": "Volume",
+    "loadingHeadlines": "Loading country headlines…",
+    "loadingMilitary": "Loading flights, vessels, and nearby bases…",
+    "loadingIndicators": "Loading available indicators…",
+    "loadingSignals": "Loading top high-severity signals…",
+    "loadingInfrastructure": "Computing nearby critical infrastructure…"
   },
   "header": {
     "world": "WORLD",
@@ -286,7 +295,8 @@
     "gulfIndices": "Gulf Indices",
     "gulfCurrencies": "Gulf Currencies",
     "gulfOil": "Gulf Oil",
-    "airlineIntel": "✈️ Airline Intelligence"
+    "airlineIntel": "✈️ Airline Intelligence",
+    "narrativeAnalysis": "Narrative Analysis"
   },
   "commands": {
     "prefixes": {
@@ -502,7 +512,7 @@
       },
       "openSettings": "Open Settings",
       "reserveEarlyAccess": "Reserve Your Early Access",
-      "skipSetup": "Skip the setup — a single World Monitor license unlocks everything. Join the waitlist for early access.",
+      "skipSetup": "Skip the setup — a single QADR110 license unlocks everything. Join the waitlist for early access.",
       "summary": {
         "desktop": "Desktop mode",
         "web": "Web mode (read-only, server-managed credentials)",
@@ -547,9 +557,9 @@
       "sidecarUnreachable": "Sidecar not reachable.",
       "logCleared": "Log cleared.",
       "worldMonitor": {
-        "tabLabel": "World Monitor",
+        "tabLabel": "QADR110",
         "heroTitle": "One key. Everything included.",
-        "heroDescription": "A single World Monitor license replaces every API key and LLM provider you'd otherwise configure yourself. AI summaries, real-time intelligence, market data, conflict tracking, fire detection, satellite imagery — all powered, all managed, zero setup.",
+        "heroDescription": "A single QADR110 license replaces every API key and LLM provider you'd otherwise configure yourself. AI summaries, real-time intelligence, market data, conflict tracking, fire detection, satellite imagery — all powered, all managed, zero setup.",
         "apiKey": {
           "title": "License Key",
           "placeholder": "wm_xxxxxxxxxxxxxxxxxxxxxxxx",
@@ -560,7 +570,7 @@
         "dividerOr": "OR",
         "register": {
           "title": "Reserve Your Spot",
-          "description": "We're preparing to launch World Monitor licenses. Sign up now and be first in line — early members get priority access and founding-member pricing.",
+          "description": "We're preparing to launch QADR110 licenses. Sign up now and be first in line — early members get priority access and founding-member pricing.",
           "emailPlaceholder": "your@email.com",
           "submitBtn": "Join Waitlist",
           "submitting": "Submitting...",
@@ -578,6 +588,20 @@
         "path": "Path",
         "status": "Status",
         "duration": "Duration"
+      },
+      "sections": {
+        "overview": "Overview",
+        "debug": "Debug & Logs"
+      },
+      "status": {
+        "active": "Active",
+        "notSet": "Not set",
+        "readyCount": "{{ready}}/{{total}} ready",
+        "ofTotalReady": "of {{total}} ready"
+      },
+      "actions": {
+        "showHide": "Show/hide",
+        "frontendFetchDebug": "Frontend Fetch Debug"
       }
     },
     "countryIntel": {
@@ -1072,7 +1096,8 @@
         "kindness": "Acts of Kindness",
         "happiness": "World Happiness",
         "speciesRecovery": "Species Recovery",
-        "renewableInstallations": "Clean Energy"
+        "renewableInstallations": "Clean Energy",
+        "roadTraffic": "Road Traffic"
       },
       "tooltip": {
         "earthquake": "Earthquake",
@@ -1178,12 +1203,14 @@
           "tradeRoutes": "Major global shipping lanes connecting ports through strategic chokepoints",
           "dayNight": "Real-time solar terminator showing day and night zones",
           "geoBoundaries": "Demilitarized zones, ceasefire lines, and disputed boundaries",
-          "ciiChoropleth": "Country Instability Index heat-map — colors countries by CII score (green=stable, red=critical)"
+          "ciiChoropleth": "Country Instability Index heat-map — colors countries by CII score (green=stable, red=critical)",
+          "transportRoadTraffic": "Urban road congestion indicators and traffic speed snapshots"
         },
         "notes": {
           "timeAffects": "Affects: Earthquakes, Weather, Protests, Outages"
         }
-      }
+      },
+      "timeRange": "Time Range"
     },
     "cii": {
       "shareStory": "Share story",
@@ -1543,6 +1570,16 @@
       "noEventsIn7Days": "No events in 7 days"
     },
     "gdeltIntel": {
+      "health": "Health status",
+      "lastUpdate": "Last successful update",
+      "noData": "No successful update yet",
+      "unavailable": "GDELT feed is currently unavailable",
+      "empty": "No fresh items were returned for this topic. Try another topic or retry.",
+      "status": {
+        "healthy": "Healthy",
+        "degraded": "Degraded",
+        "unavailable": "Unavailable"
+      },
       "infoTooltip": "<strong>GDELT Intelligence</strong> Real-time global news monitoring:<ul><li>Curated topic categories (conflicts, cyber, etc.)</li><li>Articles from 100+ languages translated</li><li>Updates every 15 minutes</li></ul>Source: GDELT Project (gdeltproject.org)"
     },
     "telegramIntel": {
@@ -1722,11 +1759,179 @@
       "channelNotFound": "YouTube channel not found",
       "verifying": "Verifying…",
       "hlsUrl": "HLS Stream URL (optional)",
-      "invalidHlsUrl": "Enter a valid HLS stream URL (.m3u8)"
+      "invalidHlsUrl": "Enter a valid HLS stream URL (.m3u8)",
+      "youtubeHandleOrUrlPlaceholder": "@Channel or youtube.com/watch?v=..."
     },
     "map": {
       "showMap": "Show Map",
       "hideMap": "Hide Map"
+    },
+    "infraTraffic": {
+      "title": "Infrastructure / Traffic / Cyber + IPX",
+      "snapshotAt": "Snapshot time",
+      "freshnessLabel": "Freshness",
+      "lastUpdate": "Last update",
+      "retry": "Retry",
+      "description": "This panel verifies menu execution path for GDELT and IPX and shows health/freshness with graceful degradation.",
+      "unavailable": "Operational data is temporarily unavailable. Please retry.",
+      "noData": "No data",
+      "status": {
+        "healthy": "Healthy",
+        "degraded": "Degraded",
+        "unavailable": "Unavailable"
+      },
+      "freshness": {
+        "fresh": "Fresh",
+        "stale": "Stale",
+        "unknown": "Unknown"
+      }
+    },
+    "analysisHub": {
+      "title": "Analysis Hub",
+      "subtitle": "A unified workspace for overview, trend comparison, and fast navigation across key analytical sections.",
+      "searchLabel": "Search sections",
+      "searchPlaceholder": "Example: flights, trends, reports",
+      "disclaimer": "This section is for analysis and historical pattern observation only and is not designed for operational decision-making.",
+      "sections": {
+        "overview": {
+          "title": "Overview",
+          "summary": "Quick snapshot of current data status, source coverage, and recent changes.",
+          "chips": [
+            "Daily summary",
+            "Coverage",
+            "Change index"
+          ]
+        },
+        "posture": {
+          "title": "Force posture status",
+          "summary": "Comparative view of readiness-level changes and regional presence patterns with analytical framing only.",
+          "chips": [
+            "Presence level",
+            "Temporal change",
+            "Comparative view"
+          ]
+        },
+        "flights": {
+          "title": "Military flights",
+          "summary": "Analytical view of routes, historical flight patterns, and links with news signals.",
+          "chips": [
+            "Routes",
+            "Regional density",
+            "Historical review"
+          ]
+        },
+        "trends": {
+          "title": "Historical patterns and trends",
+          "summary": "Retrospective analysis to compare trends, signal co-occurrence, and non-operational scenario notes.",
+          "chips": [
+            "Time trend",
+            "Recurring pattern",
+            "Scenario notes"
+          ]
+        },
+        "reports": {
+          "title": "Reports",
+          "summary": "Presentation-ready summaries in clear language for analytical understanding rather than operational action.",
+          "chips": [
+            "Summary report",
+            "Dominant narrative",
+            "Source quality"
+          ]
+        },
+        "filters": {
+          "title": "Filters and search",
+          "summary": "Fast access to sections via search, time range, and topical filters to reduce information overload.",
+          "chips": [
+            "Search",
+            "Time range",
+            "Topic filter"
+          ]
+        }
+      },
+      "links": {
+        "strategicRisk": "Strategic risk",
+        "cii": "Country instability",
+        "posturePanel": "Posture panel",
+        "intelFeed": "Intel feed",
+        "mainMap": "Main map",
+        "aviationIntel": "Aviation intelligence",
+        "insights": "Insights",
+        "gdelt": "GDELT",
+        "analysisHub": "Analysis hub",
+        "persianAnalysis": "Persian analysis",
+        "myMonitors": "My monitors",
+        "liveNews": "Live news"
+      }
+    },
+    "persianAnalysis": {
+      "title": "Persian Analysis",
+      "disclaimer": "This section is for analysis and historical pattern observation only and is not designed for operational decision-making.",
+      "regionalTitle": "Regional macro view",
+      "regionalBody": "Review regional developments with focus on media trends, economic indicators, and infrastructure signals across comparable time windows.",
+      "resilienceTitle": "Resilience indicators",
+      "resilienceItems": [
+        "National resilience",
+        "Economic resilience",
+        "Institutional resilience",
+        "Social resilience"
+      ],
+      "narrativeTitle": "Multi-source narrative analysis",
+      "narrativeBody": "Summarizes dominant narratives, highlights convergence or contradiction, and tracks source quality.",
+      "trendsTitle": "Historical patterns and trends",
+      "trendsBody": "Trend view with major event markers and comparative trajectory analysis across time windows.",
+      "scenarioTitle": "Non-operational scenario summary",
+      "scenarioBody": "This section describes analytical possibilities and scenario comparisons without operational recommendations."
+    },
+    "liveWebcams": {
+      "embedBlocked": "This stream is blocked or failed to load."
+    },
+    "market": {
+      "watchlist": {
+        "customize": "Customize market watchlist",
+        "button": "Watchlist",
+        "title": "Market watchlist",
+        "help": "Add extra tickers (comma or newline separated). Friendly labels supported: SYMBOL|Label.",
+        "example": "Example: TSLA|Tesla, AAPL|Apple, ^GSPC|S&P 500",
+        "tip": "Tip: keep it under ~30 unless you enjoy scrolling."
+      }
+    },
+    "aviationCommand": {
+      "title": "Aviation Command",
+      "opsSnapshot": "Ops Snapshot",
+      "emptyOps": "No ops data found.",
+      "closed": "CLOSED",
+      "delayMinutes": "+{{count}}m delay",
+      "normalOps": "Normal ops",
+      "noFlightResults": "No results for {{flightNumber}}.",
+      "departure": "Dep",
+      "noPrices": "No prices found.",
+      "demo": "DEMO",
+      "best": "Best",
+      "via": "via",
+      "nonstop": "nonstop",
+      "stops": "{{count}} stop",
+      "noNews": "No recent aviation news.",
+      "aviationNews": "Aviation News",
+      "tracking": "Tracking",
+      "trackingNote": "open Tracking tab in Airline Intel panel for live positions.",
+      "unrecognized": "Unrecognized command. Try:",
+      "placeholder": "ops IST  /  flight TK1  /  price IST LHR  /  brief",
+      "hintRun": "Press",
+      "hintClose": "to close ·",
+      "hintToggle": "to toggle",
+      "running": "Running…",
+      "errorPrefix": "Error",
+      "unknownError": "Unknown error",
+      "recentCommands": "Recent"
+    },
+    "convergence": {
+      "title": "Convergence Analysis",
+      "combined": "Combined View",
+      "empty": "Insufficient multi-source signals yet.",
+      "score": "Convergence score",
+      "confidence": "Confidence",
+      "evidence": "Evidence",
+      "relatedSources": "Related sources"
     }
   },
   "popups": {
@@ -1915,7 +2120,8 @@
     "timeUnits": {
       "m": "m",
       "h": "h",
-      "d": "d"
+      "d": "d",
+      "kmh": "km/h"
     },
     "hotspot": {
       "escalation": "ESCALATION ASSESSMENT",
@@ -2213,6 +2419,17 @@
       "uae_ecsr": "UAE/ECSR",
       "venezuela_crisis": "Venezuela Crisis",
       "yemen_houthis": "Yemen/Houthis"
+    },
+    "roadTraffic": {
+      "currentSpeed": "Current speed",
+      "freeFlowSpeed": "Free-flow speed",
+      "flowRatio": "Flow ratio",
+      "level": {
+        "low": "Low congestion",
+        "moderate": "Moderate congestion",
+        "high": "High congestion",
+        "severe": "Severe congestion"
+      }
     }
   },
   "signals": {
@@ -2395,7 +2612,12 @@
     "currentVariant": "(current)",
     "retry": "Retry",
     "refresh": "Refresh",
-    "all": "All"
+    "all": "All",
+    "analyzeWithAi": "Analyze with AI",
+    "cancel": "Cancel",
+    "save": "Save",
+    "reset": "Reset",
+    "open": "Open"
   },
   "preferences": {
     "display": "Display",
@@ -2421,7 +2643,7 @@
   },
   "premium": {
     "pro": "PRO",
-    "lockedDesc": "Requires a World Monitor license key",
+    "lockedDesc": "Requires a QADR110 license key",
     "joinWaitlist": "Join Waitlist",
     "features": {
       "orefSirens1": "Real-time Israel missile & rocket alerts",

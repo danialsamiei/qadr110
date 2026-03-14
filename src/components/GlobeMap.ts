@@ -1,7 +1,7 @@
 /**
  * GlobeMap - 3D interactive globe using globe.gl
  *
- * Matches World Monitor's MapContainer API so it can be used as a drop-in
+ * Matches QADR110's MapContainer API so it can be used as a drop-in
  * replacement within MapContainer when the user enables globe mode.
  *
  * Architecture mirrors Sentinel (sentinel.axonia.us):
@@ -37,6 +37,7 @@ import type { AirportDelayAlert } from '@/services/aviation';
 import type { MapContainerState, MapView, TimeRange } from './MapContainer';
 import type { CountryClickPayload } from './DeckGLMap';
 import type { WeatherAlert } from '@/services/weather';
+import type { RoadTrafficPoint } from '@/services/road-traffic';
 import { type IranEvent, getIranEventHexColor } from '@/services/conflict';
 import type { DisplacementFlow } from '@/services/displacement';
 import type { ClimateAnomaly } from '@/services/climate';
@@ -1400,7 +1401,7 @@ export class GlobeMap {
       </div>`;
     const authorBadge = document.createElement('div');
     authorBadge.className = 'map-author-badge';
-    authorBadge.textContent = '© Elie Habib · Someone™';
+    authorBadge.textContent = '© Danial Samiei · QADR110';
     el.appendChild(authorBadge);
     this.container.appendChild(el);
 
@@ -2300,6 +2301,9 @@ export class GlobeMap {
         reason: d.reason || 'Airspace closure',
       }));
     this.flushMarkers();
+  }
+  public setRoadTraffic(_points: RoadTrafficPoint[]): void {
+    // Road traffic congestion is currently rendered in flat-map modes only.
   }
   public setNewsLocations(data: Array<{ lat: number; lon: number; title: string; threatLevel: string; timestamp?: Date }>): void {
     this.newsLocationMarkers = (data ?? [])

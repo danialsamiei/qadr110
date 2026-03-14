@@ -286,7 +286,7 @@ export class RegulationPanel extends Panel {
 
     return `
       <div class="country-card stance-${profile.stance}">
-        <div class="country-card-header" style="border-left: 4px solid ${stanceColors[profile.stance]}">
+        <div class="country-card-header" style="border-inline-start: 4px solid ${stanceColors[profile.stance]}">
           <h5>${escapeHtml(profile.country)}</h5>
           <span class="stance-badge" style="background-color: ${stanceColors[profile.stance]}">${profile.stance.toUpperCase()}</span>
         </div>

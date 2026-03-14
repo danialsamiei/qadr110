@@ -1,44 +1,47 @@
+import { t } from '@/services/i18n';
 import { Panel } from './Panel';
 
 export class PersianStrategicPanel extends Panel {
   constructor() {
-    super({ id: 'persian-analysis', title: 'تحلیل راهبردی فارسی', className: 'panel-wide' });
+    super({ id: 'persian-analysis', title: t('panels.persianAnalysis'), className: 'panel-wide' });
     this.renderContent();
   }
 
   private renderContent(): void {
+    const resilienceItems = [
+      t('components.persianAnalysis.resilienceItems.0'),
+      t('components.persianAnalysis.resilienceItems.1'),
+      t('components.persianAnalysis.resilienceItems.2'),
+      t('components.persianAnalysis.resilienceItems.3'),
+    ];
+
     this.setContent(`
       <div style="display:grid;gap:10px;text-align:right;direction:rtl;line-height:1.8">
+        <div style="border:1px solid var(--yellow);background:rgba(255,193,7,0.08);border-radius:10px;padding:8px 10px;color:var(--yellow);font-size:12px">
+          ⚠️ ${t('components.persianAnalysis.disclaimer')}
+        </div>
         <section>
-          <strong>بخش ویژه غرب آسیا (خاورمیانه)</strong>
-          <div>پایش سناریوهای نبرد ایران، وضعیت تنگه هرمز، خلیج فارس، نفت، طلا و فلزات گران‌بها، و بورس‌های بین‌المللی.</div>
+          <strong>${t('components.persianAnalysis.regionalTitle')}</strong>
+          <div>${t('components.persianAnalysis.regionalBody')}</div>
         </section>
         <section>
-          <strong>تاب‌آوری کشورها</strong>
+          <strong>${t('components.persianAnalysis.resilienceTitle')}</strong>
           <ul style="margin:6px 0 0;padding-inline-start:18px;">
-            <li>تاب‌آوری ملی</li>
-            <li>تاب‌آوری اقتصادی</li>
-            <li>تاب‌آوری نظامی</li>
-            <li>تاب‌آوری شناختی</li>
+            ${resilienceItems.map((item) => `<li>${item}</li>`).join('')}
           </ul>
         </section>
         <section>
-          <strong>طیف حمایت بین‌المللی</strong>
-          <div>از «حمایت از جبهه مقاومت» تا «مخالفت بین‌المللی» در یک طیف پیوسته قابل رصد.</div>
-          <div style="font-family:monospace">حمایت کامل ███████░░░ مخالفت</div>
+          <strong>${t('components.persianAnalysis.narrativeTitle')}</strong>
+          <div>${t('components.persianAnalysis.narrativeBody')}</div>
         </section>
         <section>
-          <strong>منابع چندزبانه تحلیل</strong>
-          <div>فارسی، عربی، عبری، ترکی، چینی، روسی، ارمنی، اسپانیایی، فرانسوی و آلمانی.</div>
+          <strong>${t('components.persianAnalysis.trendsTitle')}</strong>
+          <div>${t('components.persianAnalysis.trendsBody')}</div>
+          <div style="font-family:monospace">روند تاریخی ▁▂▃▅▇ | بازه مرجع ▁▃▄▅▆ | بازه اخیر ▁▂▄▆█</div>
         </section>
         <section>
-          <strong>تحلیل روند + پیش‌بینی سناریو</strong>
-          <div>نمودارهای روند با پرچم رویدادهای مهم، بک‌تست (Backtest) و پیش‌بینی (Forecast) برای سناریوهای خوش‌بینانه/پایه/بدبینانه.</div>
-          <div style="font-family:monospace">سناریو بدبینانه ▁▂▃▅▇ | پایه ▁▃▄▅▆ | خوش‌بینانه ▁▂▄▆█</div>
-        </section>
-        <section>
-          <strong>منوهای پیشرفته داده</strong>
-          <div>اتصال تحلیلی به داده‌های ژئوپلیتیک و Polymarket برای سنجش احتمال رخدادها و اثرات بازار.</div>
+          <strong>${t('components.persianAnalysis.scenarioTitle')}</strong>
+          <div>${t('components.persianAnalysis.scenarioBody')}</div>
         </section>
       </div>
     `);

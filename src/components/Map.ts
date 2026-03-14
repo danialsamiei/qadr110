@@ -12,6 +12,7 @@ import type { TechHubActivity } from '@/services/tech-activity';
 import type { GeoHubActivity } from '@/services/geo-activity';
 import { getNaturalEventIcon } from '@/services/eonet';
 import type { WeatherAlert } from '@/services/weather';
+import type { RoadTrafficPoint } from '@/services/road-traffic';
 import { getSeverityColor } from '@/services/weather';
 import { startSmartPollLoop, type SmartPollLoopHandle } from '@/services/runtime';
 import {
@@ -130,6 +131,7 @@ export class MapComponent {
   private healthByCableId: Record<string, CableHealthRecord> = {};
   private protests: SocialUnrestEvent[] = [];
   private flightDelays: AirportDelayAlert[] = [];
+  private roadTraffic: RoadTrafficPoint[] = [];
   private aircraftPositions: PositionSample[] = [];
   private militaryFlights: MilitaryFlight[] = [];
   private militaryFlightClusters: MilitaryFlightCluster[] = [];
@@ -274,9 +276,9 @@ export class MapComponent {
     const controls = document.createElement('div');
     controls.className = 'map-controls';
     controls.innerHTML = `
-      <button class="map-control-btn" data-action="zoom-in" aria-label="Zoom in">+</button>
-      <button class="map-control-btn" data-action="zoom-out" aria-label="Zoom out">−</button>
-      <button class="map-control-btn" data-action="reset" aria-label="Reset rotation">⟲</button>
+      <button class="map-control-btn" data-action="zoom-in" aria-label="${t('components.deckgl.zoomIn')}">+</button>
+      <button class="map-control-btn" data-action="zoom-out" aria-label="${t('components.deckgl.zoomOut')}">−</button>
+      <button class="map-control-btn" data-action="reset" aria-label="${t('components.deckgl.resetView')}">⟲</button>
     `;
 
     controls.addEventListener('click', (e) => {
@@ -305,7 +307,7 @@ export class MapComponent {
     ];
 
     slider.innerHTML = `
-      <span class="time-slider-label">TIME RANGE</span>
+      <span class="time-slider-label">${t('components.deckgl.timeRange')}</span>
       <div class="time-slider-buttons">
         ${ranges
         .map(
@@ -372,7 +374,7 @@ export class MapComponent {
       'military',                                         // military tracking (flights + vessels)
       'cables', 'pipelines', 'outages', 'datacenters',   // infrastructure
       // cyberThreats is intentionally hidden on SVG/mobile fallback (DeckGL desktop only)
-      'ais', 'flights', 'gpsJamming',                      // transport/interference
+      'ais', 'flights', 'roadTraffic', 'gpsJamming',                      // transport/interference
       'natural', 'weather',                               // natural
       'economic',                                         // economic
       'waterways',                                        // labels
@@ -388,6 +390,7 @@ export class MapComponent {
       'stockExchanges', 'financialCenters', 'centralBanks', 'commodityHubs', // finance ecosystem
       'cables', 'pipelines', 'outages',                   // infrastructure
       'sanctions', 'economic', 'waterways',               // geopolitical/economic
+      'roadTraffic',                                     // transport congestion
       'natural', 'weather',                               // natural events
     ];
     const happyLayers: (keyof MapLayers)[] = [
@@ -407,6 +410,7 @@ export class MapComponent {
       datacenters: 'components.deckgl.layers.aiDataCenters',
       ais: 'components.deckgl.layers.shipTraffic',
       flights: 'components.deckgl.layers.flightDelays',
+      roadTraffic: 'components.deckgl.layers.roadTraffic',
       natural: 'components.deckgl.layers.naturalEvents',
       weather: 'components.deckgl.layers.weatherAlerts',
       economic: 'components.deckgl.layers.economicCenters',
@@ -504,7 +508,7 @@ export class MapComponent {
     const helpHeader = `
       <div class="layer-help-header">
         <span>${t('components.deckgl.layerHelp.title')}</span>
-        <button class="layer-help-close" aria-label="Close">×</button>
+        <button class="layer-help-close" aria-label="${t('common.close')}">×</button>
       </div>
     `;
 
@@ -589,6 +593,7 @@ export class MapComponent {
         ${helpSection('transport', [
       helpItem(label('shipTraffic'), 'transportShipping'),
       helpItem(label('flightDelays'), 'transportDelays'),
+      helpItem(label('roadTraffic'), 'transportRoadTraffic'),
     ])}
         ${helpSection('naturalEconomic', [
       helpItem(label('naturalEvents'), 'naturalEventsFull'),
@@ -2479,6 +2484,45 @@ export class MapComponent {
       });
     }
 
+
+    // Road traffic congestion points
+    if (this.state.layers.roadTraffic) {
+      this.roadTraffic.forEach((point) => {
+        const pos = projection([point.lon, point.lat]);
+        if (!pos) return;
+
+        const div = document.createElement('div');
+        div.className = `road-traffic-marker ${point.congestionLevel}`;
+        div.style.left = `${pos[0]}px`;
+        div.style.top = `${pos[1]}px`;
+
+        const icon = document.createElement('div');
+        icon.className = 'road-traffic-icon';
+        icon.textContent = point.congestionLevel === 'severe' ? '🚨' : point.congestionLevel === 'high' ? '🚗' : '🛣️';
+        div.appendChild(icon);
+
+        if (this.state.zoom >= 3) {
+          const label = document.createElement('div');
+          label.className = 'road-traffic-label';
+          label.textContent = `${point.city} · ${Math.round(point.speedKph)}km/h`;
+          div.appendChild(label);
+        }
+
+        div.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const rect = this.container.getBoundingClientRect();
+          this.popup.show({
+            type: 'roadTraffic',
+            data: point,
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top,
+          });
+        });
+
+        this.overlays.appendChild(div);
+      });
+    }
+
     // Aircraft positions (simplified dots in SVG fallback, limited to 200)
     if (this.state.layers.flights) {
       this.aircraftPositions.slice(0, 200).forEach((ac) => {
@@ -3093,7 +3137,7 @@ export class MapComponent {
   }
 
   private static readonly ASYNC_DATA_LAYERS: Set<keyof MapLayers> = new Set([
-    'natural', 'weather', 'outages', 'ais', 'protests', 'flights', 'military', 'techEvents',
+    'natural', 'weather', 'outages', 'ais', 'protests', 'flights', 'roadTraffic', 'military', 'techEvents',
   ]);
 
   public toggleLayer(layer: keyof MapLayers, source: 'user' | 'programmatic' = 'user'): void {
@@ -3663,6 +3707,11 @@ export class MapComponent {
 
   public setFlightDelays(delays: AirportDelayAlert[]): void {
     this.flightDelays = delays;
+    this.render();
+  }
+
+  public setRoadTraffic(points: RoadTrafficPoint[]): void {
+    this.roadTraffic = points;
     this.render();
   }
 

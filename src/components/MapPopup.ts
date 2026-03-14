@@ -2,6 +2,7 @@ import type { ConflictZone, Hotspot, NewsItem, MilitaryBase, StrategicWaterway, 
 import type { AirportDelayAlert, PositionSample } from '@/services/aviation';
 import type { Earthquake } from '@/services/earthquakes';
 import type { WeatherAlert } from '@/services/weather';
+import type { RoadTrafficPoint } from '@/services/road-traffic';
 import { UNDERSEA_CABLES } from '@/config';
 import type { StartupHub, Accelerator, TechHQ, CloudRegion } from '@/config/tech-geo';
 import type { TechHubActivity } from '@/services/tech-activity';
@@ -14,7 +15,7 @@ import { getNaturalEventIcon } from '@/services/eonet';
 import { getHotspotEscalation, getEscalationChange24h } from '@/services/hotspot-escalation';
 import { getCableHealthRecord } from '@/services/cable-health';
 
-export type PopupType = 'conflict' | 'hotspot' | 'earthquake' | 'weather' | 'base' | 'waterway' | 'apt' | 'cyberThreat' | 'nuclear' | 'economic' | 'irradiator' | 'pipeline' | 'cable' | 'cable-advisory' | 'repair-ship' | 'outage' | 'datacenter' | 'datacenterCluster' | 'ais' | 'protest' | 'protestCluster' | 'flight' | 'aircraft' | 'militaryFlight' | 'militaryVessel' | 'militaryFlightCluster' | 'militaryVesselCluster' | 'natEvent' | 'port' | 'spaceport' | 'mineral' | 'startupHub' | 'cloudRegion' | 'techHQ' | 'accelerator' | 'techEvent' | 'techHQCluster' | 'techEventCluster' | 'techActivity' | 'geoActivity' | 'stockExchange' | 'financialCenter' | 'centralBank' | 'commodityHub' | 'iranEvent' | 'gpsJamming';
+export type PopupType = 'conflict' | 'hotspot' | 'earthquake' | 'weather' | 'base' | 'waterway' | 'apt' | 'cyberThreat' | 'nuclear' | 'economic' | 'irradiator' | 'pipeline' | 'cable' | 'cable-advisory' | 'repair-ship' | 'outage' | 'datacenter' | 'datacenterCluster' | 'ais' | 'protest' | 'protestCluster' | 'flight' | 'roadTraffic' | 'aircraft' | 'militaryFlight' | 'militaryVessel' | 'militaryFlightCluster' | 'militaryVesselCluster' | 'natEvent' | 'port' | 'spaceport' | 'mineral' | 'startupHub' | 'cloudRegion' | 'techHQ' | 'accelerator' | 'techEvent' | 'techHQCluster' | 'techEventCluster' | 'techActivity' | 'geoActivity' | 'stockExchange' | 'financialCenter' | 'centralBank' | 'commodityHub' | 'iranEvent' | 'gpsJamming';
 
 interface TechEventPopupData {
   id: string;
@@ -143,7 +144,7 @@ interface DatacenterClusterData {
 
 interface PopupData {
   type: PopupType;
-  data: ConflictZone | Hotspot | Earthquake | WeatherAlert | MilitaryBase | StrategicWaterway | APTGroup | CyberThreat | NuclearFacility | EconomicCenter | GammaIrradiator | Pipeline | UnderseaCable | CableAdvisory | RepairShip | InternetOutage | AIDataCenter | AisDisruptionEvent | SocialUnrestEvent | AirportDelayAlert | PositionSample | MilitaryFlight | MilitaryVessel | MilitaryFlightCluster | MilitaryVesselCluster | NaturalEvent | Port | Spaceport | CriticalMineralProject | StartupHub | CloudRegion | TechHQ | Accelerator | TechEventPopupData | TechHQClusterData | TechEventClusterData | ProtestClusterData | DatacenterClusterData | TechHubActivity | GeoHubActivity | StockExchangePopupData | FinancialCenterPopupData | CentralBankPopupData | CommodityHubPopupData | IranEventPopupData | GpsJammingPopupData;
+  data: ConflictZone | Hotspot | Earthquake | WeatherAlert | MilitaryBase | StrategicWaterway | APTGroup | CyberThreat | NuclearFacility | EconomicCenter | GammaIrradiator | Pipeline | UnderseaCable | CableAdvisory | RepairShip | InternetOutage | AIDataCenter | AisDisruptionEvent | SocialUnrestEvent | AirportDelayAlert | RoadTrafficPoint | PositionSample | MilitaryFlight | MilitaryVessel | MilitaryFlightCluster | MilitaryVesselCluster | NaturalEvent | Port | Spaceport | CriticalMineralProject | StartupHub | CloudRegion | TechHQ | Accelerator | TechEventPopupData | TechHQClusterData | TechEventClusterData | ProtestClusterData | DatacenterClusterData | TechHubActivity | GeoHubActivity | StockExchangePopupData | FinancialCenterPopupData | CentralBankPopupData | CommodityHubPopupData | IranEventPopupData | GpsJammingPopupData;
   relatedNews?: NewsItem[];
   x: number;
   y: number;
@@ -428,6 +429,8 @@ export class MapPopup {
         return this.renderProtestClusterPopup(data.data as ProtestClusterData);
       case 'flight':
         return this.renderFlightPopup(data.data as AirportDelayAlert);
+      case 'roadTraffic':
+        return this.renderRoadTrafficPopup(data.data as RoadTrafficPoint);
       case 'aircraft':
         return this.renderAircraftPopup(data.data as PositionSample);
       case 'militaryFlight':
@@ -1149,6 +1152,35 @@ export class MapPopup {
             <span class="stat-label">${t('popups.updated')}</span>
             <span class="stat-value">${delay.updatedAt.toLocaleTimeString()}</span>
           </div>
+        </div>
+      </div>
+    `;
+  }
+
+  private renderRoadTrafficPopup(point: RoadTrafficPoint): string {
+    const levelLabelMap: Record<RoadTrafficPoint['congestionLevel'], string> = {
+      low: t('popups.roadTraffic.level.low'),
+      moderate: t('popups.roadTraffic.level.moderate'),
+      high: t('popups.roadTraffic.level.high'),
+      severe: t('popups.roadTraffic.level.severe'),
+    };
+    const levelLabel = levelLabelMap[point.congestionLevel] || point.congestionLevel;
+    const ratio = point.freeFlowKph > 0 ? Math.max(0, Math.min(100, Math.round((point.speedKph / point.freeFlowKph) * 100))) : 0;
+
+    return `
+      <div class="popup-header road-traffic ${point.congestionLevel}">
+        <span class="popup-title">🛣️ ${escapeHtml(point.city)}</span>
+        <span class="popup-badge">${escapeHtml(levelLabel)}</span>
+        <button class="popup-close" aria-label="${t('common.close')}">×</button>
+      </div>
+      <div class="popup-body">
+        <div class="popup-subtitle">${escapeHtml(point.country)}</div>
+        <div class="popup-stats">
+          <div class="popup-stat"><span class="stat-label">${t('popups.roadTraffic.currentSpeed')}</span><span class="stat-value">${Math.round(point.speedKph)} ${t('popups.timeUnits.kmh')}</span></div>
+          <div class="popup-stat"><span class="stat-label">${t('popups.roadTraffic.freeFlowSpeed')}</span><span class="stat-value">${Math.round(point.freeFlowKph)} ${t('popups.timeUnits.kmh')}</span></div>
+          <div class="popup-stat"><span class="stat-label">${t('popups.roadTraffic.flowRatio')}</span><span class="stat-value">${ratio}%</span></div>
+          <div class="popup-stat"><span class="stat-label">${t('popups.source')}</span><span class="stat-value">${escapeHtml(point.source.toUpperCase())}</span></div>
+          <div class="popup-stat"><span class="stat-label">${t('popups.updated')}</span><span class="stat-value">${point.updatedAt.toLocaleTimeString()}</span></div>
         </div>
       </div>
     `;

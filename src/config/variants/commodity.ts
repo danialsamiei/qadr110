@@ -1,4 +1,4 @@
-// Commodity variant - commodity.worldmonitor.app -- Focused on mining, metals, energy commodities, and critical minerals
+// Commodity variant - qadr.alefba.dev -- Focused on mining, metals, energy commodities, and critical minerals
 import type { PanelConfig, MapLayers } from '@/types';
 import type { VariantConfig } from './base';
 
@@ -81,6 +81,7 @@ export const DEFAULT_MAP_LAYERS: MapLayers = {
   // Transport / tracking
   ais: true,              // Commodity shipping, tanker routes, bulk carriers
   flights: false,
+  roadTraffic: false,
   // Infrastructure
   cables: true,           // Undersea cables (trade comms)
   outages: true,          // Power outages affect operations
@@ -149,6 +150,7 @@ export const MOBILE_DEFAULT_MAP_LAYERS: MapLayers = {
   protests: false,
   ais: false,
   flights: false,
+  roadTraffic: false,
   cables: false,
   outages: false,
   datacenters: false,
