@@ -21,6 +21,8 @@ import {
 import { getLearningProgress } from '@/services/country-instability';
 import { fetchCachedRiskScores } from '@/services/cached-risk-scores';
 import { getCachedPosture } from '@/services/cached-theater-posture';
+import { generateForecastDistribution } from '@/services/forecast';
+import { renderFanChart } from './forecast-ui';
 
 export class StrategicRiskPanel extends Panel {
   private overview: StrategicRiskOverview | null = null;
@@ -307,6 +309,7 @@ export class StrategicRiskPanel extends Panel {
         </div>
 
         ${this.renderMetrics()}
+        ${this.renderRiskForecast()}
         ${this.renderTopRisks()}
         ${this.renderRecentAlerts()}
 
@@ -359,6 +362,19 @@ export class StrategicRiskPanel extends Panel {
           <span class="risk-metric-value">${alertCounts.critical + alertCounts.high}</span>
           <span class="risk-metric-label">${t('components.strategicRisk.highAlerts')}</span>
         </div>
+      </div>
+    `;
+  }
+
+
+  private renderRiskForecast(): string {
+    if (!this.overview) return '';
+
+    const distribution = generateForecastDistribution('riskIndex', Math.max(5, this.overview.compositeScore));
+    return `
+      <div class="risk-section">
+        <div class="risk-section-title">Risk Index Probability Forecast</div>
+        ${renderFanChart(distribution)}
       </div>
     `;
   }

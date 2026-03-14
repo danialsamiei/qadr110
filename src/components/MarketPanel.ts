@@ -4,6 +4,8 @@ import type { MarketData, CryptoData } from '@/types';
 import { formatPrice, formatChange, getChangeClass, getHeatmapClass } from '@/utils';
 import { escapeHtml } from '@/utils/sanitize';
 import { miniSparkline } from '@/utils/sparkline';
+import { generateForecastDistribution } from '@/services/forecast';
+import { renderFanChart } from './forecast-ui';
 import {
   getMarketWatchlistEntries,
   parseMarketWatchlistInput,
@@ -177,7 +179,19 @@ export class CommoditiesPanel extends Panel {
       return;
     }
 
+    const oil = validData.find((d) => /oil|brent|wti/i.test(d.display));
+    const gold = validData.find((d) => /gold/i.test(d.display));
+    const forecastHtml = (oil || gold)
+      ? `
+        <div class="panel-forecast-block">
+          ${oil?.price ? `<div><div class="panel-forecast-title">Oil forecast</div>${renderFanChart(generateForecastDistribution('oil', oil.price))}</div>` : ''}
+          ${gold?.price ? `<div><div class="panel-forecast-title">Gold forecast</div>${renderFanChart(generateForecastDistribution('gold', gold.price))}</div>` : ''}
+        </div>
+      `
+      : '';
+
     const html =
+      forecastHtml +
       '<div class="commodities-grid">' +
       validData
         .map(

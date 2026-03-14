@@ -8,6 +8,8 @@ import { escapeHtml } from '@/utils/sanitize';
 import { isFeatureAvailable } from '@/services/runtime-config';
 import { isDesktopRuntime } from '@/services/runtime';
 import { getCSSColor } from '@/utils';
+import { generateForecastDistribution } from '@/services/forecast';
+import { renderFanChart } from './forecast-ui';
 
 type TabId = 'indicators' | 'oil' | 'spending' | 'centralBanks';
 
@@ -179,7 +181,23 @@ export class EconomicPanel extends Panel {
       return `<div class="economic-empty">${t('components.economic.noOilMetrics')}</div>`;
     }
 
+    const oilAnchor = this.oilData.wtiPrice?.current ?? this.oilData.brentPrice?.current ?? 75;
+    const shippingAnchor = Math.max(25, (this.oilData.usInventory?.current ?? oilAnchor) * 1.8);
+    const forecastHtml = `
+      <div class="panel-forecast-block">
+        <div>
+          <div class="panel-forecast-title">Oil probability forecast</div>
+          ${renderFanChart(generateForecastDistribution('oil', oilAnchor))}
+        </div>
+        <div>
+          <div class="panel-forecast-title">Shipping rate probability forecast</div>
+          ${renderFanChart(generateForecastDistribution('shippingRate', shippingAnchor))}
+        </div>
+      </div>
+    `;
+
     return `
+      ${forecastHtml}
       <div class="economic-indicators oil-metrics">
         ${metrics.map(metric => {
       if (!metric) return '';
