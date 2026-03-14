@@ -37,7 +37,7 @@ import {
   AirlineIntelPanel,
   AviationCommandBar,
   PersianStrategicPanel,
-  ScenarioPlannerPanel,
+  NarrativeAnalysisPanel,
 } from '@/components';
 import { SatelliteFiresPanel } from '@/components/SatelliteFiresPanel';
 import { focusInvestmentOnMap } from '@/services/investments-focus';
@@ -707,36 +707,8 @@ export class PanelLayoutManager implements AppModule {
       this.ctx.panels['persian-analysis'] = new PersianStrategicPanel();
     }
 
-    if (this.shouldCreatePanel('qadr-assistant')) {
-      this.ctx.panels['qadr-assistant'] = new QadrAssistantPanel();
-    }
-
-    if (this.shouldCreatePanel('world-monitoring-hub')) {
-      this.ctx.panels['world-monitoring-hub'] = new WorldMonitoringHubPanel();
-    }
-
-    if (this.shouldCreatePanel('premium-benchmark')) {
-      this.ctx.panels['premium-benchmark'] = new PremiumBenchmarkPanel();
-    }
-
-    if (this.shouldCreatePanel('darkweb-defensive')) {
-      this.ctx.panels['darkweb-defensive'] = new DarkwebDefensivePanel();
-    }
-
-    if (this.shouldCreatePanel('iran-media-matrix')) {
-      this.ctx.panels['iran-media-matrix'] = new IranMediaMatrixPanel();
-    }
-
-    if (this.shouldCreatePanel('regional-slices')) {
-      this.ctx.panels['regional-slices'] = new RegionalSlicesPanel();
-    }
-
-    if (this.shouldCreatePanel('infra-traffic-cyber')) {
-      this.ctx.panels['infra-traffic-cyber'] = new InfraTrafficCyberPanel();
-    }
-
-    if (this.shouldCreatePanel('media-pipelines')) {
-      this.ctx.panels['media-pipelines'] = new MediaPipelinesPanel();
+    if (this.shouldCreatePanel('narrative-analysis')) {
+      this.ctx.panels['narrative-analysis'] = new NarrativeAnalysisPanel();
     }
 
     if (this.shouldCreatePanel('airline-intel')) {
