@@ -117,7 +117,7 @@ function renderSidebar(): void {
   items.push(`
     <button class="settings-nav-item${activeSection === 'overview' ? ' active' : ''}" data-section="overview" role="tab" aria-selected="${activeSection === 'overview'}">
       ${SIDEBAR_ICONS.overview}
-      <span class="settings-nav-label">Overview</span>
+      <span class="settings-nav-label">${t('modals.settingsWindow.sections.overview')}</span>
       <span class="settings-nav-dot ${overviewDotClass}"></span>
     </button>
   `);
@@ -142,7 +142,7 @@ function renderSidebar(): void {
   items.push(`
     <button class="settings-nav-item${activeSection === 'debug' ? ' active' : ''}" data-section="debug" role="tab" aria-selected="${activeSection === 'debug'}">
       ${SIDEBAR_ICONS.debug}
-      <span class="settings-nav-label">Debug &amp; Logs</span>
+      <span class="settings-nav-label">${t('modals.settingsWindow.sections.debug')}</span>
     </button>
   `);
 
@@ -189,14 +189,14 @@ function renderOverview(area: HTMLElement): void {
   const ringColor = ready === total ? 'var(--settings-green)' : ready > 0 ? 'var(--settings-blue)' : 'var(--settings-yellow)';
 
   const wmState = getSecretState('WORLDMONITOR_API_KEY');
-  const wmStatusText = wmState.present ? 'Active' : 'Not set';
+  const wmStatusText = wmState.present ? t('modals.settingsWindow.status.active') : t('modals.settingsWindow.status.notSet');
   const wmStatusClass = wmState.present ? 'ok' : 'warn';
   const catCards = SETTINGS_CATEGORIES.map(cat => {
     const { ready: catReady, total: catTotal } = getFeatureStatusCounts(cat);
     const cls = catReady === catTotal ? 'ov-cat-ok' : catReady > 0 ? 'ov-cat-partial' : 'ov-cat-warn';
     return `<button class="settings-ov-cat ${cls}" data-section="${cat.id}">
       <span class="settings-ov-cat-label">${escapeHtml(cat.label)}</span>
-      <span class="settings-ov-cat-count">${catReady}/${catTotal} ready</span>
+      <span class="settings-ov-cat-count">${t('modals.settingsWindow.status.readyCount', { ready: catReady, total: catTotal })}</span>
     </button>`;
   }).join('');
 
@@ -211,7 +211,7 @@ function renderOverview(area: HTMLElement): void {
         </svg>
         <div class="settings-ov-ring-text">
           <span class="settings-ov-ring-num">${ready}</span>
-          <span class="settings-ov-ring-label">of ${total} ready</span>
+          <span class="settings-ov-ring-label">${t('modals.settingsWindow.status.ofTotalReady', { total })}</span>
         </div>
       </div>
       <div class="settings-ov-cats">${catCards}</div>
@@ -227,7 +227,7 @@ function renderOverview(area: HTMLElement): void {
               placeholder="${t('modals.settingsWindow.worldMonitor.apiKey.placeholder')}"
               autocomplete="off" spellcheck="false"
               ${wmState.present ? `value="${MASKED_SENTINEL}"` : ''} />
-            <button type="button" class="wm-toggle-vis" data-wm-toggle title="Show/hide">&#x1f441;</button>
+            <button type="button" class="wm-toggle-vis" data-wm-toggle title="${t('modals.settingsWindow.actions.showHide')}">&#x1f441;</button>
           </div>
           <span class="wm-badge ${wmStatusClass}">${wmStatusText}</span>
         </div>
@@ -579,7 +579,7 @@ async function loadOllamaModelsIntoSelect(select: HTMLSelectElement): Promise<vo
 function renderDebug(area: HTMLElement): void {
   area.innerHTML = `
     <div class="settings-section-header">
-      <h2>Debug &amp; Logs</h2>
+      <h2>${t('modals.settingsWindow.sections.debug')}</h2>
     </div>
     <div class="debug-actions">
       <button id="openLogsBtn" type="button">Open Logs Folder</button>
@@ -602,7 +602,7 @@ function renderDebug(area: HTMLElement): void {
         <h2>Diagnostics</h2>
         <div class="diag-toggles">
           <label><input type="checkbox" id="verboseApiLog"> Verbose Sidecar Log</label>
-          <label><input type="checkbox" id="fetchDebugLog"> Frontend Fetch Debug</label>
+          <label><input type="checkbox" id="fetchDebugLog"> ${t('modals.settingsWindow.actions.frontendFetchDebug')}</label>
         </div>
       </header>
       <div class="diag-traffic-bar">

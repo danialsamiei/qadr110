@@ -11,7 +11,7 @@ function sanitizeVideoId(value) {
 }
 
 const ALLOWED_ORIGINS = [
-  /^https:\/\/(.*\.)?worldmonitor\.app$/,
+  /^https:\/\/qadr\.alefba\.dev$/,
   /^https:\/\/worldmonitor-[a-z0-9-]+-elie-habib-projects\.vercel\.app$/,
   /^https:\/\/worldmonitor-[a-z0-9-]+\.vercel\.app$/,
   /^https?:\/\/localhost(:\d+)?$/,
@@ -40,7 +40,7 @@ function sanitizeAllowedOrigin(raw, fallback, allowList = ALLOWED_ORIGINS) {
 }
 
 function sanitizeOrigin(raw) {
-  return sanitizeAllowedOrigin(raw, 'https://worldmonitor.app', ALLOWED_ORIGINS);
+  return sanitizeAllowedOrigin(raw, 'https://qadr.alefba.dev', ALLOWED_ORIGINS);
 }
 
 function sanitizeParentOrigin(raw, fallback) {
@@ -93,17 +93,6 @@ export default async function handler(request) {
   <div id="player"></div>
   <div id="play-overlay"><svg viewBox="0 0 68 48"><path d="M66.52 7.74c-.78-2.93-2.49-5.41-5.42-6.19C55.79.13 34 0 34 0S12.21.13 6.9 1.55C3.97 2.33 2.27 4.81 1.48 7.74.06 13.05 0 24 0 24s.06 10.95 1.48 16.26c.78 2.93 2.49 5.41 5.42 6.19C12.21 47.87 34 48 34 48s21.79-.13 27.1-1.55c2.93-.78 4.64-3.26 5.42-6.19C67.94 34.95 68 24 68 24s-.06-10.95-1.48-16.26z" fill="red"/><path d="M45 24L27 14v20" fill="#fff"/></svg></div>
   <script>
-    // Request unpartitioned cookie access so the YouTube player can use the
-    // user's cached YouTube session (bypasses bot-check for signed-in users).
-    // Most browsers require a user gesture; we try eagerly here (Chrome may
-    // grant it automatically if the user has visited youtube.com), then retry
-    // on the first overlay click as a gesture-gated fallback.
-    function tryStorageAccess() {
-      if (document.requestStorageAccess) {
-        document.requestStorageAccess().catch(function(){});
-      }
-    }
-    tryStorageAccess();
     var tag=document.createElement('script');
     tag.src='https://www.youtube.com/iframe_api';
     document.head.appendChild(tag);
@@ -146,9 +135,6 @@ export default async function handler(request) {
       });
     }
     overlay.addEventListener('click',function(){
-      // Gesture-gated fallback: retry storage access on first user interaction,
-      // which satisfies browsers that require a gesture before granting access.
-      tryStorageAccess();
       if(player&&player.playVideo){player.playVideo();player.unMute();hideOverlay()}
     });
     setTimeout(function(){if(!started)overlay.classList.remove('hidden')},3000);
@@ -174,10 +160,6 @@ export default async function handler(request) {
     headers: {
       'content-type': 'text/html; charset=utf-8',
       'cache-control': 'public, s-maxage=900, stale-while-revalidate=300',
-      // Allow the nested YouTube iframe to call requestStorageAccess() for
-      // unpartitioned cookie access (lets signed-in users skip bot-check).
-      // Scope storage-access permission to self and YouTube only rather than *.
-      'permissions-policy': 'storage-access=(self "https://www.youtube.com")',
     },
   });
 }

@@ -589,6 +589,20 @@
         "path": "Path",
         "status": "Status",
         "duration": "Duration"
+      },
+      "sections": {
+        "overview": "Overview",
+        "debug": "Debug & Logs"
+      },
+      "status": {
+        "active": "Active",
+        "notSet": "Not set",
+        "readyCount": "{{ready}}/{{total}} ready",
+        "ofTotalReady": "of {{total}} ready"
+      },
+      "actions": {
+        "showHide": "Show/hide",
+        "frontendFetchDebug": "Frontend Fetch Debug"
       }
     },
     "countryIntel": {
@@ -1746,7 +1760,8 @@
       "channelNotFound": "YouTube channel not found",
       "verifying": "Verifying…",
       "hlsUrl": "HLS Stream URL (optional)",
-      "invalidHlsUrl": "Enter a valid HLS stream URL (.m3u8)"
+      "invalidHlsUrl": "Enter a valid HLS stream URL (.m3u8)",
+      "youtubeHandleOrUrlPlaceholder": "@Channel or youtube.com/watch?v=..."
     },
     "map": {
       "showMap": "Show Map",

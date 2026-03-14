@@ -589,6 +589,20 @@
         "path": "مسیر",
         "status": "وضعیت",
         "duration": "مدت زمان"
+      },
+      "sections": {
+        "overview": "نمای کلی",
+        "debug": "دیباگ و لاگ‌ها"
+      },
+      "status": {
+        "active": "فعال",
+        "notSet": "تنظیم نشده",
+        "readyCount": "{{ready}}/{{total}} آماده",
+        "ofTotalReady": "از {{total}} مورد آماده"
+      },
+      "actions": {
+        "showHide": "نمایش/پنهان‌سازی",
+        "frontendFetchDebug": "دیباگ واکشی فرانت‌اند"
       }
     },
     "countryIntel": {
@@ -1746,7 +1760,8 @@
       "channelNotFound": "کانال یوتیوب یافت نشد",
       "verifying": "در حال تأیید…",
       "hlsUrl": "URL جریان HLS (اختیاری)",
-      "invalidHlsUrl": "یک URL جریان HLS معتبر (m3u8.) وارد کنید"
+      "invalidHlsUrl": "یک URL جریان HLS معتبر (m3u8.) وارد کنید",
+      "youtubeHandleOrUrlPlaceholder": "@Channel یا youtube.com/watch?v=..."
     },
     "map": {
       "showMap": "نمایش نقشه",
