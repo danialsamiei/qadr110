@@ -42,6 +42,7 @@ export const LAYER_REGISTRY: Record<keyof MapLayers, LayerDefinition> = {
   ais:                      def('ais',                      '&#128674;', 'shipTraffic',              'Ship Traffic'),
   tradeRoutes:              def('tradeRoutes',              '&#9875;',   'tradeRoutes',              'Trade Routes'),
   flights:                  def('flights',                  '&#9992;',   'flightDelays',             'Aviation'),
+  roadTraffic:              def('roadTraffic',              '&#128663;', 'roadTraffic',              'Road Traffic'),
   protests:                 def('protests',                 '&#128226;', 'protests',                 'Protests'),
   ucdpEvents:               def('ucdpEvents',               '&#9876;',   'ucdpEvents',               'Armed Conflict Events'),
   displacement:             def('displacement',             '&#128101;', 'displacementFlows',        'Displacement Flows'),
@@ -83,7 +84,7 @@ const VARIANT_LAYER_ORDER: Record<MapVariant, Array<keyof MapLayers>> = {
     'iranAttacks', 'hotspots', 'conflicts',
     'bases', 'nuclear', 'irradiators', 'spaceports',
     'cables', 'pipelines', 'datacenters', 'military',
-    'ais', 'tradeRoutes', 'flights', 'protests',
+    'ais', 'tradeRoutes', 'flights', 'roadTraffic', 'protests',
     'ucdpEvents', 'displacement', 'climate', 'weather',
     'outages', 'cyberThreats', 'natural', 'fires',
     'waterways', 'economic', 'minerals', 'gpsJamming',
@@ -97,7 +98,7 @@ const VARIANT_LAYER_ORDER: Record<MapVariant, Array<keyof MapLayers>> = {
   finance: [
     'stockExchanges', 'financialCenters', 'centralBanks', 'commodityHubs',
     'gulfInvestments', 'tradeRoutes', 'cables', 'pipelines',
-    'outages', 'weather', 'economic', 'waterways',
+    'outages', 'weather', 'roadTraffic', 'economic', 'waterways',
     'natural', 'cyberThreats', 'dayNight',
   ],
   happy: [
@@ -107,7 +108,7 @@ const VARIANT_LAYER_ORDER: Record<MapVariant, Array<keyof MapLayers>> = {
   commodity: [
     'miningSites', 'processingPlants', 'commodityPorts', 'commodityHubs',
     'minerals', 'pipelines', 'waterways', 'tradeRoutes',
-    'ais', 'economic', 'fires', 'climate',
+    'ais', 'roadTraffic', 'economic', 'fires', 'climate',
     'natural', 'weather', 'outages', 'dayNight',
   ],
 };
@@ -148,6 +149,9 @@ export const LAYER_SYNONYMS: Record<string, Array<keyof MapLayers>> = {
   airplane: ['flights'],
   plane: ['flights'],
   notam: ['flights'],
+  road: ['roadTraffic'],
+  traffic: ['roadTraffic', 'flights', 'ais'],
+  congestion: ['roadTraffic'],
   ship: ['ais', 'tradeRoutes'],
   vessel: ['ais'],
   maritime: ['ais', 'waterways', 'tradeRoutes'],

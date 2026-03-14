@@ -143,7 +143,7 @@ export class MonitorPanel extends Panel {
       ...unique.slice(0, 10).map((item) =>
         h('div', {
           className: 'item',
-          style: `border-left: 2px solid ${item.monitorColor || ''}; padding-left: 8px; margin-left: -8px;`,
+          style: `border-inline-start: 2px solid ${item.monitorColor || ''}; padding-inline-start: 8px; margin-inline-start: -8px;`,
         },
           h('div', { className: 'item-source' }, item.source),
           h('a', {

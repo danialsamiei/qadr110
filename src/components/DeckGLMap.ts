@@ -51,6 +51,7 @@ import { HeatmapLayer } from '@deck.gl/aggregation-layers';
 import { H3HexagonLayer } from '@deck.gl/geo-layers';
 import { PathStyleExtension } from '@deck.gl/extensions';
 import type { WeatherAlert } from '@/services/weather';
+import type { RoadTrafficPoint } from '@/services/road-traffic';
 import { escapeHtml } from '@/utils/sanitize';
 import { tokenizeForMatch, matchKeyword, matchesAnyKeyword, findMatchingKeywords } from '@/utils/keyword-match';
 import { t } from '@/services/i18n';
@@ -111,6 +112,7 @@ import { getCountriesGeoJson, getCountryAtCoordinates, getCountryBbox } from '@/
 import type { FeatureCollection, Geometry } from 'geojson';
 
 import { isAllowedPreviewUrl } from '@/utils/imagery-preview';
+import type { ConvergenceSignal, NormalizedGeoSignal } from '@/services/spatial-convergence';
 
 export type TimeRange = '1h' | '6h' | '24h' | '48h' | '7d' | 'all';
 export type DeckMapView = 'global' | 'america' | 'mena' | 'eu' | 'asia' | 'latam' | 'africa' | 'oceania';
@@ -319,6 +321,10 @@ export class DeckGLMap {
   private firmsFireData: Array<{ lat: number; lon: number; brightness: number; frp: number; confidence: number; region: string; acq_date: string; daynight: string }> = [];
   private techEvents: TechEventMarker[] = [];
   private flightDelays: AirportDelayAlert[] = [];
+  private roadTraffic: RoadTrafficPoint[] = [];
+  private convergenceSignals: ConvergenceSignal[] = [];
+  private convergenceView: 'off' | 'polymarket' | 'gdelt' | 'cyber' | 'combined' = 'combined';
+  private highlightedConvergenceId: string | null = null;
   private aircraftPositions: PositionSample[] = [];
   private aircraftFetchTimer: ReturnType<typeof setInterval> | null = null;
   private news: NewsItem[] = [];
@@ -1194,6 +1200,7 @@ export class DeckGLMap {
     const filteredOutages = mapLayers.outages ? this.filterByTime(this.outages, (outage) => outage.pubDate) : [];
     const filteredCableAdvisories = mapLayers.cables ? this.filterByTime(this.cableAdvisories, (advisory) => advisory.reported) : [];
     const filteredFlightDelays = mapLayers.flights ? this.filterByTime(this.flightDelays, (delay) => delay.updatedAt) : [];
+    const filteredRoadTraffic = mapLayers.roadTraffic ? this.filterByTime(this.roadTraffic, (point) => point.updatedAt) : [];
     const filteredMilitaryFlights = mapLayers.military ? this.filterByTime(this.militaryFlights, (flight) => flight.lastSeen) : [];
     const filteredMilitaryVessels = mapLayers.military ? this.filterByTime(this.militaryVessels, (vessel) => vessel.lastAisUpdate) : [];
     const filteredMilitaryFlightClusters = mapLayers.military ? this.filterMilitaryFlightClustersByTime(this.militaryFlightClusters) : [];
@@ -1349,6 +1356,17 @@ export class DeckGLMap {
     // Aircraft positions layer (live tracking, under flights toggle)
     if (mapLayers.flights && this.aircraftPositions.length > 0) {
       layers.push(this.createAircraftPositionsLayer());
+    }
+
+
+    // Road traffic congestion layer
+    if (mapLayers.roadTraffic && filteredRoadTraffic.length > 0) {
+      layers.push(this.createRoadTrafficLayer(filteredRoadTraffic));
+    }
+
+    const conv = this.getVisibleConvergenceSignals();
+    if (conv.length > 0) {
+      layers.push(this.createConvergenceLayer(conv));
     }
 
     // Protests layer (Supercluster-based deck.gl layers)
@@ -2169,6 +2187,54 @@ export class DeckGLMap {
       },
       radiusMinPixels: 4,
       radiusMaxPixels: 12,
+      pickable: true,
+    });
+  }
+
+  private createRoadTrafficLayer(data: RoadTrafficPoint[]): ScatterplotLayer<RoadTrafficPoint> {
+    return new ScatterplotLayer<RoadTrafficPoint>({
+      id: 'road-traffic-layer',
+      data,
+      getPosition: (d) => [d.lon, d.lat],
+      getRadius: (d) => d.congestionLevel === 'severe' ? 22000 : d.congestionLevel === 'high' ? 17000 : d.congestionLevel === 'moderate' ? 13000 : 9000,
+      getFillColor: (d) => d.congestionLevel === 'severe'
+        ? [244, 63, 94, 210] as [number, number, number, number]
+        : d.congestionLevel === 'high'
+          ? [249, 115, 22, 200] as [number, number, number, number]
+          : d.congestionLevel === 'moderate'
+            ? [250, 204, 21, 190] as [number, number, number, number]
+            : [34, 197, 94, 170] as [number, number, number, number],
+      radiusMinPixels: 5,
+      radiusMaxPixels: 16,
+      pickable: true,
+      stroked: true,
+      getLineColor: [255, 255, 255, 160] as [number, number, number, number],
+      lineWidthMinPixels: 1,
+    });
+  }
+
+  private getVisibleConvergenceSignals(): ConvergenceSignal[] {
+    if (!this.convergenceSignals.length || this.convergenceView === 'off') return [];
+    if (this.convergenceView === 'combined') return this.convergenceSignals;
+    const key = this.convergenceView as 'polymarket' | 'gdelt' | 'cyber';
+    return this.convergenceSignals.filter((c) => c.sourceBreakdown[key] > 0);
+  }
+
+  private createConvergenceLayer(data: ConvergenceSignal[]): ScatterplotLayer<ConvergenceSignal> {
+    return new ScatterplotLayer<ConvergenceSignal>({
+      id: 'convergence-layer',
+      data,
+      getPosition: (d) => [d.lon, d.lat],
+      getRadius: (d) => 12000 + d.score * 140,
+      getFillColor: (d) => d.score >= 75
+        ? [168, 85, 247, this.highlightedConvergenceId === d.id ? 240 : 200] as [number, number, number, number]
+        : d.score >= 55
+          ? [59, 130, 246, this.highlightedConvergenceId === d.id ? 235 : 185] as [number, number, number, number]
+          : [16, 185, 129, this.highlightedConvergenceId === d.id ? 230 : 170] as [number, number, number, number],
+      stroked: true,
+      getLineColor: [255, 255, 255, 170] as [number, number, number, number],
+      radiusMinPixels: 7,
+      radiusMaxPixels: 26,
       pickable: true,
     });
   }
@@ -3389,6 +3455,13 @@ export class DeckGLMap {
       }
       case 'repair-ships-layer':
         return { html: `<div class="deckgl-tooltip"><strong>${text(obj.name || t('components.deckgl.tooltip.repairShip'))}</strong><br/>${text(obj.status)}</div>` };
+      case 'convergence-layer': {
+        return { html: `<div class="deckgl-tooltip"><strong>🔗 ${t('components.convergence.title')}</strong><br/>${t('components.convergence.score')}: ${text(String(obj.score))}/100<br/>${t('components.convergence.confidence')}: ${text(String(obj.confidence))}/100</div>` };
+      }
+      case 'road-traffic-layer': {
+        const lvl = obj.congestionLevel || 'moderate';
+        return { html: `<div class="deckgl-tooltip"><strong>🛣️ ${text(obj.city || t('components.deckgl.layers.roadTraffic'))}</strong><br/>${text(t(`popups.roadTraffic.level.${lvl}`))}<br/>${text(String(Math.round(obj.speedKph || 0)))} km/h</div>` };
+      }
       case 'weather-layer': {
         const areaDesc = typeof obj.areaDesc === 'string' ? obj.areaDesc : '';
         const area = areaDesc ? `<br/><small>${text(areaDesc.slice(0, 50))}${areaDesc.length > 50 ? '...' : ''}</small>` : '';
@@ -3500,6 +3573,21 @@ export class DeckGLMap {
       });
       this.popup.loadHotspotGdeltContext(hotspot);
       this.onHotspotClick?.(hotspot);
+      return;
+    }
+
+    if (layerId === 'convergence-layer') {
+      const signal = info.object as ConvergenceSignal;
+      this.highlightedConvergenceId = signal.id;
+      this.render();
+      window.dispatchEvent(new CustomEvent('qadr110:convergence-selected', { detail: signal }));
+      this.popup.show({
+        type: 'hotspot',
+        data: { id: signal.id, name: t('components.convergence.title'), level: signal.score >= 75 ? 'high' : signal.score >= 55 ? 'elevated' : 'low', lat: signal.lat, lon: signal.lon, keywords: [] } as any,
+        relatedNews: [],
+        x: info.x,
+        y: info.y,
+      });
       return;
     }
 
@@ -4010,6 +4098,7 @@ export class DeckGLMap {
       helpItem(label('shipTraffic'), 'transportShipping'),
       helpItem(label('tradeRoutes'), 'tradeRoutes'),
       helpItem(label('flightDelays'), 'transportDelays'),
+      helpItem(label('roadTraffic'), 'transportRoadTraffic'),
     ])}
         ${helpSection('naturalEconomic', [
       helpItem(label('naturalEvents'), 'naturalEventsFull'),
@@ -4547,6 +4636,29 @@ export class DeckGLMap {
 
   public setFlightDelays(delays: AirportDelayAlert[]): void {
     this.flightDelays = delays;
+    this.render();
+  }
+
+  public setRoadTraffic(points: RoadTrafficPoint[]): void {
+    this.roadTraffic = points;
+    this.render();
+  }
+
+  public setConvergenceSignals(signals: ConvergenceSignal[], _normalized: NormalizedGeoSignal[]): void {
+    this.convergenceSignals = signals;
+    this.render();
+  }
+
+  public setConvergenceView(view: 'off' | 'polymarket' | 'gdelt' | 'cyber' | 'combined'): void {
+    this.convergenceView = view;
+    this.render();
+  }
+
+  public focusConvergenceByMarketTitle(title: string): void {
+    const hit = this.convergenceSignals.find((c) => c.evidence.some((e) => e.source === 'polymarket' && e.title === title));
+    if (!hit) return;
+    this.highlightedConvergenceId = hit.id;
+    this.setCenter(hit.lat, hit.lon, Math.max(this.state.zoom, 3.2));
     this.render();
   }
 

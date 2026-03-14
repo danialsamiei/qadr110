@@ -2,7 +2,7 @@
 // For variant-specific builds, set VITE_VARIANT environment variable
 // VITE_VARIANT=tech → qadr.alefba.dev (tech-focused)
 // VITE_VARIANT=full → qadr.alefba.dev (geopolitical)
-// VITE_VARIANT=finance → finance.qadr.alefba.dev (markets/trading)
+// VITE_VARIANT=finance → qadr.alefba.dev (markets/trading)
 
 export { SITE_VARIANT } from './variant';
 

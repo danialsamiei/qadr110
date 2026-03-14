@@ -352,14 +352,14 @@ export class LiveWebcamsPanel extends Panel {
 
     const message = document.createElement('div');
     message.className = 'webcam-embed-fallback-text';
-    message.textContent = 'This stream is blocked or failed to load.';
+    message.textContent = t('components.liveWebcams.embedBlocked');
 
     const actions = document.createElement('div');
     actions.className = 'webcam-embed-fallback-actions';
 
     const retryBtn = document.createElement('button');
     retryBtn.className = 'offline-retry webcam-embed-retry';
-    retryBtn.textContent = t('common.retry') || 'Retry';
+    retryBtn.textContent = t('common.retry');
     retryBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       this.retryIframe(iframe);
@@ -370,7 +370,7 @@ export class LiveWebcamsPanel extends Panel {
     openBtn.href = `https://www.youtube.com/watch?v=${encodeURIComponent(feed.fallbackVideoId)}`;
     openBtn.target = '_blank';
     openBtn.rel = 'noopener noreferrer';
-    openBtn.textContent = t('components.liveNews.openOnYouTube') || 'Open on YouTube';
+    openBtn.textContent = t('components.liveNews.openOnYouTube');
     openBtn.addEventListener('click', (e) => e.stopPropagation());
 
     actions.append(retryBtn, openBtn);

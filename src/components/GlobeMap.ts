@@ -37,6 +37,7 @@ import type { AirportDelayAlert } from '@/services/aviation';
 import type { MapContainerState, MapView, TimeRange } from './MapContainer';
 import type { CountryClickPayload } from './DeckGLMap';
 import type { WeatherAlert } from '@/services/weather';
+import type { RoadTrafficPoint } from '@/services/road-traffic';
 import { type IranEvent, getIranEventHexColor } from '@/services/conflict';
 import type { DisplacementFlow } from '@/services/displacement';
 import type { ClimateAnomaly } from '@/services/climate';
@@ -2300,6 +2301,9 @@ export class GlobeMap {
         reason: d.reason || 'Airspace closure',
       }));
     this.flushMarkers();
+  }
+  public setRoadTraffic(_points: RoadTrafficPoint[]): void {
+    // Road traffic congestion is currently rendered in flat-map modes only.
   }
   public setNewsLocations(data: Array<{ lat: number; lon: number; title: string; threatLevel: string; timestamp?: Date }>): void {
     this.newsLocationMarkers = (data ?? [])

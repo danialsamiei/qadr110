@@ -360,6 +360,16 @@ export class EventHandlerManager implements AppModule {
     };
     window.addEventListener('theme-changed', this.boundThemeChangedHandler);
 
+    window.addEventListener('qadr110:convergence-view', ((e: Event) => {
+      const view = (e as CustomEvent).detail as 'off' | 'polymarket' | 'gdelt' | 'cyber' | 'combined';
+      this.ctx.map?.setConvergenceView(view);
+    }) as EventListener);
+
+    window.addEventListener('qadr110:polymarket-focus', ((e: Event) => {
+      const detail = (e as CustomEvent).detail as { title?: string };
+      if (detail?.title) this.ctx.map?.focusConvergenceByMarketTitle(detail.title);
+    }) as EventListener);
+
     this.setupMobileMenu();
 
     if (this.ctx.isDesktopApp) {

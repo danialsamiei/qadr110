@@ -2,8 +2,11 @@ import { Panel } from './Panel';
 import type { PredictionMarket } from '@/services/prediction';
 import { escapeHtml, sanitizeUrl } from '@/utils/sanitize';
 import { t } from '@/services/i18n';
+import type { ConvergenceSignal } from '@/services/spatial-convergence';
 
 export class PredictionPanel extends Panel {
+  private convergence: ConvergenceSignal[] = [];
+
   constructor() {
     super({
       id: 'polymarket',
@@ -19,13 +22,39 @@ export class PredictionPanel extends Panel {
     return `$${volume.toFixed(0)}`;
   }
 
+
+  public setConvergenceSummary(items: ConvergenceSignal[]): void {
+    this.convergence = items;
+    this.bindConvergenceControls();
+  }
+
+  private bindConvergenceControls(): void {
+    this.content.querySelectorAll<HTMLElement>('[data-conv-view]').forEach((el) => {
+      el.onclick = () => {
+        const view = el.dataset.convView as 'off' | 'polymarket' | 'gdelt' | 'cyber' | 'combined';
+        window.dispatchEvent(new CustomEvent('qadr110:convergence-view', { detail: view }));
+      };
+    });
+    this.content.querySelectorAll<HTMLElement>('[data-market-title]').forEach((el) => {
+      el.onclick = () => {
+        const title = el.dataset.marketTitle || '';
+        if (!title) return;
+        window.dispatchEvent(new CustomEvent('qadr110:polymarket-focus', { detail: { title } }));
+      };
+    });
+  }
+
   public renderPredictions(data: PredictionMarket[]): void {
     if (data.length === 0) {
       this.showError(t('common.failedPredictions'));
       return;
     }
 
-    const html = data
+    const convTop = this.convergence.length > 0
+      ? `<div class="prediction-convergence"><div class="prediction-convergence-title">${t('components.convergence.title')}</div><div class="prediction-convergence-controls"><button type="button" data-conv-view="polymarket">Polymarket</button><button type="button" data-conv-view="gdelt">GDELT</button><button type="button" data-conv-view="cyber">Cyber</button><button type="button" data-conv-view="combined">${t('components.convergence.combined')}</button></div></div>`
+      : `<div class="prediction-convergence"><div class="prediction-convergence-title">${t('components.convergence.title')}</div><div class="prediction-convergence-empty">${t('components.convergence.empty')}</div></div>`;
+
+    const html = convTop + data
       .map((p) => {
         const yesPercent = Math.round(p.yesPrice);
         const noPercent = 100 - yesPercent;
@@ -50,7 +79,7 @@ export class PredictionPanel extends Panel {
           : '';
 
         return `
-      <div class="prediction-item">
+      <div class="prediction-item" data-market-title="${escapeHtml(p.title)}">
         ${titleHtml}
         ${metaHtml}
         <div class="prediction-bar">
@@ -67,5 +96,6 @@ export class PredictionPanel extends Panel {
       .join('');
 
     this.setContent(html);
+    this.bindConvergenceControls();
   }
 }

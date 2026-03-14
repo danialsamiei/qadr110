@@ -33,6 +33,7 @@ import type { DisplacementFlow } from '@/services/displacement';
 import type { Earthquake } from '@/services/earthquakes';
 import type { ClimateAnomaly } from '@/services/climate';
 import type { WeatherAlert } from '@/services/weather';
+import type { RoadTrafficPoint } from '@/services/road-traffic';
 import type { PositiveGeoEvent } from '@/services/positive-events-geo';
 import type { KindnessPoint } from '@/services/kindness-data';
 import type { HappinessData } from '@/services/happiness-data';
@@ -42,6 +43,7 @@ import type { GpsJamHex } from '@/services/gps-interference';
 import type { SatellitePosition } from '@/services/satellites';
 import type { IranEvent } from '@/services/conflict';
 import type { ImageryScene } from '@/generated/server/worldmonitor/imagery/v1/service_server';
+import type { ConvergenceSignal, NormalizedGeoSignal } from '@/services/spatial-convergence';
 
 export type TimeRange = '1h' | '6h' | '24h' | '48h' | '7d' | 'all';
 export type MapView = 'global' | 'america' | 'mena' | 'eu' | 'asia' | 'latam' | 'africa' | 'oceania';
@@ -107,6 +109,7 @@ export class MapContainer {
   private cachedCableHealth: Record<string, CableHealthRecord> | null = null;
   private cachedProtests: SocialUnrestEvent[] | null = null;
   private cachedFlightDelays: AirportDelayAlert[] | null = null;
+  private cachedRoadTraffic: RoadTrafficPoint[] | null = null;
   private cachedAircraftPositions: PositionSample[] | null = null;
   private cachedMilitaryFlights: MilitaryFlight[] | null = null;
   private cachedMilitaryFlightClusters: MilitaryFlightCluster[] | null = null;
@@ -272,6 +275,7 @@ export class MapContainer {
     if (this.cachedCableHealth) this.setCableHealth(this.cachedCableHealth);
     if (this.cachedProtests) this.setProtests(this.cachedProtests);
     if (this.cachedFlightDelays) this.setFlightDelays(this.cachedFlightDelays);
+    if (this.cachedRoadTraffic) this.setRoadTraffic(this.cachedRoadTraffic);
     if (this.cachedAircraftPositions) this.setAircraftPositions(this.cachedAircraftPositions);
     if (this.cachedMilitaryFlights) this.setMilitaryFlights(this.cachedMilitaryFlights, this.cachedMilitaryFlightClusters ?? []);
     if (this.cachedMilitaryVessels) this.setMilitaryVessels(this.cachedMilitaryVessels, this.cachedMilitaryVesselClusters ?? []);
@@ -464,6 +468,16 @@ export class MapContainer {
     }
   }
 
+  public setRoadTraffic(points: RoadTrafficPoint[]): void {
+    this.cachedRoadTraffic = points;
+    if (this.useGlobe) { this.globeMap?.setRoadTraffic(points); return; }
+    if (this.useDeckGL) {
+      this.deckGLMap?.setRoadTraffic(points);
+    } else {
+      this.svgMap?.setRoadTraffic(points);
+    }
+  }
+
   public setAircraftPositions(positions: PositionSample[]): void {
     this.cachedAircraftPositions = positions;
     if (this.useDeckGL) {
@@ -548,6 +562,22 @@ export class MapContainer {
   public setSatellites(positions: SatellitePosition[]): void {
     this.cachedSatellites = positions;
     if (this.useGlobe) { this.globeMap?.setSatellites(positions); return; }
+  }
+
+
+  public setConvergenceSignals(signals: ConvergenceSignal[], normalized: NormalizedGeoSignal[]): void {
+    if (this.useGlobe) return;
+    if (this.useDeckGL) this.deckGLMap?.setConvergenceSignals(signals, normalized);
+  }
+
+  public setConvergenceView(view: 'off' | 'polymarket' | 'gdelt' | 'cyber' | 'combined'): void {
+    if (this.useGlobe) return;
+    if (this.useDeckGL) this.deckGLMap?.setConvergenceView(view);
+  }
+
+  public focusConvergenceByMarketTitle(title: string): void {
+    if (this.useGlobe) return;
+    if (this.useDeckGL) this.deckGLMap?.focusConvergenceByMarketTitle(title);
   }
 
   public setCyberThreats(threats: CyberThreat[]): void {

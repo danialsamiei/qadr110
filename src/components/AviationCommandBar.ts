@@ -1,5 +1,6 @@
 import { fetchFlightStatus, fetchAirportOpsSummary, fetchFlightPrices, fetchAviationNews } from '@/services/aviation';
 import { escapeHtml, sanitizeUrl } from '@/utils/sanitize';
+import { t } from '@/services/i18n';
 
 // ---- Intent types ----
 
@@ -64,58 +65,58 @@ type CommandResult = { html: string; error?: boolean };
 async function executeIntent(intent: Intent): Promise<CommandResult> {
     if (intent.type === 'OPS') {
         const summaries = await fetchAirportOpsSummary(intent.airports);
-        if (!summaries.length) return { html: '<div class="cmd-empty">No ops data found.</div>' };
+        if (!summaries.length) return { html: `<div class="cmd-empty">${t('components.aviationCommand.emptyOps')}</div>` };
         const rows = summaries.map(s => `
       <div class="cmd-row">
         <strong>${escapeHtml(s.iata)}</strong>
         <span style="color:${s.severity === 'normal' ? '#22c55e' : s.severity === 'minor' ? '#f59e0b' : '#ef4444'}">${s.severity.toUpperCase()}</span>
-        <span>${s.avgDelayMinutes > 0 ? `+${s.avgDelayMinutes}m delay` : 'Normal ops'}</span>
-        ${s.closureStatus ? '<span style="color:#ef4444">CLOSED</span>' : ''}
+        <span>${s.avgDelayMinutes > 0 ? t('components.aviationCommand.delayMinutes', { count: String(s.avgDelayMinutes) }) : t('components.aviationCommand.normalOps')}</span>
+        ${s.closureStatus ? `<span style="color:#ef4444">${t('components.aviationCommand.closed')}</span>` : ''}
       </div>`).join('');
-        return { html: `<div class="cmd-section"><strong>✈️ Ops Snapshot</strong>${rows}</div>` };
+        return { html: `<div class="cmd-section"><strong>✈️ ${t('components.aviationCommand.opsSnapshot')}</strong>${rows}</div>` };
     }
 
     if (intent.type === 'FLIGHT_STATUS') {
         const flights = await fetchFlightStatus(intent.flightNumber, undefined, intent.origin);
-        if (!flights.length) return { html: `<div class="cmd-empty">No results for ${escapeHtml(intent.flightNumber)}.</div>` };
+        if (!flights.length) return { html: `<div class="cmd-empty">${t('components.aviationCommand.noFlightResults', { flightNumber: escapeHtml(intent.flightNumber) })}</div>` };
         const f = flights[0]!;
         const timeStr = f.estimatedDeparture
-            ? `Dep ${f.estimatedDeparture.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}`
+            ? `${t('components.aviationCommand.departure')} ${f.estimatedDeparture.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit', hour12: false })}`
             : '';
         return {
             html: `<div class="cmd-section">
       <strong>✈️ ${escapeHtml(f.flightNumber)}</strong>
       <div>${escapeHtml(f.origin.iata)} → ${escapeHtml(f.destination.iata)} · ${f.status} · ${timeStr}</div>
-      ${f.delayMinutes > 0 ? `<div style="color:#f97316">+${f.delayMinutes}m delay</div>` : ''}
+      ${f.delayMinutes > 0 ? `<div style="color:#f97316">${t('components.aviationCommand.delayMinutes', { count: String(f.delayMinutes) })}</div>` : ''}
     </div>` };
     }
 
     if (intent.type === 'PRICE_WATCH') {
         const date = intent.date ?? new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
         const { quotes, isDemoMode } = await fetchFlightPrices({ origin: intent.origin, destination: intent.destination, departureDate: date });
-        if (!quotes.length) return { html: '<div class="cmd-empty">No prices found.</div>' };
+        if (!quotes.length) return { html: `<div class="cmd-empty">${t('components.aviationCommand.noPrices')}</div>` };
         const best = quotes[0]!;
         return {
             html: `<div class="cmd-section">
       <strong>💸 ${escapeHtml(intent.origin)} → ${escapeHtml(intent.destination)}</strong>
-      ${isDemoMode ? '<span class="demo-badge" style="margin-left:6px">DEMO</span>' : ''}
-      <div>Best: <strong style="color:#60a5fa">$${Math.round(best.priceAmount)}</strong> via ${escapeHtml(best.carrierName || best.carrierIata)} · ${best.stops === 0 ? 'nonstop' : `${best.stops} stop`}</div>
+      ${isDemoMode ? `<span class="demo-badge" style="margin-left:6px">${t('components.aviationCommand.demo')}</span>` : ''}
+      <div>${t('components.aviationCommand.best')}: <strong style="color:#60a5fa">$${Math.round(best.priceAmount).toLocaleString('fa-IR')}</strong> ${t('components.aviationCommand.via')} ${escapeHtml(best.carrierName || best.carrierIata)} · ${best.stops === 0 ? t('components.aviationCommand.nonstop') : t('components.aviationCommand.stops', { count: String(best.stops) })}</div>
     </div>` };
     }
 
     if (intent.type === 'NEWS_BRIEF') {
         const items = await fetchAviationNews(intent.entities, 24, 5);
-        if (!items.length) return { html: '<div class="cmd-empty">No recent aviation news.</div>' };
+        if (!items.length) return { html: `<div class="cmd-empty">${t('components.aviationCommand.noNews')}</div>` };
         const rows = items.map(n => `<div class="cmd-news-item"><a href="${sanitizeUrl(n.url)}" target="_blank" rel="noopener">${escapeHtml(n.title)}</a></div>`).join('');
-        return { html: `<div class="cmd-section"><strong>📰 Aviation News</strong>${rows}</div>` };
+        return { html: `<div class="cmd-section"><strong>📰 ${t('components.aviationCommand.aviationNews')}</strong>${rows}</div>` };
     }
 
     if (intent.type === 'TRACK') {
-        return { html: `<div class="cmd-section">🛰️ Tracking <strong>${escapeHtml(intent.callsign ?? intent.icao24 ?? '?')}</strong> — open Tracking tab in Airline Intel panel for live positions.</div>` };
+        return { html: `<div class="cmd-section">🛰️ ${t('components.aviationCommand.tracking')} <strong>${escapeHtml(intent.callsign ?? intent.icao24 ?? '?')}</strong> — ${t('components.aviationCommand.trackingNote')}</div>` };
     }
 
     return {
-        html: `<div class="cmd-empty">Unrecognized command. Try: <code>ops IST</code>, <code>flight TK1</code>, <code>price IST LHR</code>, <code>brief</code></div>`,
+        html: `<div class="cmd-empty">${t('components.aviationCommand.unrecognized')} <code>ops IST</code>، <code>flight TK1</code>، <code>price IST LHR</code>، <code>brief</code></div>`,
         error: true,
     };
 }
@@ -155,14 +156,14 @@ export class AviationCommandBar {
         this.overlay.innerHTML = `
       <div id="aviation-cmd-box">
         <div id="aviation-cmd-header">
-          <span>✈️ Aviation Command</span>
+          <span>✈️ ${t('components.aviationCommand.title')}</span>
           <button id="aviation-cmd-close">×</button>
         </div>
-        <input id="aviation-cmd-input" type="text" placeholder="ops IST  /  flight TK1  /  price IST LHR  /  brief" autocomplete="off" spellcheck="false">
+        <input id="aviation-cmd-input" type="text" placeholder="${t('components.aviationCommand.placeholder')}" autocomplete="off" spellcheck="false">
         <div id="aviation-cmd-suggestions"></div>
         <div id="aviation-cmd-result"></div>
         <div id="aviation-cmd-history-list"></div>
-        <div id="aviation-cmd-hint">Press <kbd>Enter</kbd> to run · <kbd>Esc</kbd> to close · <kbd>Ctrl+J</kbd> to toggle</div>
+        <div id="aviation-cmd-hint">${t('components.aviationCommand.hintRun')} <kbd>Enter</kbd> ${t('components.aviationCommand.hintClose')} <kbd>Esc</kbd> ${t('components.aviationCommand.hintToggle')} <kbd>Ctrl+J</kbd></div>
       </div>`;
 
         document.body.appendChild(this.overlay);
@@ -202,14 +203,14 @@ export class AviationCommandBar {
     private async run(raw: string): Promise<void> {
         const resultEl = this.overlay?.querySelector('#aviation-cmd-result');
         if (!resultEl) return;
-        resultEl.innerHTML = '<div style="color:#9ca3af;font-size:12px">Running…</div>';
+        resultEl.innerHTML = `<div style="color:#9ca3af;font-size:12px">${t('components.aviationCommand.running')}</div>`;
 
         try {
             const intent = parseIntent(raw);
             const result = await executeIntent(intent);
             resultEl.innerHTML = result.html;
         } catch (err) {
-            resultEl.innerHTML = `<div style="color:#ef4444">Error: ${err instanceof Error ? escapeHtml(err.message) : 'Unknown error'}</div>`;
+            resultEl.innerHTML = `<div style="color:#ef4444">${t('components.aviationCommand.errorPrefix')}: ${err instanceof Error ? escapeHtml(err.message) : t('components.aviationCommand.unknownError')}</div>`;
         }
     }
 
@@ -229,7 +230,7 @@ export class AviationCommandBar {
         if (!el) return;
         const h = this.getHistory().slice(0, 5);
         if (!h.length) { el.innerHTML = ''; return; }
-        el.innerHTML = `<div style="font-size:11px;color:#6b7280;margin-top:4px">${h.map(c =>
+        el.innerHTML = `<div style="font-size:11px;color:#6b7280;margin-top:4px">${t('components.aviationCommand.recentCommands')}: ${h.map(c =>
             `<button class="cmd-hist-btn" style="background:none;border:none;color:#9ca3af;cursor:pointer;font-size:11px;padding:1px 4px;border-radius:2px">${escapeHtml(c)}</button>`
         ).join('')}</div>`;
         el.querySelectorAll('.cmd-hist-btn').forEach((btn, i) => {

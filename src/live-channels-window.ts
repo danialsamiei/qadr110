@@ -98,7 +98,7 @@ export async function initLiveChannelsWindow(containerEl?: HTMLElement): Promise
   }
 
   if (!containerEl) {
-    document.title = `${t('components.liveNews.manage') ?? 'Channel management'} - QADR110`;
+    document.title = `${t('components.liveNews.manage') ?? 'مدیریت کانال‌ها'} - QADR110`;
   }
 
   channels = loadChannelsFromStorage();
@@ -258,7 +258,7 @@ export async function initLiveChannelsWindow(containerEl?: HTMLElement): Promise
       handleInput.type = 'text';
       handleInput.className = 'live-news-manage-edit-handle';
       handleInput.value = ch.handle ?? '';
-      handleInput.placeholder = t('components.liveNews.youtubeHandle') ?? 'YouTube handle';
+      handleInput.placeholder = t('components.liveNews.youtubeHandle') ?? 'شناسه یوتیوب';
       row.appendChild(handleInput);
     }
 
@@ -445,16 +445,16 @@ export async function initLiveChannelsWindow(containerEl?: HTMLElement): Promise
   appEl.innerHTML = `
     <div class="live-channels-window-shell">
       <div class="live-channels-window-header">
-        <span class="live-channels-window-title">${escapeHtml(t('components.liveNews.manage') ?? 'Channel management')}</span>
+        <span class="live-channels-window-title">${escapeHtml(t('components.liveNews.manage') ?? 'مدیریت کانال‌ها')}</span>
       </div>
       <div class="live-channels-window-content">
         <div class="live-channels-window-toolbar">
-          <button type="button" class="live-news-manage-restore-defaults" id="liveChannelsRestoreBtn" style="display: none;">${escapeHtml(t('components.liveNews.restoreDefaults') ?? 'Restore default channels')}</button>
+          <button type="button" class="live-news-manage-restore-defaults" id="liveChannelsRestoreBtn" style="display: none;">${escapeHtml(t('components.liveNews.restoreDefaults') ?? 'بازنشانی کانال‌های پیش‌فرض')}</button>
         </div>
         <div class="live-news-manage-list" id="liveChannelsList"></div>
         <div class="live-news-manage-available-section">
           <div class="live-news-manage-available-header">
-            <span class="live-news-manage-add-title">${escapeHtml(t('components.liveNews.availableChannels') ?? 'Available channels')}</span>
+            <span class="live-news-manage-add-title">${escapeHtml(t('components.liveNews.availableChannels') ?? 'کانال‌های در‌دسترس')}</span>
             <div class="live-news-manage-search-wrap">
               <span class="live-news-manage-search-icon">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -466,21 +466,21 @@ export async function initLiveChannelsWindow(containerEl?: HTMLElement): Promise
           <div class="live-news-manage-tab-contents" id="liveChannelsTabContents"></div>
         </div>
         <div class="live-news-manage-add-section">
-          <span class="live-news-manage-add-title">${escapeHtml(t('components.liveNews.customChannel') ?? 'Custom channel')}</span>
+          <span class="live-news-manage-add-title">${escapeHtml(t('components.liveNews.customChannel') ?? 'کانال سفارشی')}</span>
           <div class="live-news-manage-add">
             <div class="live-news-manage-add-field">
-              <label class="live-news-manage-add-label" for="liveChannelsHandle">${escapeHtml(t('components.liveNews.youtubeHandleOrUrl') ?? 'YouTube handle or URL')}</label>
-              <input type="text" class="live-news-manage-handle" id="liveChannelsHandle" placeholder="@Channel or youtube.com/watch?v=..." />
+              <label class="live-news-manage-add-label" for="liveChannelsHandle">${escapeHtml(t('components.liveNews.youtubeHandleOrUrl') ?? 'شناسه یا نشانی یوتیوب')}</label>
+              <input type="text" class="live-news-manage-handle" id="liveChannelsHandle" placeholder="${escapeHtml(t('components.liveNews.youtubeHandleOrUrlPlaceholder') ?? '@Channel یا youtube.com/watch?v=...')}" />
             </div>
             <div class="live-news-manage-add-field">
-              <label class="live-news-manage-add-label" for="liveChannelsHlsUrl">${escapeHtml(t('components.liveNews.hlsUrl') ?? 'HLS Stream URL (optional)')}</label>
+              <label class="live-news-manage-add-label" for="liveChannelsHlsUrl">${escapeHtml(t('components.liveNews.hlsUrl') ?? 'نشانی پخش HLS (اختیاری)')}</label>
               <input type="text" class="live-news-manage-handle" id="liveChannelsHlsUrl" placeholder="https://example.com/stream.m3u8" />
             </div>
             <div class="live-news-manage-add-field">
-              <label class="live-news-manage-add-label" for="liveChannelsName">${escapeHtml(t('components.liveNews.displayName') ?? 'Display name (optional)')}</label>
+              <label class="live-news-manage-add-label" for="liveChannelsName">${escapeHtml(t('components.liveNews.displayName') ?? 'نام نمایشی (اختیاری)')}</label>
               <input type="text" class="live-news-manage-name" id="liveChannelsName" placeholder="" />
             </div>
-            <button type="button" class="live-news-manage-add-btn" id="liveChannelsAddBtn">${escapeHtml(t('components.liveNews.addChannel') ?? 'Add channel')}</button>
+            <button type="button" class="live-news-manage-add-btn" id="liveChannelsAddBtn">${escapeHtml(t('components.liveNews.addChannel') ?? 'افزودن کانال')}</button>
           </div>
         </div>
       </div>
@@ -525,7 +525,7 @@ export async function initLiveChannelsWindow(containerEl?: HTMLElement): Promise
       if (!isHlsUrl(hlsUrl)) {
         if (hlsInput) {
           hlsInput.classList.add('invalid');
-          hlsInput.setAttribute('title', t('components.liveNews.invalidHlsUrl') ?? 'Enter a valid HLS stream URL (.m3u8)');
+          hlsInput.setAttribute('title', t('components.liveNews.invalidHlsUrl') ?? 'یک نشانی معتبر HLS با پسوند .m3u8 وارد کنید');
         }
         return;
       }
@@ -558,7 +558,7 @@ export async function initLiveChannelsWindow(containerEl?: HTMLElement): Promise
 
       if (addBtn) {
         addBtn.disabled = true;
-        addBtn.textContent = t('components.liveNews.verifying') ?? 'Verifying…';
+        addBtn.textContent = t('components.liveNews.verifying') ?? 'در حال بررسی…';
       }
 
       // Try to resolve video/channel title via our proxy (YouTube oembed has no CORS)
@@ -576,7 +576,7 @@ export async function initLiveChannelsWindow(containerEl?: HTMLElement): Promise
 
       if (addBtn) {
         addBtn.disabled = false;
-        addBtn.textContent = t('components.liveNews.addChannel') ?? 'Add channel';
+        addBtn.textContent = t('components.liveNews.addChannel') ?? 'افزودن کانال';
       }
 
       channels.push({ id, name: resolvedName, handle: `@video`, fallbackVideoId: videoId, useFallbackOnly: true });
@@ -597,7 +597,7 @@ export async function initLiveChannelsWindow(containerEl?: HTMLElement): Promise
     if (!/^@[\w.-]{3,30}$/i.test(handle)) {
       if (handleInput) {
         handleInput.classList.add('invalid');
-        handleInput.setAttribute('title', t('components.liveNews.invalidHandle') ?? 'Enter a valid YouTube handle (e.g. @ChannelName)');
+        handleInput.setAttribute('title', t('components.liveNews.invalidHandle') ?? 'یک شناسه معتبر یوتیوب وارد کنید (مثلاً @ChannelName)');
       }
       return;
     }
@@ -608,7 +608,7 @@ export async function initLiveChannelsWindow(containerEl?: HTMLElement): Promise
     // Validate channel exists on YouTube + resolve name
     if (addBtn) {
       addBtn.disabled = true;
-      addBtn.textContent = t('components.liveNews.verifying') ?? 'Verifying…';
+      addBtn.textContent = t('components.liveNews.verifying') ?? 'در حال بررسی…';
     }
 
     let resolvedName = '';
@@ -625,7 +625,7 @@ export async function initLiveChannelsWindow(containerEl?: HTMLElement): Promise
     } finally {
       if (addBtn) {
         addBtn.disabled = false;
-        addBtn.textContent = t('components.liveNews.addChannel') ?? 'Add channel';
+        addBtn.textContent = t('components.liveNews.addChannel') ?? 'افزودن کانال';
       }
     }
 

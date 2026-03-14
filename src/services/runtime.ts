@@ -111,9 +111,8 @@ export function getApiBaseUrl(): string {
   return `http://127.0.0.1:${getLocalApiPort()}`;
 }
 
-function isWorldMonitorWebHost(hostname: string): boolean {
+function isQadrWebHost(hostname: string): boolean {
   return hostname === 'qadr.alefba.dev'
-    || hostname === 'qadr.alefba.dev'
     || hostname.endsWith('.qadr.alefba.dev');
 }
 
@@ -131,7 +130,7 @@ export function getConfiguredWebApiBaseUrl(): string {
   }
 
   const hostname = window.location?.hostname ?? '';
-  if (!isWorldMonitorWebHost(hostname)) {
+  if (!isQadrWebHost(hostname)) {
     return '';
   }
 
@@ -202,8 +201,6 @@ function extractHostnames(...urls: (string | undefined)[]): string[] {
 
 const APP_HOSTS = new Set([
   'qadr.alefba.dev',
-  'qadr.alefba.dev',
-  'tech.qadr.alefba.dev',
   'api.qadr.alefba.dev',
   'localhost',
   '127.0.0.1',
@@ -681,7 +678,7 @@ export function installRuntimeFetchPatch(): void {
   (window as unknown as Record<string, unknown>).__wmFetchPatched = true;
 }
 
-const ALLOWED_REDIRECT_HOSTS = /^https:\/\/([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)*worldmonitor\.app(:\d+)?$/;
+const ALLOWED_REDIRECT_HOSTS = /^https:\/\/([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)*qadr\.alefba\.dev(:\d+)?$/;
 
 function isAllowedRedirectTarget(url: string): boolean {
   try {

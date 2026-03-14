@@ -7,6 +7,7 @@ import {
   fetchTopicIntelligence,
   formatArticleDate,
   extractDomain,
+  getGdeltIntelHealth,
   type GdeltArticle,
   type IntelTopic,
   type TopicIntelligence,
@@ -85,6 +86,8 @@ export class GdeltIntelPanel extends Panel {
 
         this.renderArticles(data.articles ?? []);
         this.setCount(data.articles?.length ?? 0);
+        const health = getGdeltIntelHealth();
+        this.setDataBadge(health.status === 'healthy' ? 'live' : health.status === 'degraded' ? 'cached' : 'unavailable');
         return;
       } catch (error) {
         if (this.isAbortError(error)) return;
@@ -96,7 +99,8 @@ export class GdeltIntelPanel extends Panel {
           if (!this.element?.isConnected || topic.id !== this.activeTopic.id) return;
           continue;
         }
-        this.showError(t('common.failedIntelFeed'), () => this.loadActiveTopic());
+        this.setDataBadge('unavailable');
+        this.showError(t('components.gdeltIntel.unavailable'), () => this.loadActiveTopic());
       }
     }
   }
@@ -104,11 +108,16 @@ export class GdeltIntelPanel extends Panel {
   private renderArticles(articles: GdeltArticle[]): void {
     this.setErrorState(false);
     if (articles.length === 0) {
-      replaceChildren(this.content, h('div', { className: 'empty-state' }, t('components.gdelt.empty')));
+      replaceChildren(this.content, h('div', { className: 'empty-state' }, t('components.gdeltIntel.empty')));
       return;
     }
 
+    const health = getGdeltIntelHealth();
+    const healthLabel = health.status === 'healthy' ? t('components.gdeltIntel.status.healthy') : health.status === 'degraded' ? t('components.gdeltIntel.status.degraded') : t('components.gdeltIntel.status.unavailable');
+    const lastUpdated = health.lastSuccessfulAt ? new Date(health.lastSuccessfulAt).toLocaleString('fa-IR') : t('components.gdeltIntel.noData');
+
     replaceChildren(this.content,
+      h('div', { className: 'text-muted', style: 'margin-bottom:8px;direction:rtl;text-align:right;' }, `${t('components.gdeltIntel.health')}: ${healthLabel} | ${t('components.gdeltIntel.lastUpdate')}: ${lastUpdated}`),
       h('div', { className: 'gdelt-intel-articles' },
         ...articles.map(article => this.buildArticle(article)),
       ),
