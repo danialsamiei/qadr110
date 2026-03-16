@@ -97,6 +97,12 @@ npm run dev
 npm run typecheck
 ```
 
+## Change Log
+
+- یادداشت انتشار این استقرار production: [docs/production-release-2026-03-16.md](./docs/production-release-2026-03-16.md)
+- تاریخچه عمومی پروژه: [CHANGELOG.md](./CHANGELOG.md)
+- داخل خود داشبورد هم یک پنل `Change Log / یادداشت انتشار` برای مرور سریع release notes اضافه شده است.
+
 ---
 
 ## نقشه راه توسعه

@@ -51,6 +51,7 @@ import { MaritimeTrafficPanel } from '@/components/MaritimeTrafficPanel';
 import { MediaPipelinesPanel } from '@/components/MediaPipelinesPanel';
 import { PremiumBenchmarkPanel } from '@/components/PremiumBenchmarkPanel';
 import { QadrAssistantPanel } from '@/components/QadrAssistantPanel';
+import { ReleaseNotesPanel } from '@/components/ReleaseNotesPanel';
 import { RegionalSlicesPanel } from '@/components/RegionalSlicesPanel';
 import { WorldMonitoringHubPanel } from '@/components/WorldMonitoringHubPanel';
 import { focusInvestmentOnMap } from '@/services/investments-focus';
@@ -778,6 +779,7 @@ export class PanelLayoutManager implements AppModule {
     this.createPanel('qadr-assistant', () => new QadrAssistantPanel());
     this.createPanel('world-monitoring-hub', () => new WorldMonitoringHubPanel());
     this.createPanel('premium-benchmark', () => new PremiumBenchmarkPanel());
+    this.createPanel('release-notes', () => new ReleaseNotesPanel());
     this.createPanel('darkweb-defensive', () => new DarkwebDefensivePanel());
     this.createPanel('iran-media-matrix', () => new IranMediaMatrixPanel());
     this.createPanel('regional-slices', () => new RegionalSlicesPanel());
