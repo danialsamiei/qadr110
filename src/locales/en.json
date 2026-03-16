@@ -229,6 +229,8 @@
     "techHubs": "Hot Tech Hubs",
     "status": "System Status",
     "insights": "AI Insights",
+    "analysisHub": "Analysis Hub",
+    "persianAnalysis": "Persian Analysis",
     "strategicPosture": "AI Strategic Posture",
     "cii": "Country Instability",
     "nrcResilience": "National Resilience (NRC)",
@@ -1826,6 +1828,7 @@
         "unavailable": "Unavailable"
       },
       "freshness": {
+        "aging": "Aging",
         "fresh": "Fresh",
         "stale": "Stale",
         "unknown": "Unknown"

@@ -25,6 +25,14 @@ export const SIGNUP_URLS: Partial<Record<RuntimeSecretKey, string>> = {
   WTO_API_KEY: 'https://apiportal.wto.org/',
   AVIATIONSTACK_API: 'https://aviationstack.com/signup/free',
   ICAO_API_KEY: 'https://dataservices.icao.int/',
+  WEAVIATE_URL: 'https://weaviate.io/developers/weaviate',
+  WEAVIATE_API_KEY: 'https://weaviate.io/developers/weaviate',
+  CHROMA_URL: 'https://docs.trychroma.com/',
+  MISP_URL: 'https://www.misp-project.org/',
+  MISP_API_KEY: 'https://www.misp-project.org/',
+  PALANTIR_FOUNDRY_URL: 'https://www.palantir.com/docs/foundry/',
+  PALANTIR_FOUNDRY_TOKEN: 'https://www.palantir.com/docs/foundry/',
+  PYTHON_SIDECAR_URL: 'https://docs.python.org/3/library/http.server.html',
 };
 
 export const PLAINTEXT_KEYS = new Set<RuntimeSecretKey>([
@@ -32,6 +40,11 @@ export const PLAINTEXT_KEYS = new Set<RuntimeSecretKey>([
   'OLLAMA_MODEL',
   'WS_RELAY_URL',
   'VITE_OPENSKY_RELAY_URL',
+  'WEAVIATE_URL',
+  'CHROMA_URL',
+  'MISP_URL',
+  'PALANTIR_FOUNDRY_URL',
+  'PYTHON_SIDECAR_URL',
 ]);
 
 export const MASKED_SENTINEL = '__WM_MASKED__';
@@ -64,6 +77,14 @@ export const HUMAN_LABELS: Record<RuntimeSecretKey, string> = {
   WTO_API_KEY: 'WTO API Key',
   AVIATIONSTACK_API: 'AviationStack API Key',
   ICAO_API_KEY: 'ICAO NOTAM API Key',
+  WEAVIATE_URL: 'Weaviate URL',
+  WEAVIATE_API_KEY: 'Weaviate API Key',
+  CHROMA_URL: 'Chroma URL',
+  MISP_URL: 'MISP URL',
+  MISP_API_KEY: 'MISP API Key',
+  PALANTIR_FOUNDRY_URL: 'Foundry-Compatible URL',
+  PALANTIR_FOUNDRY_TOKEN: 'Foundry-Compatible Token',
+  PYTHON_SIDECAR_URL: 'Python Sidecar URL',
 };
 
 export interface SettingsCategory {
@@ -97,5 +118,10 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
     id: 'tracking',
     label: 'Tracking & Sensing',
     features: ['aisRelay', 'openskyRelay', 'wingbitsEnrichment', 'nasaFirms', 'aviationStack', 'icaoNotams', 'newsPerFeedFallback'],
+  },
+  {
+    id: 'interop',
+    label: 'Interoperability',
+    features: ['threatIntelExchange', 'vectorWeaviate', 'vectorChroma', 'palantirFoundry', 'pythonBridge'],
   },
 ];

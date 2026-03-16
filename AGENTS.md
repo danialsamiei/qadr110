@@ -51,10 +51,70 @@
   - `src/components/*.ts`
 - data/service layer:
   - `src/services/*`
+- foundation / interoperability layer:
+  - `src/platform/*`
 - sidecar / api / desktop:
   - `src-tauri/`
   - `api/`
   - `scripts/`
+
+نکته:
+- برای توسعه‌ی capability/connector/domain جدید، ابتدا `src/platform` را توسعه بده و بعد به panel/serviceهای موجود وصلش کن.
+
+## 5.1) AI Fabric فعلی
+- panel اصلی AI:
+  - `src/components/QadrAssistantPanel.ts`
+- client service:
+  - `src/services/intelligence-assistant.ts`
+  - `src/services/assistant-workspace.ts`
+- contracts/policy:
+  - `src/platform/ai/*`
+- retrieval:
+  - `src/platform/retrieval/*`
+- backend orchestration:
+  - `server/worldmonitor/intelligence/v1/assistant.ts`
+  - `api/intelligence/v1/assistant.ts`
+
+قاعده:
+- cloud route پیش‌فرض همیشه OpenRouter است.
+- اگر connector واقعی برای یک vendor proprietary نداری، فقط abstraction یا compatibility note اضافه کن.
+- هر پاسخ AI باید structured، evidence-aware و قابل‌ممیزی بماند.
+- اگر output schema را عوض کردی، تست‌ها و fixtureهای `tests/assistant-*` را هم به‌روزرسانی کن.
+
+## 5.2) Interoperability Foundation
+- ontology canonical:
+  - `src/platform/domain/ontology.ts`
+- adapter layer:
+  - `src/platform/interoperability/*`
+- graph/investigation:
+  - `src/platform/investigation/*`
+- Palantir-aware compatibility:
+  - `src/platform/palantir/*`
+- defensive workflow helpers:
+  - `src/platform/workflows/*`
+
+قاعده:
+- اگر system proprietary است، فقط وقتی integration را native بنام که connector واقعی یا endpoint/credential واقعی داشته باشی.
+- در غیر این صورت، از adapter/export/compatibility boundary استفاده کن و limitation را در docs ثبت کن.
+- برای ingestion جدید، ابتدا به `IntelligenceOntologyBundle` normalize کن؛ بعد panel یا assistant را به آن وصل کن.
+- برای vector/search backendهای بیرونی، نبود config نباید bridge را بشکند؛ فقط باید graceful degrade شود.
+
+## 5.3) Resilience Analytics
+- service canonical:
+  - `src/services/resilience/*`
+- legacy bridge:
+  - `src/services/nrc-resilience.ts`
+- UI:
+  - `src/components/NRCPanel.ts`
+  - `src/components/NRCAnalyticsPanel.ts`
+- event contract:
+  - `src/platform/operations/resilience.ts`
+
+قاعده:
+- داده sample را پنهان نکن؛ برچسب synthetic/sample باید باقی بماند.
+- panel idهای `nrc-resilience` و `nrc-analytics` را بی‌دلیل عوض نکن.
+- برای ایران، baseline compare set باید همه همسایه‌های زمینی را پوشش دهد.
+- AI narration در این بخش فقط باید روی structured resilience data سوار شود، نه تولید آزاد عدد.
 
 ## 6) قاعده اضافه‌کردن قابلیت UI
 برای هر panel یا capability جدید این ترتیب را رعایت کن:
@@ -113,6 +173,16 @@
 ## 10) Definition of Done
 - `npm run typecheck` پاس شود.
 - در صورت تغییر frontend، `npx vite build` پاس شود.
+- در صورت تغییر AI fabric:
+  - `npm run typecheck:all`
+  - `npx tsx --test tests/assistant-schema.test.mts tests/assistant-safety.test.mts tests/query-normalization.test.mts tests/prompt-catalog.test.mts tests/openrouter-policy.test.mts tests/analysis-job-queue.test.mts`
+- در صورت تغییر interoperability / ontology:
+  - `npm run typecheck:all`
+  - `npx tsx --test tests/interoperability-registry.test.mts tests/interoperability-importers.test.mts tests/ontology-normalization.test.mts tests/investigation-workflows.test.mts tests/palantir-compatibility.test.mts`
+- در صورت تغییر resilience:
+  - `npm run typecheck`
+  - `npx tsx --test tests/resilience-engine.test.mts tests/resilience-reporting.test.mts tests/nrc-resilience-bridge.test.mts`
+  - ترجیحاً `npx vite build`
 - اگر release production است:
   - `qadr110.service` بعد از restart `active` باشد.
   - `http://127.0.0.1:3000` باید `200 OK` بدهد.
@@ -122,14 +192,16 @@
 
 ## 11) Backlog کوتاه‌مدت
 1. self-host کردن backend به‌جای تکیه فعلی بر `api.worldmonitor.app`
-2. ریشه‌یابی crash سرور در `vite build`
-3. تکمیل collectorهای واقعی برای:
+2. stream incremental UI برای assistant روی همان route architecture
+3. ریشه‌یابی crash سرور در `vite build`
+4. تکمیل collectorهای واقعی برای:
    - Instagram
    - X
    - Aparat
    - Telewebion
-4. تکمیل workflowهای DSS/ESS و BotOps
-5. افزودن test coverage برای panelهای جدید و navigation بالا
+5. تکمیل workflowهای DSS/ESS و BotOps
+6. افزودن test coverage برای panelهای جدید و navigation بالا
+7. تکمیل connectorهای واقعی برای TAXII transport، warehouse exchange و Foundry-like tenant APIs در صورت وجود credential معتبر
 
 ## 12) قاعده همکاری برای Agent بعدی
 - قبل از هر تغییر production-sensitive، state فعلی service و tunnel را بخوان.

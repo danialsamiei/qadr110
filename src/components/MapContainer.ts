@@ -907,7 +907,7 @@ export class MapContainer {
   public onMapContextMenu(callback: (payload: { lat: number; lon: number; screenX: number; screenY: number }) => void): void {
     this.cachedOnMapContextMenu = callback;
     if (this.useGlobe) { this.globeMap?.setOnMapContextMenu(callback); return; }
-    if (this.useDeckGL) { this.deckGLMap?.setOnMapContextMenu(callback); }
+    if (this.useDeckGL) { this.deckGLMap?.setOnMapContextMenu(callback); } else { this.svgMap?.setOnMapContextMenu(callback); }
   }
 
   public fitCountry(code: string): void {

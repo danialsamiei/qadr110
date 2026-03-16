@@ -28,7 +28,15 @@ export type RuntimeSecretKey =
   | 'WORLDMONITOR_API_KEY'
   | 'WTO_API_KEY'
   | 'AVIATIONSTACK_API'
-  | 'ICAO_API_KEY';
+  | 'ICAO_API_KEY'
+  | 'WEAVIATE_URL'
+  | 'WEAVIATE_API_KEY'
+  | 'CHROMA_URL'
+  | 'MISP_URL'
+  | 'MISP_API_KEY'
+  | 'PALANTIR_FOUNDRY_URL'
+  | 'PALANTIR_FOUNDRY_TOKEN'
+  | 'PYTHON_SIDECAR_URL';
 
 export type RuntimeFeatureId =
   | 'aiGroq'
@@ -55,7 +63,12 @@ export type RuntimeFeatureId =
   | 'newsPerFeedFallback'
   | 'aviationStack'
   | 'ucdpConflicts'
-  | 'icaoNotams';
+  | 'icaoNotams'
+  | 'threatIntelExchange'
+  | 'vectorWeaviate'
+  | 'vectorChroma'
+  | 'palantirFoundry'
+  | 'pythonBridge';
 
 export interface RuntimeFeatureDefinition {
   id: RuntimeFeatureId;
@@ -113,29 +126,34 @@ const defaultToggles: Record<RuntimeFeatureId, boolean> = {
   newsPerFeedFallback: false,
   aviationStack: true,
   icaoNotams: true,
+  threatIntelExchange: true,
+  vectorWeaviate: true,
+  vectorChroma: true,
+  palantirFoundry: true,
+  pythonBridge: true,
 };
 
 export const RUNTIME_FEATURES: RuntimeFeatureDefinition[] = [
   {
     id: 'aiOllama',
     name: 'Ollama local summarization',
-    description: 'Local LLM provider via OpenAI-compatible endpoint (Ollama or LM Studio, desktop-first).',
+    description: 'Local/self-hosted LLM fallback via OpenAI-compatible endpoint (Ollama, LM Studio, or vLLM-compatible gateway).',
     requiredSecrets: ['OLLAMA_API_URL', 'OLLAMA_MODEL'],
-    fallback: 'Falls back to Groq, then OpenRouter, then local browser model.',
+    fallback: 'Falls back to OpenRouter, then Groq, then local browser model.',
   },
   {
     id: 'aiGroq',
     name: 'Groq summarization',
-    description: 'Primary fast LLM provider used for AI summary generation.',
+    description: 'Secondary cloud LLM provider used when OpenRouter or local routes are unavailable.',
     requiredSecrets: ['GROQ_API_KEY'],
-    fallback: 'Falls back to OpenRouter, then local browser model.',
+    fallback: 'Falls back to local browser model after OpenRouter/local routes.',
   },
   {
     id: 'aiOpenRouter',
     name: 'OpenRouter summarization',
-    description: 'Secondary LLM provider for AI summary fallback.',
+    description: 'Primary generative AI gateway for explainable summaries, briefs, and defensive scenario support.',
     requiredSecrets: ['OPENROUTER_API_KEY'],
-    fallback: 'Falls back to local browser model only.',
+    fallback: 'Falls back to Ollama-compatible local inference, then Groq, then local browser model.',
   },
   {
     id: 'stockNewsSearchTavily',
@@ -293,6 +311,41 @@ export const RUNTIME_FEATURES: RuntimeFeatureDefinition[] = [
     requiredSecrets: ['ICAO_API_KEY'],
     fallback: 'Closures detected only via AviationStack flight cancellation data.',
   },
+  {
+    id: 'threatIntelExchange',
+    name: 'Threat intel exchange',
+    description: 'Optional MISP/STIX/TAXII-style exchange boundary for defensive IOC sharing and import/export.',
+    requiredSecrets: ['MISP_URL', 'MISP_API_KEY'],
+    fallback: 'Threat-intel bridge remains available in offline/import-only mode.',
+  },
+  {
+    id: 'vectorWeaviate',
+    name: 'Weaviate retrieval backend',
+    description: 'Enable external Weaviate semantic retrieval for Persian-first evidence grounding.',
+    requiredSecrets: ['WEAVIATE_URL'],
+    fallback: 'Retrieval falls back to browser-vector and lexical search.',
+  },
+  {
+    id: 'vectorChroma',
+    name: 'Chroma retrieval backend',
+    description: 'Enable external Chroma semantic retrieval for knowledge packs and analyst notes.',
+    requiredSecrets: ['CHROMA_URL'],
+    fallback: 'Retrieval falls back to browser-vector and lexical search.',
+  },
+  {
+    id: 'palantirFoundry',
+    name: 'Palantir compatibility boundary',
+    description: 'Optional Foundry-like API boundary only when official endpoints and credentials are configured.',
+    requiredSecrets: ['PALANTIR_FOUNDRY_URL', 'PALANTIR_FOUNDRY_TOKEN'],
+    fallback: 'Compatibility mapping remains export-only without live API calls.',
+  },
+  {
+    id: 'pythonBridge',
+    name: 'Python bridge sidecar',
+    description: 'Optional Python sidecar for compatibility paths where a Python SDK or notebook bridge is preferable.',
+    requiredSecrets: ['PYTHON_SIDECAR_URL'],
+    fallback: 'Python sidecar workflows remain disabled.',
+  },
 ];
 
 function readEnvSecret(key: RuntimeSecretKey): string {
@@ -315,6 +368,11 @@ const URL_SECRET_KEYS = new Set<RuntimeSecretKey>([
   'WS_RELAY_URL',
   'VITE_OPENSKY_RELAY_URL',
   'OLLAMA_API_URL',
+  'WEAVIATE_URL',
+  'CHROMA_URL',
+  'MISP_URL',
+  'PALANTIR_FOUNDRY_URL',
+  'PYTHON_SIDECAR_URL',
 ]);
 
 export interface SecretVerificationResult {
@@ -439,6 +497,26 @@ export function isFeatureAvailable(featureId: RuntimeFeatureId): boolean {
 
 export function getEffectiveSecrets(feature: RuntimeFeatureDefinition): RuntimeSecretKey[] {
   return (isDesktopRuntime() && feature.desktopRequiredSecrets) ? feature.desktopRequiredSecrets : feature.requiredSecrets;
+}
+
+export function getEnabledRuntimeFeatures(): RuntimeFeatureId[] {
+  return Object.entries(runtimeConfig.featureToggles)
+    .filter(([, enabled]) => enabled !== false)
+    .map(([featureId]) => featureId as RuntimeFeatureId);
+}
+
+export function getConfiguredRuntimeKeys(): RuntimeSecretKey[] {
+  return Object.entries(runtimeConfig.secrets)
+    .filter(([, state]) => Boolean(state?.value))
+    .map(([secretKey]) => secretKey as RuntimeSecretKey);
+}
+
+export function getConfiguredRuntimeValues(): Partial<Record<RuntimeSecretKey, string>> {
+  return Object.fromEntries(
+    Object.entries(runtimeConfig.secrets)
+      .filter(([, state]) => Boolean(state?.value))
+      .map(([secretKey, state]) => [secretKey, state?.value ?? ''])
+  ) as Partial<Record<RuntimeSecretKey, string>>;
 }
 
 export function setFeatureToggle(featureId: RuntimeFeatureId, enabled: boolean): void {

@@ -6,22 +6,17 @@ import type {
 
 import { cachedFetchJson } from '../../../_shared/redis';
 import { sha256Hex } from './_shared';
-import { CHROME_UA } from '../../../_shared/constants';
+import { callLlm } from '../../../_shared/llm';
+import { getPolicyForTask } from '../../../../src/platform/ai/policy';
 
 const DEDUCT_TIMEOUT_MS = 120_000;
 const DEDUCT_CACHE_TTL = 3600;
-const DEFAULT_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const DEFAULT_MODEL = 'llama-3.1-8b-instant';
 
 export async function deductSituation(
     _ctx: ServerContext,
     req: DeductSituationRequest,
 ): Promise<DeductSituationResponse> {
-    const apiKey = process.env.LLM_API_KEY || process.env.GROQ_API_KEY;
-    const apiUrl = process.env.LLM_API_URL || DEFAULT_API_URL;
-    const model = process.env.LLM_MODEL || DEFAULT_MODEL;
-
-    if (!apiKey) {
+    if (!process.env.OPENROUTER_API_KEY && !process.env.OLLAMA_API_URL && !process.env.VLLM_API_URL && !process.env.GROQ_API_KEY && !process.env.LLM_API_KEY) {
         return { analysis: '', model: '', provider: 'skipped' };
     }
 
@@ -53,38 +48,23 @@ Your task is to DEDUCT the situation in a near timeline (e.g. 24 hours to a few 
                     userPrompt += `\n\n### Current Intelligence Context\n${geoContext}`;
                 }
 
-                const resp = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: {
-                        Authorization: `Bearer ${apiKey}`,
-                        'Content-Type': 'application/json',
-                        'User-Agent': CHROME_UA
-                    },
-                    body: JSON.stringify({
-                        model,
-                        messages: [
-                            { role: 'system', content: systemPrompt },
-                            { role: 'user', content: userPrompt },
-                        ],
-                        temperature: 0.3,
-                        max_tokens: 1500,
-                    }),
-                    signal: AbortSignal.timeout(DEDUCT_TIMEOUT_MS),
+                const policy = getPolicyForTask('deduction');
+                const result = await callLlm({
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: userPrompt },
+                    ],
+                    temperature: 0.3,
+                    maxTokens: policy.tokenBudget.outputTokenLimit,
+                    timeoutMs: DEDUCT_TIMEOUT_MS,
+                    validate: (content) => content.trim().length >= 40,
                 });
-
-                if (!resp.ok) return null;
-                const data = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };
-                const firstChoice = data.choices?.[0];
-
-                const content = firstChoice?.message?.content?.trim();
-                const reasoning = (firstChoice?.message as any)?.reasoning?.trim();
-
-                let raw = content || reasoning;
-                if (!raw) return null;
-
-                raw = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-
-                return { analysis: raw, model, provider: 'groq' };
+                if (!result?.content) return null;
+                return {
+                    analysis: result.content.trim(),
+                    model: result.model,
+                    provider: result.provider,
+                };
             } catch (err) {
                 console.error('[DeductSituation] Error calling LLM:', err);
                 return null;

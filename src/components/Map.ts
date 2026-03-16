@@ -153,6 +153,7 @@ export class MapComponent {
   private layerZoomOverrides: Partial<Record<keyof MapLayers, boolean>> = {};
   private onStateChange?: (state: MapState) => void;
   private onCountryClick?: (country: CountryClickPayload) => void;
+  private onMapContextMenu?: (payload: { lat: number; lon: number; screenX: number; screenY: number }) => void;
   private highlightedAssets: Record<AssetType, Set<string>> = {
     pipeline: new Set(),
     cable: new Set(),
@@ -909,6 +910,27 @@ export class MapComponent {
       if (hit) {
         this.onCountryClick({ lat, lon, code: hit.code, name: hit.name });
       }
+    });
+
+    this.container.addEventListener('contextmenu', (e) => {
+      if (!this.onMapContextMenu) return;
+      e.preventDefault();
+      const containerRect = this.container.getBoundingClientRect();
+      const zoom = this.state.zoom;
+      const width = this.container.clientWidth;
+      const height = this.container.clientHeight;
+      const centerOffsetX = (width / 2) * (1 - zoom);
+      const centerOffsetY = (height / 2) * (1 - zoom);
+      const tx = centerOffsetX + this.state.pan.x * zoom;
+      const ty = centerOffsetY + this.state.pan.y * zoom;
+      const rawX = (e.clientX - containerRect.left - tx) / zoom;
+      const rawY = (e.clientY - containerRect.top - ty) / zoom;
+      const projection = this.getProjection(width, height);
+      if (!projection.invert) return;
+      const coords = projection.invert([rawX, rawY]);
+      if (!coords) return;
+      const [lon, lat] = coords;
+      this.onMapContextMenu({ lat, lon, screenX: e.clientX, screenY: e.clientY });
     });
 
     this.container.style.cursor = 'grab';
@@ -3556,6 +3578,10 @@ export class MapComponent {
 
   public setOnCountryClick(cb: (country: CountryClickPayload) => void): void {
     this.onCountryClick = cb;
+  }
+
+  public setOnMapContextMenu(cb: (payload: { lat: number; lon: number; screenX: number; screenY: number }) => void): void {
+    this.onMapContextMenu = cb;
   }
 
   public fitCountry(code: string): void {

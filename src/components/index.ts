@@ -60,4 +60,6 @@ export { AviationCommandBar } from './AviationCommandBar';
 export * from './PersianStrategicPanel';
 
 export * from './NarrativeAnalysisPanel';
+export * from './MapAnalysisPanel';
 export * from './ReleaseNotesPanel';
+export * from './OpsAuditPanel';

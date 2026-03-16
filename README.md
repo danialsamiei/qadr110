@@ -20,10 +20,13 @@
 
 - داشبورد لحظه‌ای رصد اخبار، رویدادها و سیگنال‌های ژئوپلیتیک
 - تحلیل چندبعدی تاب‌آوری: ملی، اقتصادی، نظامی و شناختی
+- داشبورد و گزارش‌ساز تاب‌آوری با ۱۴ بعد، stress test، spillover view و روایت فارسی مبتنی بر evidence
 - رصد جنگ رسانه‌ای و روایت‌ها با تمرکز بر سوگیری، تناقض و استانداردهای دوگانه
-- پنل چت‌بات راهنمای تخصصی برای مهندسی پرامپت و تحلیل سریع
+- کارگاه هوشمند فارسی با thread، workflow، evidence card، memory و export
+- کارگاه ژئو-تحلیل مبتنی بر نقشه با right-click، پیشنهادهای پویا، job chip و handoff به دستیار/سناریوپرداز
 - پشتیبانی از زبان فارسی (RTL) به‌عنوان تجربه پیش‌فرض
 - اتصال به منابع متعدد OSINT (رایگان و پولی) با معماری افزونه‌پذیر
+- لایه interoperability و ontology نرمال‌شده برای ingest/export و graph workflows
 - آماده اتصال به Telegram Bot و Bale Bot برای هشدار و گزارش
 
 ---
@@ -64,9 +67,18 @@ ingress:
 
 QADR110 برای تحلیل‌های پیشرفته قابلیت اتصال به چندین ارائه‌دهنده AI را دارد:
 
-- OpenRouter (اولویت برای مدل‌های متنوع)
+- OpenRouter (gateway اصلی و پیش‌فرض برای تمام cloud LLM workloadها)
 - Ollama / vLLM (پردازش محلی)
-- OpenAI / Gemini / Anthropic (در صورت نیاز)
+- Groq (fallback ابری)
+- مدل‌های vendorهای دیگر فقط از مسیر OpenRouter یا OpenAI-compatible abstraction قابل‌استفاده‌اند، نه به‌عنوان integration بومیِ مستقل
+
+### AI Fabric فعلی
+
+- policy task-based برای `briefing`, `extraction`, `forecasting`, `scenario-building`, `resilience-analysis`, `translation`, `structured-json`
+- retrieval چندلایه با built-in knowledge packها، اسناد کاربر، memory noteها و connectorهای `Weaviate/Chroma`
+- guardrail دفاعی/قانونی با refusal و redirect برای offensive cyber، intrusion، weaponization و kinetic targeting
+- trace metadata، confidence، provenance و time context برای هر پاسخ
+- endpoint اختصاصی دستیار: `/api/intelligence/v1/assistant`
 
 ### پیشنهاد عملی
 
@@ -97,11 +109,57 @@ npm run dev
 npm run typecheck
 ```
 
+## Demo Mode (دمو)
+
+برای اجرای دمو بدون کلیدهای بیرونی:
+
+- در `.env.local` مقدار `VITE_DEMO_MODE=1` بگذارید، یا با `?demo=1` سامانه را باز کنید.
+
+در حالت دمو:
+
+- مسیر AI به‌صورت deterministic fixture اجرا می‌شود (بدون تماس شبکه برای تولید متن).
+- بسته‌های دانش (knowledge packs) دمو فعال می‌شوند و خروجی‌ها صریحاً با برچسب `synthetic` مشخص می‌شوند.
+- دکمه `نمونه دمو` در پنل دستیار و دکمه `بارگذاری نمونه دمو` در کارگاه ژئو-تحلیل برای تولید خروجی نمونه در دسترس است.
+
+## تست‌های AI این فاز
+
+```bash
+npm run typecheck:all
+npx tsx --test tests/assistant-schema.test.mts tests/assistant-safety.test.mts tests/query-normalization.test.mts tests/prompt-catalog.test.mts tests/openrouter-policy.test.mts tests/analysis-job-queue.test.mts tests/geo-analysis-workspace.test.mts
+```
+
+## تست‌های Interoperability این فاز
+
+```bash
+npx tsx --test tests/interoperability-registry.test.mts tests/interoperability-importers.test.mts tests/ontology-normalization.test.mts tests/investigation-workflows.test.mts tests/palantir-compatibility.test.mts
+```
+
+## تست‌های Resilience این فاز
+
+```bash
+npx tsx --test tests/resilience-engine.test.mts tests/resilience-reporting.test.mts tests/nrc-resilience-bridge.test.mts
+```
+
 ## Change Log
 
 - یادداشت انتشار این استقرار production: [docs/production-release-2026-03-16.md](./docs/production-release-2026-03-16.md)
 - تاریخچه عمومی پروژه: [CHANGELOG.md](./CHANGELOG.md)
 - داخل خود داشبورد هم یک پنل `Change Log / یادداشت انتشار` برای مرور سریع release notes اضافه شده است.
+
+## Foundation Docs
+
+- dossier بنیادین این pass: [docs/qadr/foundation-implementation-dossier.md](./docs/qadr/foundation-implementation-dossier.md)
+- یادداشت‌های migration: [docs/qadr/foundation-migration-notes.md](./docs/qadr/foundation-migration-notes.md)
+- سند AI fabric جدید: [docs/qadr/openrouter-ai-fabric.md](./docs/qadr/openrouter-ai-fabric.md)
+- یادداشت migration لایه AI: [docs/qadr/openrouter-ai-migration-notes.md](./docs/qadr/openrouter-ai-migration-notes.md)
+- سند foundation برای interoperability: [docs/qadr/interoperability-foundation.md](./docs/qadr/interoperability-foundation.md)
+- ماتریس compatibility و محدودیت integration: [docs/qadr/interoperability-compatibility-matrix.md](./docs/qadr/interoperability-compatibility-matrix.md)
+- یادداشت migration لایه interoperability: [docs/qadr/interoperability-migration-notes.md](./docs/qadr/interoperability-migration-notes.md)
+- سند کارگاه ژئو-تحلیل نقشه‌محور: [docs/qadr/map-geo-analytic-workspace.md](./docs/qadr/map-geo-analytic-workspace.md)
+- یادداشت migration لایه نقشه/ژئو-تحلیل: [docs/qadr/map-geo-analytic-migration-notes.md](./docs/qadr/map-geo-analytic-migration-notes.md)
+- سند روش‌شناسی تاب‌آوری: [docs/qadr/resilience-methodology.md](./docs/qadr/resilience-methodology.md)
+- یادداشت migration لایه تاب‌آوری: [docs/qadr/resilience-migration-notes.md](./docs/qadr/resilience-migration-notes.md)
+- ADRها: [docs/qadr/adr/0001-interoperability-foundation.md](./docs/qadr/adr/0001-interoperability-foundation.md), [docs/qadr/adr/0002-openrouter-primary-routing.md](./docs/qadr/adr/0002-openrouter-primary-routing.md)
 
 ---
 

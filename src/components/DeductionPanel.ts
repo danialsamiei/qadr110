@@ -6,6 +6,12 @@ import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import type { NewsItem, DeductContextDetail } from '@/types';
 import { buildNewsContext } from '@/utils/news-context';
+import { AnalysisJobQueue } from '@/platform/operations/analysis-job-queue';
+import {
+    MAP_CONTEXT_EVENT,
+    describeMapContextForPrompt,
+    type MapContextEnvelope,
+} from '@/platform/operations/map-context';
 
 const client = new IntelligenceServiceClient(getRpcBaseUrl(), { fetch: (...args) => globalThis.fetch(...args) });
 
@@ -20,6 +26,9 @@ export class DeductionPanel extends Panel {
     private isSubmitting = false;
     private getLatestNews?: () => NewsItem[];
     private contextHandler: EventListener;
+    private mapContextHandler: EventListener;
+    private readonly analysisQueue: AnalysisJobQueue;
+    private lastMapContext: MapContextEnvelope | null = null;
 
     constructor(getLatestNews?: () => NewsItem[]) {
         super({
@@ -29,6 +38,7 @@ export class DeductionPanel extends Panel {
         });
 
         this.getLatestNews = getLatestNews;
+        this.analysisQueue = new AnalysisJobQueue(document);
 
         this.inputEl = h('textarea', {
             className: 'deduction-input',
@@ -89,10 +99,16 @@ export class DeductionPanel extends Panel {
             }
         }) as EventListener;
         document.addEventListener('wm:deduct-context', this.contextHandler);
+
+        this.mapContextHandler = ((e: CustomEvent<MapContextEnvelope>) => {
+            this.lastMapContext = e.detail;
+        }) as EventListener;
+        document.addEventListener(MAP_CONTEXT_EVENT, this.mapContextHandler);
     }
 
     public override destroy(): void {
         document.removeEventListener('wm:deduct-context', this.contextHandler);
+        document.removeEventListener(MAP_CONTEXT_EVENT, this.mapContextHandler);
         super.destroy();
     }
 
@@ -104,6 +120,9 @@ export class DeductionPanel extends Panel {
         if (!query) return;
 
         let geoContext = this.geoInputEl.value.trim();
+        if (!geoContext && this.lastMapContext) {
+            geoContext = describeMapContextForPrompt(this.lastMapContext);
+        }
 
         if (this.getLatestNews && !geoContext.includes('Recent News:')) {
             const newsCtx = buildNewsContext(this.getLatestNews);
@@ -119,9 +138,16 @@ export class DeductionPanel extends Panel {
         this.resultContainer.textContent = 'Analyzing timeline and impact...';
 
         try {
-            const resp = await client.deductSituation({
-                query,
-                geoContext,
+            const resp = await this.analysisQueue.enqueue({
+                id: `deduction-${Date.now()}`,
+                kind: 'deduction',
+                title: query.slice(0, 80),
+                promptId: 'deduction-panel',
+                mapContextId: this.lastMapContext?.id,
+                run: async () => client.deductSituation({
+                    query,
+                    geoContext,
+                }),
             });
             if (!this.element?.isConnected) return;
 

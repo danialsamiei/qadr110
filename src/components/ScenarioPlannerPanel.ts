@@ -1,9 +1,12 @@
 import { Panel } from './Panel';
 import { runScenarioEngine, type ScenarioDefinition, type ScenarioEngineOutput } from '@/services/scenario-engine';
 import { escapeHtml } from '@/utils/sanitize';
+import { dispatchOpenResilienceDashboard, GEO_ANALYSIS_EVENT_TYPES, type GeoAnalysisScenarioHandoffDetail } from '@/platform';
 
 export class ScenarioPlannerPanel extends Panel {
   private onScenarioComputed?: (output: ScenarioEngineOutput, defs: Record<'baseline' | 'optimistic' | 'pessimistic', ScenarioDefinition>) => void;
+  private readonly geoScenarioHandler: EventListener;
+  private latestDefinitions: Record<'baseline' | 'optimistic' | 'pessimistic', ScenarioDefinition> | null = null;
 
   constructor() {
     super({
@@ -11,16 +14,67 @@ export class ScenarioPlannerPanel extends Panel {
       title: 'سناریوپرداز',
       className: 'panel-wide',
     });
+    this.geoScenarioHandler = ((event: CustomEvent<GeoAnalysisScenarioHandoffDetail>) => {
+      this.applyGeoScenarioSeed(event.detail);
+    }) as EventListener;
+    document.addEventListener(GEO_ANALYSIS_EVENT_TYPES.scenarioHandoff, this.geoScenarioHandler);
     this.render();
     this.bindEvents();
     this.computeAndRender();
+  }
+
+  public override destroy(): void {
+    document.removeEventListener(GEO_ANALYSIS_EVENT_TYPES.scenarioHandoff, this.geoScenarioHandler);
+    super.destroy();
   }
 
   public setScenarioComputedHandler(handler: (output: ScenarioEngineOutput, defs: Record<'baseline' | 'optimistic' | 'pessimistic', ScenarioDefinition>) => void): void {
     this.onScenarioComputed = handler;
   }
 
+  public applyGeoScenarioSeed(detail: GeoAnalysisScenarioHandoffDetail): void {
+    const baselineEvent = this.content.querySelector<HTMLTextAreaElement>('[data-scenario-id="event-baseline"]');
+    const optimisticEvent = this.content.querySelector<HTMLTextAreaElement>('[data-scenario-id="event-optimistic"]');
+    const pessimisticEvent = this.content.querySelector<HTMLTextAreaElement>('[data-scenario-id="event-pessimistic"]');
+    const actors = this.content.querySelectorAll<HTMLInputElement>('[data-scenario-id^="actors-"]');
+    const constraints = this.content.querySelectorAll<HTMLInputElement>('[data-scenario-id^="constraints-"]');
+    const durations = this.content.querySelectorAll<HTMLInputElement>('[data-scenario-id^="duration-"]');
+
+    if (baselineEvent) baselineEvent.value = detail.event;
+    if (optimisticEvent) optimisticEvent.value = `${detail.event} با مسیر کنترل‌شده‌تر`;
+    if (pessimisticEvent) pessimisticEvent.value = `${detail.event} با اثرات سرریز شدیدتر`;
+    actors.forEach((input) => {
+      input.value = detail.actors.join(', ');
+    });
+    constraints.forEach((input) => {
+      input.value = detail.constraints.join(', ');
+    });
+    durations.forEach((input, index) => {
+      const multiplier = index === 1 ? 0.8 : index === 2 ? 1.4 : 1;
+      input.value = String(Math.max(3, Math.round(detail.durationDays * multiplier)));
+    });
+    this.computeAndRender();
+  }
+
   private bindEvents(): void {
+    this.content.addEventListener('click', (event) => {
+      const target = (event.target as HTMLElement | null)?.closest<HTMLElement>('[data-action="open-resilience-stress"]');
+      if (!target || !this.latestDefinitions) return;
+      dispatchOpenResilienceDashboard(document, {
+        source: 'scenario-workbench',
+        primaryCountryCode: 'IR',
+        focusTab: 'stress',
+        reportType: 'scenario-forecast',
+        title: 'تنش‌سنجی تاب‌آوری از سناریوپرداز',
+        scenario: {
+          title: this.latestDefinitions.baseline.name,
+          event: this.latestDefinitions.baseline.event,
+          durationDays: this.latestDefinitions.baseline.durationDays,
+          actors: this.latestDefinitions.baseline.actors,
+          constraints: this.latestDefinitions.baseline.constraints,
+        },
+      });
+    });
     this.content.addEventListener('input', (event) => {
       const target = event.target as HTMLElement | null;
       if (!target?.classList.contains('scenario-input')) return;
@@ -81,6 +135,7 @@ export class ScenarioPlannerPanel extends Panel {
     });
 
     this.onScenarioComputed?.({ ...baselineOutput, countryRiskIndex: mergedCountryRisk }, defs);
+    this.latestDefinitions = defs;
   }
 
   private render(): void {
@@ -156,7 +211,10 @@ export class ScenarioPlannerPanel extends Panel {
 
     return `
       <section class="scenario-output">
-        <h4>مقایسه اثرات زنجیره‌ای</h4>
+        <div class="scenario-output-toolbar">
+          <h4>مقایسه اثرات زنجیره‌ای</h4>
+          <button type="button" class="nrc-tab" data-action="open-resilience-stress">باز کردن در داشبورد تاب‌آوری</button>
+        </div>
         <table class="scenario-table">
           <thead><tr><th>بخش</th><th>پایه</th><th>خوش‌بینانه</th><th>بدبینانه</th></tr></thead>
           <tbody>

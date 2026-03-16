@@ -1,11 +1,14 @@
 export const SITE_VARIANT: string = (() => {
-  if (typeof window === 'undefined') return import.meta.env.VITE_VARIANT || 'full';
+  const envVariant = typeof import.meta !== 'undefined' && import.meta.env?.VITE_VARIANT
+    ? String(import.meta.env.VITE_VARIANT)
+    : 'full';
+  if (typeof window === 'undefined') return envVariant;
 
   const isTauri = '__TAURI_INTERNALS__' in window || '__TAURI__' in window;
   if (isTauri) {
     const stored = localStorage.getItem('worldmonitor-variant');
     if (stored === 'tech' || stored === 'full' || stored === 'finance' || stored === 'happy' || stored === 'commodity') return stored;
-    return import.meta.env.VITE_VARIANT || 'full';
+    return envVariant;
   }
 
   const h = location.hostname;
@@ -17,7 +20,7 @@ export const SITE_VARIANT: string = (() => {
   if (h === 'localhost' || h === '127.0.0.1') {
     const stored = localStorage.getItem('worldmonitor-variant');
     if (stored === 'tech' || stored === 'full' || stored === 'finance' || stored === 'happy' || stored === 'commodity') return stored;
-    return import.meta.env.VITE_VARIANT || 'full';
+    return envVariant;
   }
 
   return 'full';

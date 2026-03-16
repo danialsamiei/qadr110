@@ -7,8 +7,9 @@ import type {
 
 import { cachedFetchJson } from '../../../_shared/redis';
 import { markNoCacheResponse } from '../../../_shared/response-headers';
-import { UPSTREAM_TIMEOUT_MS, GROQ_API_URL, GROQ_MODEL, sha256Hex } from './_shared';
-import { CHROME_UA } from '../../../_shared/constants';
+import { UPSTREAM_TIMEOUT_MS, sha256Hex } from './_shared';
+import { callLlm } from '../../../_shared/llm';
+import { getPolicyForTask } from '../../../../src/platform/ai/policy';
 
 // ========================================================================
 // Constants
@@ -40,16 +41,15 @@ export async function classifyEvent(
   ctx: ServerContext,
   req: ClassifyEventRequest,
 ): Promise<ClassifyEventResponse> {
-  const apiKey = process.env.LLM_API_KEY || process.env.GROQ_API_KEY;
-  if (!apiKey) { markNoCacheResponse(ctx.request); return { classification: undefined }; }
+  if (!process.env.OPENROUTER_API_KEY && !process.env.OLLAMA_API_URL && !process.env.VLLM_API_URL && !process.env.GROQ_API_KEY && !process.env.LLM_API_KEY) {
+    markNoCacheResponse(ctx.request);
+    return { classification: undefined };
+  }
 
   // Input sanitization (M-14 fix): limit title length
   const MAX_TITLE_LEN = 500;
   const title = typeof req.title === 'string' ? req.title.slice(0, MAX_TITLE_LEN) : '';
   if (!title) { markNoCacheResponse(ctx.request); return { classification: undefined }; }
-
-  const apiUrl = process.env.LLM_API_URL || GROQ_API_URL;
-  const model = process.env.LLM_MODEL || GROQ_MODEL;
 
   const cacheKey = `classify:sebuf:v1:${(await sha256Hex(title.toLowerCase())).slice(0, 16)}`;
 
@@ -69,24 +69,18 @@ Focus: geopolitical events, conflicts, disasters, diplomacy. Classify by real-wo
 
 Return: {"level":"...","category":"..."}`;
 
-          const resp = await fetch(apiUrl, {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', 'User-Agent': CHROME_UA },
-            body: JSON.stringify({
-              model,
-              messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: title },
-              ],
-              temperature: 0,
-              max_tokens: 50,
-            }),
-            signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+          const policy = getPolicyForTask('classification');
+          const llmResult = await callLlm({
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: title },
+            ],
+            temperature: 0,
+            maxTokens: policy.tokenBudget.outputTokenLimit,
+            timeoutMs: UPSTREAM_TIMEOUT_MS,
+            validate: (content) => content.includes('{') && content.includes('}'),
           });
-
-          if (!resp.ok) return null;
-          const data = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };
-          const raw = data.choices?.[0]?.message?.content?.trim();
+          const raw = llmResult?.content?.trim();
           if (!raw) return null;
 
           let parsed: { level?: string; category?: string };

@@ -2,6 +2,43 @@
 
 All notable changes to World Monitor are documented here.
 
+## [Unreleased]
+
+### Added
+
+- QADR foundation layer under `src/platform/` for canonical domain models, capability registry, AI routing policy, and operational scaffolding
+- implementation dossier, migration notes, and ADRs for the Persian-first strategic intelligence foundation
+- analysis job queue with lifecycle events for started/minimized/completed/failed flows
+- clearly labeled demo mode (`VITE_DEMO_MODE=1`, `?demo=1`, or `localStorage:qadr110-demo-mode`) with deterministic assistant fixtures and seeded demo knowledge packs
+- typed map-context schema and prompt catalog baseline for AI-native workflows
+- initial tests for registry coverage, OpenRouter-first policy, and analysis queue events
+- OpenRouter-first Persian AI fabric docs, migration notes, and ADR for the assistant workbench pass
+- typed assistant contracts for threads, workflows, memory, evidence cards, trace metadata, and structured outputs
+- `/api/intelligence/v1/assistant` backend orchestration with retrieval augmentation, schema enforcement, safety refusal, and deterministic fallback
+- retrieval adapters for browser-vector, lexical search, Weaviate, and Chroma with Persian query normalization
+- evaluation fixtures and regression tests for assistant schema, safety, retrieval normalization, and prompt composition
+- canonical ontology bundle, interoperability adapter registry, investigation services, and defensive workflow helpers
+- compatibility docs and tests for structured importers, graph workflows, and Palantir-aware boundaries
+- map-centric geo-analysis workspace with dynamic right-click suggestions, background analysis HUD, result panel, and assistant/scenario handoffs
+- migration notes and docs for the geo-analytic map workspace
+- regression tests for geo-context inference, dynamic suggestion routing, and analysis queue cancellation
+- resilience engine under `src/services/resilience/` with 14 dimensions, spillover analysis, stress matrices, comparative dashboards, and Persian report generation
+- methodology and migration docs for the resilience layer plus regression tests for engine/reporting/NRC bridge
+
+### Changed
+
+- OpenRouter is now the default strategic AI gateway, with local/self-hosted and browser fallbacks preserved
+- `QadrAssistantPanel` now uses a prompt catalog instead of hardcoded prompt literals
+- `DeductionPanel` now runs through the shared analysis queue and consumes typed map context
+- server-side deduction, country brief, and event classification handlers now use the shared LLM routing layer
+- `QadrAssistantPanel` is now a Persian AI workbench with persistent threads, saved workflows, pinned evidence, workspace memory, export actions, and map-aware prompt execution
+- assistant outputs now default to Persian structured narratives with evidence lineage, confidence, time context, and lawful defensive guardrails
+- map-context prompt descriptions now render in Persian to keep assistant prompts and UI Persian-first
+- `src/platform` now includes vendor-neutral interoperability, ontology, Palantir-compatible export boundaries, and graph investigation primitives layered onto existing services
+- map right-click flows now produce enriched geo-context envelopes, support SVG fallback mode, and run through the shared analysis lifecycle with cancellable jobs
+- legacy `nrc-resilience` scoring now bridges onto the new resilience engine while preserving the public NRC API surface
+- `NRCAnalyticsPanel` is now the primary Persian resilience dashboard with comparative charts, export formats, AI narration, and default Iran-neighbor baseline comparisons
+
 ## [2.6.1] - 2026-03-11
 
 ### Highlights

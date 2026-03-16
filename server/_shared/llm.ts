@@ -1,4 +1,6 @@
 import { CHROME_UA } from './constants';
+import { getAiProviderOrder, getProviderModel } from '../../src/platform/ai/policy';
+import type { AiGatewayProvider } from '../../src/platform/ai/contracts';
 
 export interface ProviderCredentials {
   apiUrl: string;
@@ -16,7 +18,36 @@ function isSidecar(): boolean {
     (process.env?.LOCAL_API_MODE || '').includes('sidecar');
 }
 
-export function getProviderCredentials(provider: string): ProviderCredentials | null {
+export function getProviderCredentials(provider: AiGatewayProvider): ProviderCredentials | null {
+  if (provider === 'custom') {
+    const apiUrl = process.env.LLM_API_URL;
+    const apiKey = process.env.LLM_API_KEY;
+    if (!apiUrl || !apiKey) return null;
+    return {
+      apiUrl,
+      model: process.env.LLM_MODEL || 'custom-openai-compatible',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+    };
+  }
+
+  if (provider === 'openrouter') {
+    const apiKey = process.env.OPENROUTER_API_KEY;
+    if (!apiKey) return null;
+    return {
+      apiUrl: process.env.OPENROUTER_API_URL || 'https://openrouter.ai/api/v1/chat/completions',
+      model: process.env.OPENROUTER_MODEL || getProviderModel('openrouter'),
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://qadr.alefba.dev',
+        'X-Title': 'QADR110',
+      },
+    };
+  }
+
   if (provider === 'ollama') {
     const baseUrl = process.env.OLLAMA_API_URL;
     if (!baseUrl) return null;
@@ -39,9 +70,22 @@ export function getProviderCredentials(provider: string): ProviderCredentials | 
 
     return {
       apiUrl: new URL('/v1/chat/completions', baseUrl).toString(),
-      model: process.env.OLLAMA_MODEL || 'llama3.1:8b',
+      model: process.env.OLLAMA_MODEL || getProviderModel('ollama'),
       headers,
       extraBody: { think: false },
+    };
+  }
+
+  if (provider === 'vllm') {
+    const baseUrl = process.env.VLLM_API_URL;
+    if (!baseUrl) return null;
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    const apiKey = process.env.VLLM_API_KEY;
+    if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+    return {
+      apiUrl: new URL('/v1/chat/completions', baseUrl).toString(),
+      model: process.env.VLLM_MODEL || getProviderModel('vllm'),
+      headers,
     };
   }
 
@@ -49,26 +93,11 @@ export function getProviderCredentials(provider: string): ProviderCredentials | 
     const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) return null;
     return {
-      apiUrl: 'https://api.groq.com/openai/v1/chat/completions',
-      model: 'llama-3.1-8b-instant',
+      apiUrl: process.env.GROQ_API_URL || 'https://api.groq.com/openai/v1/chat/completions',
+      model: process.env.GROQ_MODEL || getProviderModel('groq'),
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
-      },
-    };
-  }
-
-  if (provider === 'openrouter') {
-    const apiKey = process.env.OPENROUTER_API_KEY;
-    if (!apiKey) return null;
-    return {
-      apiUrl: 'https://openrouter.ai/api/v1/chat/completions',
-      model: 'openrouter/free',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://worldmonitor.app',
-        'X-Title': 'World Monitor',
       },
     };
   }
@@ -96,14 +125,23 @@ export function stripThinkingTags(text: string): string {
   return s;
 }
 
-const PROVIDER_CHAIN = ['ollama', 'groq', 'openrouter'] as const;
+const PROVIDER_CHAIN = [
+  'openrouter',
+  'custom',
+  ...getAiProviderOrder('strategic-default').filter((provider) => provider !== 'browser' && provider !== 'openrouter'),
+] as const;
 
 export interface LlmCallOptions {
   messages: Array<{ role: string; content: string }>;
   temperature?: number;
   maxTokens?: number;
   timeoutMs?: number;
-  provider?: string;
+  provider?: AiGatewayProvider;
+  retries?: number;
+  retryDelayMs?: number;
+  stream?: boolean;
+  onChunk?: (chunk: string) => void;
+  extraBodyByProvider?: Partial<Record<AiGatewayProvider, Record<string, unknown>>>;
   stripThinkingTags?: boolean;
   validate?: (content: string) => boolean;
 }
@@ -111,8 +149,60 @@ export interface LlmCallOptions {
 export interface LlmCallResult {
   content: string;
   model: string;
-  provider: string;
+  provider: AiGatewayProvider;
   tokens: number;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function readStreamingContent(
+  resp: Response,
+  onChunk?: (chunk: string) => void,
+): Promise<string> {
+  if (!resp.body) return '';
+
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let content = '';
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() ?? '';
+
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line.startsWith('data:')) continue;
+
+      const payload = line.slice(5).trim();
+      if (!payload || payload === '[DONE]') continue;
+
+      try {
+        const data = JSON.parse(payload) as {
+          choices?: Array<{
+            delta?: { content?: string };
+            message?: { content?: string };
+          }>;
+        };
+        const delta = data.choices?.[0]?.delta?.content
+          ?? data.choices?.[0]?.message?.content
+          ?? '';
+        if (!delta) continue;
+        content += delta;
+        onChunk?.(delta);
+      } catch {
+        continue;
+      }
+    }
+  }
+
+  return content;
 }
 
 export async function callLlm(opts: LlmCallOptions): Promise<LlmCallResult | null> {
@@ -122,6 +212,11 @@ export async function callLlm(opts: LlmCallOptions): Promise<LlmCallResult | nul
     maxTokens = 1500,
     timeoutMs = 25_000,
     provider: forcedProvider,
+    retries = 1,
+    retryDelayMs = 400,
+    stream = false,
+    onChunk,
+    extraBodyByProvider,
     stripThinkingTags: shouldStrip = true,
     validate,
   } = opts;
@@ -135,58 +230,91 @@ export async function callLlm(opts: LlmCallOptions): Promise<LlmCallResult | nul
       continue;
     }
 
-    try {
-      const resp = await fetch(creds.apiUrl, {
-        method: 'POST',
-        headers: { ...creds.headers, 'User-Agent': CHROME_UA },
-        body: JSON.stringify({
+    for (let attempt = 0; attempt < Math.max(1, retries); attempt++) {
+      try {
+        const body = {
           ...creds.extraBody,
+          ...(extraBodyByProvider?.[providerName] ?? {}),
           model: creds.model,
           messages,
           temperature,
           max_tokens: maxTokens,
-        }),
-        signal: AbortSignal.timeout(timeoutMs),
-      });
+          ...(stream ? { stream: true } : {}),
+        };
 
-      if (!resp.ok) {
-        console.warn(`[llm:${providerName}] HTTP ${resp.status}`);
-        if (forcedProvider) return null;
-        continue;
-      }
+        const resp = await fetch(creds.apiUrl, {
+          method: 'POST',
+          headers: { ...creds.headers, 'User-Agent': CHROME_UA },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(timeoutMs),
+        });
 
-      const data = (await resp.json()) as {
-        choices?: Array<{ message?: { content?: string } }>;
-        usage?: { total_tokens?: number };
-      };
-
-      let content = data.choices?.[0]?.message?.content?.trim() || '';
-      if (!content) {
-        if (forcedProvider) return null;
-        continue;
-      }
-
-      const tokens = data.usage?.total_tokens ?? 0;
-
-      if (shouldStrip) {
-        content = stripThinkingTags(content);
-        if (!content) {
+        if (!resp.ok) {
+          console.warn(`[llm:${providerName}] HTTP ${resp.status}`);
+          if (attempt + 1 < Math.max(1, retries)) {
+            await sleep(retryDelayMs * (attempt + 1));
+            continue;
+          }
           if (forcedProvider) return null;
+          break;
+        }
+
+        let content = '';
+        let tokens = 0;
+
+        if (stream) {
+          content = (await readStreamingContent(resp, onChunk)).trim();
+        } else {
+          const data = (await resp.json()) as {
+            choices?: Array<{ message?: { content?: string } }>;
+            usage?: { total_tokens?: number };
+          };
+
+          content = data.choices?.[0]?.message?.content?.trim() || '';
+          tokens = data.usage?.total_tokens ?? 0;
+        }
+
+        if (!content) {
+          if (attempt + 1 < Math.max(1, retries)) {
+            await sleep(retryDelayMs * (attempt + 1));
+            continue;
+          }
+          if (forcedProvider) return null;
+          break;
+        }
+
+        if (shouldStrip) {
+          content = stripThinkingTags(content);
+          if (!content) {
+            if (attempt + 1 < Math.max(1, retries)) {
+              await sleep(retryDelayMs * (attempt + 1));
+              continue;
+            }
+            if (forcedProvider) return null;
+            break;
+          }
+        }
+
+        if (validate && !validate(content)) {
+          console.warn(`[llm:${providerName}] validate() rejected response, trying next`);
+          if (attempt + 1 < Math.max(1, retries)) {
+            await sleep(retryDelayMs * (attempt + 1));
+            continue;
+          }
+          if (forcedProvider) return null;
+          break;
+        }
+
+        return { content, model: creds.model, provider: providerName, tokens };
+      } catch (err) {
+        console.warn(`[llm:${providerName}] ${(err as Error).message}`);
+        if (attempt + 1 < Math.max(1, retries)) {
+          await sleep(retryDelayMs * (attempt + 1));
           continue;
         }
-      }
-
-      if (validate && !validate(content)) {
-        console.warn(`[llm:${providerName}] validate() rejected response, trying next`);
         if (forcedProvider) return null;
-        continue;
+        break;
       }
-
-      return { content, model: creds.model, provider: providerName, tokens };
-    } catch (err) {
-      console.warn(`[llm:${providerName}] ${(err as Error).message}`);
-      if (forcedProvider) return null;
-      continue;
     }
   }
 

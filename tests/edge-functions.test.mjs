@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
@@ -35,7 +35,7 @@ describe('scripts/shared/ stays in sync with shared/', () => {
 
 describe('Edge Function shared helpers resolve', () => {
   it('_rss-allowed-domains.js re-exports shared domain list', async () => {
-    const mod = await import(join(apiDir, '_rss-allowed-domains.js'));
+    const mod = await import(pathToFileURL(join(apiDir, '_rss-allowed-domains.js')).href);
     const domains = mod.default;
     assert.ok(Array.isArray(domains), 'Expected default export to be an array');
     assert.ok(domains.length > 200, `Expected 200+ domains, got ${domains.length}`);
@@ -65,15 +65,20 @@ describe('Legacy api/*.js endpoint allowlist', () => {
     'download.js',
     'fwdstart.js',
     'geo.js',
+    'google-trends.js',
     'gpsjam.js',
     'health.js',
+    'ipx-status.js',
     'military-flights.js',
+    'netblocks.js',
     'og-story.js',
     'opensky.js',
+    'ops-health.js',
     'oref-alerts.js',
     'polymarket.js',
     'register-interest.js',
     'reverse-geocode.js',
+    'road-traffic.js',
     'rss-proxy.js',
     'satellites.js',
     'seed-health.js',

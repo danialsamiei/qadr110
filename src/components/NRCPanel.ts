@@ -21,8 +21,8 @@ export class NRCPanel extends Panel {
   constructor() {
     super({
       id: 'nrc-resilience',
-      title: t('panels.nrcResilience') || 'National Resilience (NRC)',
-      infoTooltip: t('nrc.infoTooltip') || 'National Resilience Coefficient — 6-domain resilience scoring',
+      title: t('panels.nrcResilience') || 'نمای کلی تاب‌آوری ملی',
+      infoTooltip: t('nrc.infoTooltip') || 'نمای خلاصه ۶دامنه‌ای از وضعیت تاب‌آوری برای ورود سریع به تحلیل عمیق‌تر',
     });
     this.showLoading(t('common.loading'));
   }
@@ -33,11 +33,11 @@ export class NRCPanel extends Panel {
 
   private getLevelLabel(level: NRCScore['level']): string {
     const labels: Record<string, string> = {
-      very_high: '🟢 Very High',
-      high: '🔵 High',
-      moderate: '🟡 Moderate',
-      low: '🟠 Low',
-      very_low: '🔴 Very Low',
+      very_high: '🟢 بسیار بالا',
+      high: '🔵 بالا',
+      moderate: '🟡 متوسط',
+      low: '🟠 پایین',
+      very_low: '🔴 بسیار پایین',
     };
     return labels[level] ?? level;
   }

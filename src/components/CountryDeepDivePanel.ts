@@ -55,6 +55,7 @@ export class CountryDeepDivePanel implements CountryBriefPanel {
   private onStateChangeCallback?: (state: { visible: boolean; maximized: boolean }) => void;
   private onShareStory?: (code: string, name: string) => void;
   private onExportImage?: (code: string, name: string) => void;
+  private onOpenResilience?: (code: string, name: string) => void;
   private map: MapContainer | null;
   private abortController: AbortController = new AbortController();
   private lastFocusedElement: HTMLElement | null = null;
@@ -138,6 +139,10 @@ export class CountryDeepDivePanel implements CountryBriefPanel {
 
   public setExportImageHandler(handler: (code: string, name: string) => void): void {
     this.onExportImage = handler;
+  }
+
+  public setResilienceHandler(handler: (code: string, name: string) => void): void {
+    this.onOpenResilience = handler;
   }
 
   public get signal(): AbortSignal {
@@ -669,7 +674,16 @@ export class CountryDeepDivePanel implements CountryBriefPanel {
         this.onExportImage(this.currentCode, this.currentName);
       }
     });
-    right.append(shareBtn, maxBtn, storyButton, exportButton);
+
+    const resilienceButton = this.el('button', 'cdp-action-btn', 'تاب‌آوری') as HTMLButtonElement;
+    resilienceButton.setAttribute('type', 'button');
+    resilienceButton.addEventListener('click', () => {
+      if (this.onOpenResilience && this.currentCode && this.currentName) {
+        this.onOpenResilience(this.currentCode, this.currentName);
+      }
+    });
+
+    right.append(shareBtn, maxBtn, storyButton, resilienceButton, exportButton);
     header.append(left, right);
 
     const scoreCard = this.el('section', 'cdp-card cdp-score-card');

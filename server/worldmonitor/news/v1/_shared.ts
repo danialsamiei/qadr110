@@ -156,8 +156,8 @@ export function getProviderCredentials(provider: string): ProviderCredentials | 
     const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) return null;
     return {
-      apiUrl: 'https://api.groq.com/openai/v1/chat/completions',
-      model: 'llama-3.1-8b-instant',
+      apiUrl: process.env.GROQ_API_URL || 'https://api.groq.com/openai/v1/chat/completions',
+      model: process.env.GROQ_MODEL || 'llama-3.1-8b-instant',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
@@ -169,13 +169,13 @@ export function getProviderCredentials(provider: string): ProviderCredentials | 
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) return null;
     return {
-      apiUrl: 'https://openrouter.ai/api/v1/chat/completions',
-      model: 'google/gemini-2.5-flash',
+      apiUrl: process.env.OPENROUTER_API_URL || 'https://openrouter.ai/api/v1/chat/completions',
+      model: process.env.OPENROUTER_MODEL || 'openrouter/auto',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://worldmonitor.app',
-        'X-Title': 'World Monitor',
+        'HTTP-Referer': 'https://qadr.alefba.dev',
+        'X-Title': 'QADR110',
       },
     };
   }

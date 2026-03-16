@@ -88,6 +88,10 @@ const seedMetaLastWrite = new Map<string, number>();
 const SEED_META_THROTTLE_MS = 300_000; // 5 minutes
 
 function writeSeedMeta(cacheKey: string, recordCount: number): void {
+  // Keep seed-meta persistence opt-in so a single cache miss remains a single
+  // Redis SET in tests and minimal deployments.
+  if (process.env.WM_ENABLE_SEED_META !== '1') return;
+
   const now = Date.now();
   const last = seedMetaLastWrite.get(cacheKey) ?? 0;
   if (now - last < SEED_META_THROTTLE_MS) return;
