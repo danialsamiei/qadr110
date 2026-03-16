@@ -1,6 +1,6 @@
 import type { AppContext, AppModule } from '@/app/app-context';
-import { replayPendingCalls, clearAllPendingCalls } from '@/app/pending-panel-data';
-import type { RelatedAsset } from '@/types';
+import { replayPendingCalls, clearAllPendingCalls, enqueuePanelCall } from '@/app/pending-panel-data';
+import type { MapLayers, RelatedAsset } from '@/types';
 import type { TheaterPostureSummary } from '@/services/military-surge';
 import {
   MapContainer,
@@ -38,8 +38,18 @@ import {
   AviationCommandBar,
   PersianStrategicPanel,
   NarrativeAnalysisPanel,
+  ScenarioPlannerPanel,
 } from '@/components';
 import { SatelliteFiresPanel } from '@/components/SatelliteFiresPanel';
+import { DarkwebDefensivePanel } from '@/components/DarkwebDefensivePanel';
+import { InfraTrafficCyberPanel } from '@/components/InfraTrafficCyberPanel';
+import { IranMediaMatrixPanel } from '@/components/IranMediaMatrixPanel';
+import { MaritimeTrafficPanel } from '@/components/MaritimeTrafficPanel';
+import { MediaPipelinesPanel } from '@/components/MediaPipelinesPanel';
+import { PremiumBenchmarkPanel } from '@/components/PremiumBenchmarkPanel';
+import { QadrAssistantPanel } from '@/components/QadrAssistantPanel';
+import { RegionalSlicesPanel } from '@/components/RegionalSlicesPanel';
+import { WorldMonitoringHubPanel } from '@/components/WorldMonitoringHubPanel';
 import { focusInvestmentOnMap } from '@/services/investments-focus';
 import { debounce, saveToStorage, loadFromStorage } from '@/utils';
 import { escapeHtml } from '@/utils/sanitize';
@@ -63,6 +73,40 @@ export interface PanelLayoutCallbacks {
   updateMonitorResults: () => void;
   loadSecurityAdvisories?: () => Promise<void>;
 }
+
+type AnalysisNavPanelCall = {
+  panelId: string;
+  method: string;
+  args?: unknown[];
+};
+
+type AnalysisNavAction = {
+  id: string;
+  label: string;
+  panelId: string;
+  layers?: Array<keyof MapLayers>;
+  panelCalls?: AnalysisNavPanelCall[];
+};
+
+const ANALYSIS_NAV_ACTIONS: AnalysisNavAction[] = [
+  { id: 'media', label: 'رسانه', panelId: 'iran-media-matrix', panelCalls: [{ panelId: 'iran-media-matrix', method: 'applyQuickFilter', args: [''] }] },
+  { id: 'pipelines', label: 'Pipeline', panelId: 'media-pipelines', panelCalls: [{ panelId: 'media-pipelines', method: 'applyPlatformFilter', args: ['all'] }] },
+  { id: 'telegram', label: 'Telegram', panelId: 'telegram-intel' },
+  { id: 'instagram', label: 'Instagram', panelId: 'media-pipelines', panelCalls: [{ panelId: 'media-pipelines', method: 'applyPlatformFilter', args: ['instagram'] }] },
+  { id: 'x', label: 'X', panelId: 'media-pipelines', panelCalls: [{ panelId: 'media-pipelines', method: 'applyPlatformFilter', args: ['x'] }] },
+  { id: 'aparat', label: 'Aparat', panelId: 'iran-media-matrix', panelCalls: [{ panelId: 'iran-media-matrix', method: 'applyQuickFilter', args: ['Aparat'] }] },
+  { id: 'telewebion', label: 'Telewebion', panelId: 'iran-media-matrix', panelCalls: [{ panelId: 'iran-media-matrix', method: 'applyQuickFilter', args: ['Telewebion'] }] },
+  { id: 'gdelt', label: 'GDELT', panelId: 'gdelt-intel' },
+  { id: 'netblocks', label: 'NetBlocks', panelId: 'infra-traffic-cyber', panelCalls: [{ panelId: 'infra-traffic-cyber', method: 'focusStream', args: ['netblocks'] }] },
+  { id: 'google-trends', label: 'GoogleTrends', panelId: 'infra-traffic-cyber', panelCalls: [{ panelId: 'infra-traffic-cyber', method: 'focusStream', args: ['trends'] }] },
+  { id: 'traffic', label: 'ترافیک', panelId: 'infra-traffic-cyber', layers: ['roadTraffic', 'flights', 'ais', 'waterways'] },
+  { id: 'air-traffic', label: 'هوایی', panelId: 'airline-intel', layers: ['flights'] },
+  { id: 'maritime-traffic', label: 'دریایی', panelId: 'maritime-traffic', layers: ['ais', 'waterways', 'military'] },
+  { id: 'cyber', label: 'سایبر', panelId: 'darkweb-defensive', layers: ['cyberThreats'] },
+  { id: 'ixp', label: 'IXP', panelId: 'infra-traffic-cyber', layers: ['outages', 'datacenters'] },
+  { id: 'dss', label: 'DSS', panelId: 'media-pipelines' },
+  { id: 'ess', label: 'ESS', panelId: 'media-pipelines' },
+];
 
 export class PanelLayoutManager implements AppModule {
   private ctx: AppContext;
@@ -279,7 +323,7 @@ export class PanelLayoutManager implements AppModule {
       ).join('')}
       </div>
       <div class="analysis-nav" style="display:flex;gap:8px;flex-wrap:wrap;padding:8px 14px;border-bottom:1px solid var(--border-color);background:var(--bg-secondary)">
-        ${['رسانه','Pipeline','Telegram','Instagram','X','Aparat','Telewebion','GDELT','NetBlocks','GoogleTrends','ترافیک','سایبر','IXP','DSS','ESS'].map((item) => `<button class="analysis-nav-chip" style="padding:6px 10px;border-radius:999px;border:1px solid var(--border-color);background:var(--bg-tertiary);color:var(--text-primary);font-size:12px;cursor:default">${item}</button>`).join('')}
+        ${ANALYSIS_NAV_ACTIONS.map((item) => `<button class="analysis-nav-chip" type="button" data-analysis-action="${item.id}" style="padding:6px 10px;border-radius:999px;border:1px solid var(--border-color);background:var(--bg-tertiary);color:var(--text-primary);font-size:12px;cursor:pointer">${item.label}</button>`).join('')}
       </div>
       <div class="main-content">
         <div class="map-section" id="mapSection">
@@ -327,6 +371,7 @@ export class PanelLayoutManager implements AppModule {
     `;
 
     this.createPanels();
+    this.setupAnalysisNav();
 
     if (this.ctx.isMobile) {
       this.setupMobileMapToggle();
@@ -711,6 +756,16 @@ export class PanelLayoutManager implements AppModule {
       this.ctx.panels['narrative-analysis'] = new NarrativeAnalysisPanel();
     }
 
+    this.createPanel('qadr-assistant', () => new QadrAssistantPanel());
+    this.createPanel('world-monitoring-hub', () => new WorldMonitoringHubPanel());
+    this.createPanel('premium-benchmark', () => new PremiumBenchmarkPanel());
+    this.createPanel('darkweb-defensive', () => new DarkwebDefensivePanel());
+    this.createPanel('iran-media-matrix', () => new IranMediaMatrixPanel());
+    this.createPanel('regional-slices', () => new RegionalSlicesPanel());
+    this.createPanel('infra-traffic-cyber', () => new InfraTrafficCyberPanel());
+    this.createPanel('media-pipelines', () => new MediaPipelinesPanel());
+    this.createPanel('maritime-traffic', () => new MaritimeTrafficPanel());
+
     if (this.shouldCreatePanel('airline-intel')) {
       this.ctx.panels['airline-intel'] = new AirlineIntelPanel();
       this.aviationCommandBar = new AviationCommandBar();
@@ -950,6 +1005,97 @@ export class PanelLayoutManager implements AppModule {
       const extra = [...created].filter(k => !configured.has(k) && k !== 'deduction' && k !== 'runtime-config');
       if (extra.length) console.warn('[PanelLayout] Panels created but not in DEFAULT_PANELS:', extra);
     }
+  }
+
+  private setupAnalysisNav(): void {
+    const navButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-analysis-action]'));
+    navButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        const actionId = button.dataset.analysisAction;
+        if (!actionId) return;
+        this.handleAnalysisNavAction(actionId, navButtons, button);
+      });
+    });
+  }
+
+  private handleAnalysisNavAction(actionId: string, buttons: HTMLButtonElement[], activeButton: HTMLButtonElement): void {
+    const action = ANALYSIS_NAV_ACTIONS.find((item) => item.id === actionId);
+    if (!action) return;
+
+    buttons.forEach((button) => {
+      const isActive = button === activeButton;
+      button.style.background = isActive ? 'rgba(86, 157, 255, 0.18)' : 'var(--bg-tertiary)';
+      button.style.borderColor = isActive ? 'rgba(86, 157, 255, 0.55)' : 'var(--border-color)';
+      button.style.color = 'var(--text-primary)';
+    });
+
+    if (action.layers?.length) {
+      this.enableMapLayers(action.layers);
+    }
+
+    action.panelCalls?.forEach((panelCall) => {
+      this.callPanelMethod(panelCall.panelId, panelCall.method, panelCall.args ?? []);
+    });
+
+    this.focusPanel(action.panelId);
+  }
+
+  private enableMapLayers(layers: Array<keyof MapLayers>): void {
+    let changed = false;
+    layers.forEach((layer) => {
+      if (!this.ctx.mapLayers[layer]) {
+        this.ctx.mapLayers[layer] = true;
+        changed = true;
+      }
+    });
+
+    if (!changed) return;
+    this.ctx.map?.setLayers(this.ctx.mapLayers);
+    saveToStorage(STORAGE_KEYS.mapLayers, this.ctx.mapLayers);
+    void this.callbacks.loadAllData();
+  }
+
+  private callPanelMethod(panelId: string, method: string, args: unknown[]): void {
+    const panelRecord = this.ctx.panels[panelId] as unknown as Record<string, unknown> | undefined;
+    const fn = panelRecord?.[method];
+    if (typeof fn === 'function') {
+      fn.apply(panelRecord, args);
+      return;
+    }
+    enqueuePanelCall(panelId, method, args);
+  }
+
+  private focusPanel(panelId: string): void {
+    if (panelId === 'map') {
+      const mapSection = document.getElementById('mapSection');
+      if (!mapSection) return;
+      mapSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      mapSection.classList.add('panel-flash-outline');
+      window.setTimeout(() => mapSection.classList.remove('panel-flash-outline'), 1200);
+      return;
+    }
+
+    const config = this.ctx.panelSettings[panelId];
+    if (config && !config.enabled) {
+      config.enabled = true;
+      saveToStorage(STORAGE_KEYS.panels, this.ctx.panelSettings);
+      this.applyPanelSettings();
+    }
+
+    this.focusPanelElement(panelId, 18);
+  }
+
+  private focusPanelElement(panelId: string, remainingAttempts: number): void {
+    const panel = this.ctx.panels[panelId];
+    const el = panel?.getElement() ?? document.querySelector<HTMLElement>(`[data-panel="${panelId}"]`);
+    if (!el) {
+      if (remainingAttempts <= 0) return;
+      window.setTimeout(() => this.focusPanelElement(panelId, remainingAttempts - 1), 140);
+      return;
+    }
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    el.classList.add('panel-flash-outline');
+    window.setTimeout(() => el.classList.remove('panel-flash-outline'), 1200);
   }
 
   private applyTimeRangeFilterToNewsPanels(): void {

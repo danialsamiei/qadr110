@@ -3,12 +3,15 @@ import {
   MEDIA_PIPELINES,
   getPipelineState,
   pausePipeline,
+  type Platform,
   pipelineStats,
   runPipeline,
   schedulePipeline,
 } from '@/services/media-pipelines';
 
 export class MediaPipelinesPanel extends Panel {
+  private platformFilter: Platform | 'all' = 'all';
+
   constructor() {
     super({ id: 'media-pipelines', title: 'پایپلاین‌های رسانه‌ای ایران/اسرائیل', className: 'panel-wide' });
     this.content.addEventListener('click', (event) => {
@@ -20,6 +23,11 @@ export class MediaPipelinesPanel extends Panel {
       if (!pipelineId || !action) return;
       void this.handleAction(action, pipelineId);
     });
+    this.renderPipelines();
+  }
+
+  public applyPlatformFilter(platform: Platform | 'all'): void {
+    this.platformFilter = platform;
     this.renderPipelines();
   }
 
@@ -38,7 +46,17 @@ export class MediaPipelinesPanel extends Panel {
 
   private renderPipelines(): void {
     const stats = pipelineStats();
-    const cards = MEDIA_PIPELINES.map((pipeline) => {
+    const platforms: Array<Platform | 'all'> = ['all', 'telegram', 'instagram', 'x', 'web'];
+    const activePlatform = this.platformFilter;
+    const pipelines = activePlatform === 'all'
+      ? MEDIA_PIPELINES
+      : MEDIA_PIPELINES.filter((pipeline) => pipeline.platforms.includes(activePlatform));
+    const filterButtons = platforms.map((platform) => {
+      const active = platform === this.platformFilter;
+      const label = platform === 'all' ? 'همه' : platform;
+      return `<button type="button" data-platform-filter="${platform}" style="border:1px solid ${active ? 'rgba(86,157,255,.55)' : 'var(--border-color)'};border-radius:999px;padding:4px 10px;background:${active ? 'rgba(86,157,255,.18)' : 'var(--bg-secondary)'};cursor:pointer">${label}</button>`;
+    }).join('');
+    const cards = pipelines.map((pipeline) => {
       const state = getPipelineState(pipeline.id);
       const events = state.eventLog.length > 0
         ? `<ul style="margin:0;padding-inline-start:18px;display:grid;gap:4px">${state.eventLog.slice(0, 4).map((item) => `<li><small><strong>${item.action}</strong> · ${new Date(item.timestamp).toLocaleTimeString('fa-IR')} · ${item.message}</small></li>`).join('')}</ul>`
@@ -68,9 +86,17 @@ export class MediaPipelinesPanel extends Panel {
     this.setContent(`
       <section style="direction:rtl;text-align:right;display:grid;gap:10px;line-height:1.8">
         <p>تعداد پایپلاین‌ها: <strong>${stats.totalPipelines}</strong> | منابع: <strong>${stats.totalSources}</strong> | running: <strong>${stats.running}</strong> | scheduled: <strong>${stats.scheduled}</strong> | paused: <strong>${stats.paused}</strong></p>
-        ${cards}
+        <div style="display:flex;gap:8px;flex-wrap:wrap">${filterButtons}</div>
+        ${cards || '<p style="opacity:.8">برای این فیلتر هنوز پایپلاینی تعریف نشده است.</p>'}
         <p style="opacity:.85">خروجی هر اجرا به BotOps (bot-bridge) و گزارش DSS/ESS ارسال می‌شود.</p>
       </section>
     `);
+    this.content.querySelectorAll<HTMLButtonElement>('[data-platform-filter]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const next = button.dataset.platformFilter as Platform | 'all' | undefined;
+        if (!next) return;
+        this.applyPlatformFilter(next);
+      });
+    });
   }
 }

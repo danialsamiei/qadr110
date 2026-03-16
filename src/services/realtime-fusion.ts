@@ -1,5 +1,3 @@
-import { fetchOpsHealth } from '@/services/ops-health';
-
 export interface FusionSnapshot {
   generatedAt: string;
   streams: FusionStream[];

@@ -1,85 +1,138 @@
-# AGENT.md — QADR110
+# AGENTS.md — QADR110
 
-## 1) هدف سامانه
-QADR110 یک سامانه رصد و تحلیل چندمنظوره برای:
-- World Monitor
-- World Medias Monitor
-- World Conflicts Monitor
-- World Cognitive War Monitor
-- World National & Universal Resilience Monitor
+## 1) هویت محصول
+- نام canonical: `QADR110`
+- دامنه canonical: `https://qadr.alefba.dev`
+- ریپوی canonical: `https://github.com/danialsamiei/qadr110`
+- زبان پیش‌فرض UX: فارسی (`RTL`)
+- کاربرد اصلی: OSINT، رصد ژئوپلیتیک، جنگ روایت، تاب‌آوری، DSS/ESS
 
-با رویکرد DSS/ESS است.
+## 2) خطوط قرمز
+- راهکار نفوذ، دورزدن امنیت، دسترسی غیرمجاز، scraping خلاف قوانین یا bypass محدودیت ارائه‌دهنده‌ها ممنوع است.
+- بخش‌های DarkWeb/DarkNet فقط برای رصد دفاعی، تحلیل تهدید قانونی و کاهش ریسک مجازند.
+- هر تحلیل بحران/امنیتی باید explainable، audit-friendly و سازگار با حقوق بشر و حقوق بین‌الملل باشد.
 
----
+## 3) وضعیت Production فعلی
+- آدرس عمومی فعال: `https://qadr.alefba.dev`
+- سرور عملیاتی فعلی: Ubuntu 24.04 روی `192.168.1.225`
+- سرویس production:
+  - `qadr110.service`
+  - `cloudflared.service`
+- اپ وب به صورت static از `dist/` و با `scripts/serve-dist.mjs` روی `0.0.0.0:3000` سرو می‌شود.
+- Cloudflare Tunnel دامنه `qadr.alefba.dev` را به `localhost:3000` می‌فرستد.
+- نکته مهم:
+  - تنظیم ingress اصلی Tunnel در Cloudflare Dashboard منبع truth است.
+  - بدون دلیل قوی، config محلی `cloudflared` را overwrite نکن.
 
-## 2) اصول کاری برای توسعه‌دهنده/Agent
-1. دامنه اصلی و canonical فقط: `qadr.alefba.dev`
-2. ریپوی اصلی فقط: `danialsamiei/qadr110`
-3. زبان پیش‌فرض UX: فارسی (RTL)
-4. هر قابلیت جدید باید تا حد ممکن:
-   - قابل ممیزی (Audit-friendly)
-   - قابل توضیح (Explainable)
-   - قابل استقرار نیمه‌بلادرنگ (Near realtime)
-   باشد.
+## 4) وضعیت Build/Release که الان جواب می‌دهد
+- برای sanity check سریع:
+  - `npm run typecheck`
+  - `npx vite build`
+- اسکریپت `npm run build` علاوه بر app، blog را هم build می‌کند و به `rm/cp` وابسته است.
+  - روی Linux/Unix مناسب است.
+  - روی Windows ممکن است فقط به خاطر shell commandهای Unix-style fail شود، نه به خاطر کد app.
+- روی host فعلی Ubuntu یک مورد `Segmentation fault` در `vite build` دیده شده است.
+  - تا وقتی علتش برطرف نشده، مسیر release قابل اعتماد این است:
+  1. build محلی `dist`
+  2. upload `dist` به سرور
+  3. restart `qadr110.service`
+- env فعلی production frontend:
+  - `VITE_VARIANT=full`
+  - `VITE_WS_API_URL=https://api.worldmonitor.app`
 
----
+## 5) معماری کد
+- entry اصلی app:
+  - `src/main.ts`
+  - `src/App.ts`
+- wiring layout / panel orchestration:
+  - `src/app/panel-layout.ts`
+  - `src/config/panels.ts`
+- panelها:
+  - `src/components/*.ts`
+- data/service layer:
+  - `src/services/*`
+- sidecar / api / desktop:
+  - `src-tauri/`
+  - `api/`
+  - `scripts/`
 
-## 3) خطوط قرمز امنیتی و حقوقی
-- ارائه راهکار نفوذ، دورزدن امنیت، یا دسترسی غیرمجاز ممنوع است.
-- بخش‌های DarkWeb/DarkNet صرفاً برای رصد دفاعی، کاهش ریسک، و تحلیل تهدید قانونی مجازند.
-- هر نوع تحلیل بحران/امنیتی باید با ملاحظات حقوق بشر و حقوق بین‌الملل همسو باشد.
+## 6) قاعده اضافه‌کردن قابلیت UI
+برای هر panel یا capability جدید این ترتیب را رعایت کن:
+1. فایل panel مستقل در `src/components`
+2. ثبت/enable در `src/config/panels.ts`
+3. wiring در `src/app/panel-layout.ts`
+4. اگر به data تازه نیاز دارد:
+   - service مشخص در `src/services`
+   - feature gating
+   - cache/error handling
+5. اگر روی نقشه اثر دارد:
+   - map layer یا focus behavior را صریح ثبت کن
+6. در پایان:
+   - `npm run typecheck`
+   - ترجیحاً `npx vite build`
 
----
+## 7) قاعده اضافه‌کردن datasource / API
+- اولویت با منابع رایگان یا free tier است.
+- هر datasource جدید باید:
+  - legal/public باشد
+  - source confidence و freshness مشخص داشته باشد
+  - failure mode روشن داشته باشد
+  - بدون key هم graceful degradation داشته باشد
+- برای APIهای جدید:
+  - endpoint جدا
+  - cache control
+  - timeout
+  - retry محدود
+  - no secret leakage to frontend
 
-## 4) معماری پیشنهادی پایپلاین
-### 4.1 Ingest
-- Telegram channels/groups (public/legal)
-- X/Twitter pages
-- Instagram public pages
-- Web news/RSS
-- GDELT / NetBlocks / Google Trends
+## 8) توصیه عملی برای air / maritime
+- هوایی:
+  - free-first: `OpenSky` + `FAA`
+  - paid/fallback: `FlightAware AeroAPI`
+- دریایی:
+  - free-first: `AISStream` یا `AISHub`
+  - paid/fallback: `MarineTraffic`
+- اگر backend self-host شد، این دو domain باید از حالت third-party dependency خارج شوند:
+  - flight intelligence
+  - maritime/AIS intelligence
 
-### 4.2 Normalize
-- نرمال‌سازی زبان، زمان، موجودیت‌ها
-- رفع تکرار
-- برچسب‌گذاری منبع و گرایش رسانه‌ای
+## 9) نکات مهمی که همین حالا در repo اعمال شده‌اند
+- منوهای بالای analysis اکنون clickable هستند و panel/layer مربوطه را focus می‌کنند.
+- پنل‌های زیر در layout فعال شده‌اند:
+  - `media-pipelines`
+  - `iran-media-matrix`
+  - `infra-traffic-cyber`
+  - `qadr-assistant`
+  - `world-monitoring-hub`
+  - `premium-benchmark`
+  - `darkweb-defensive`
+  - `regional-slices`
+  - `maritime-traffic`
+- پنل `maritime-traffic` جدید است و summary زنده از AIS / shipping / chokepoints / military vessels می‌دهد.
 
-### 4.3 Analyze
-- روایت/سوگیری/تناقض
-- ریسک/تنش/تاب‌آوری
-- همگرایی چندمنبعی
+## 10) Definition of Done
+- `npm run typecheck` پاس شود.
+- در صورت تغییر frontend، `npx vite build` پاس شود.
+- اگر release production است:
+  - `qadr110.service` بعد از restart `active` باشد.
+  - `http://127.0.0.1:3000` باید `200 OK` بدهد.
+  - `https://qadr.alefba.dev` باید `200 OK` بدهد.
+- تغییر باید با هویت فارسی/RTL و مسیر QADR110 سازگار باشد.
+- تغییر نباید خطوط قرمز امنیتی/حقوقی را نقض کند.
 
-### 4.4 Score
-- Reliability score
-- Narrative polarity
-- Escalation score
-- Confidence score
+## 11) Backlog کوتاه‌مدت
+1. self-host کردن backend به‌جای تکیه فعلی بر `api.worldmonitor.app`
+2. ریشه‌یابی crash سرور در `vite build`
+3. تکمیل collectorهای واقعی برای:
+   - Instagram
+   - X
+   - Aparat
+   - Telewebion
+4. تکمیل workflowهای DSS/ESS و BotOps
+5. افزودن test coverage برای panelهای جدید و navigation بالا
 
-### 4.5 Decide (DSS/ESS)
-- هشدار
-- سناریوسازی
-- گزارش تصمیم‌یار
-
----
-
-## 5) استاندارد توسعه
-- TypeScript-first
-- ماژولار و قابل تست
-- برای UI جدید، پنل مستقل + ثبت در `config/panels.ts` + wiring در `panel-layout.ts`
-- برای هر ورودی جدید API، endpoint جدا + CORS امن + cache control
-
----
-
-## 6) اولویت‌های توسعه فعلی
-1. تکمیل پایپلاین رسانه‌ای ایران/اسرائیل
-2. بهبود تحلیل چندمنبعی روایت
-3. اتصال Workflowها به BotOps (Telegram/Bale)
-4. ارتقای داشبورد شهری/استانی و برش منطقه‌ای
-
----
-
-## 7) تعریف Done
-- Typecheck موفق
-- UI قابل مشاهده
-- سند راهبری/عملیاتی به‌روز
-- عدم نقض امنیت/قوانین
+## 12) قاعده همکاری برای Agent بعدی
+- قبل از هر تغییر production-sensitive، state فعلی service و tunnel را بخوان.
+- روی tunnel config کورکورانه بازنویسی انجام نده.
+- اگر build روی سرور fail شد ولی typecheck و build محلی سالم بود، deployment را با upload `dist` ادامه بده.
+- اگر feature جدید panel-based است، از pattern موجود در `panel-layout.ts` و `config/panels.ts` خارج نشو.

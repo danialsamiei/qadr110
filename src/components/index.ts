@@ -44,6 +44,7 @@ export * from './InvestmentsPanel';
 export * from './UnifiedSettings';
 export * from './TradePolicyPanel';
 export * from './SupplyChainPanel';
+export * from './ScenarioPlannerPanel';
 export * from './SecurityAdvisoriesPanel';
 export * from './OrefSirensPanel';
 export * from './TelegramIntelPanel';
