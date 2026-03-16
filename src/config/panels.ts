@@ -17,6 +17,9 @@ const FULL_PANELS: Record<string, PanelConfig> = {
   insights: { name: 'AI Insights', enabled: true, priority: 1 },
   'strategic-posture': { name: 'AI Strategic Posture', enabled: true, priority: 1 },
   cii: { name: 'Country Instability', enabled: true, priority: 1, ...(_desktop && { premium: 'enhanced' as const }) },
+  'nrc-resilience': { name: 'National Resilience (NRC)', enabled: true, priority: 1, ...(_desktop && { premium: 'enhanced' as const }) },
+  'nrc-analytics': { name: 'NRC Analytics', enabled: true, priority: 2 },
+  'csrc-cognitive': { name: 'Cognitive-Social (CSRC)', enabled: true, priority: 2 },
   'strategic-risk': { name: 'Strategic Risk Overview', enabled: true, priority: 1, ...(_desktop && { premium: 'enhanced' as const }) },
   intel: { name: 'Intel Feed', enabled: true, priority: 1 },
   'gdelt-intel': { name: 'Live Intelligence', enabled: true, priority: 1, ...(_desktop && { premium: 'enhanced' as const }) },
@@ -127,6 +130,7 @@ const FULL_MAP_LAYERS: MapLayers = {
   renewableInstallations: false,
   tradeRoutes: false,
   ciiChoropleth: false,
+  nrcChoropleth: false,
   dayNight: false,
   // Commodity layers (disabled in full variant)
   miningSites: false,
@@ -187,6 +191,7 @@ const FULL_MOBILE_MAP_LAYERS: MapLayers = {
   renewableInstallations: false,
   tradeRoutes: false,
   ciiChoropleth: false,
+  nrcChoropleth: false,
   dayNight: false,
   // Commodity layers (disabled in full variant)
   miningSites: false,
@@ -300,6 +305,7 @@ const TECH_MAP_LAYERS: MapLayers = {
   tradeRoutes: false,
   iranAttacks: false,
   ciiChoropleth: false,
+  nrcChoropleth: false,
   dayNight: false,
   // Commodity layers (disabled in tech variant)
   miningSites: false,
@@ -360,6 +366,7 @@ const TECH_MOBILE_MAP_LAYERS: MapLayers = {
   tradeRoutes: false,
   iranAttacks: false,
   ciiChoropleth: false,
+  nrcChoropleth: false,
   dayNight: false,
   // Commodity layers (disabled in tech variant)
   miningSites: false,
@@ -474,6 +481,7 @@ const FINANCE_MAP_LAYERS: MapLayers = {
   tradeRoutes: true,
   iranAttacks: false,
   ciiChoropleth: false,
+  nrcChoropleth: false,
   dayNight: false,
   // Commodity layers (disabled in finance variant)
   miningSites: false,
@@ -534,6 +542,7 @@ const FINANCE_MOBILE_MAP_LAYERS: MapLayers = {
   tradeRoutes: false,
   iranAttacks: false,
   ciiChoropleth: false,
+  nrcChoropleth: false,
   dayNight: false,
   // Commodity layers (disabled in finance variant)
   miningSites: false,
@@ -611,6 +620,7 @@ const HAPPY_MAP_LAYERS: MapLayers = {
   tradeRoutes: false,
   iranAttacks: false,
   ciiChoropleth: false,
+  nrcChoropleth: false,
   dayNight: false,
   // Commodity layers (disabled)
   miningSites: false,
@@ -671,6 +681,7 @@ const HAPPY_MOBILE_MAP_LAYERS: MapLayers = {
   tradeRoutes: false,
   iranAttacks: false,
   ciiChoropleth: false,
+  nrcChoropleth: false,
   dayNight: false,
   // Commodity layers (disabled)
   miningSites: false,
@@ -772,6 +783,7 @@ const COMMODITY_MAP_LAYERS: MapLayers = {
   tradeRoutes: true,
   iranAttacks: false,
   ciiChoropleth: false,
+  nrcChoropleth: false,
   dayNight: false,
   // Commodity layers (enabled)
   miningSites: true,
@@ -832,6 +844,7 @@ const COMMODITY_MOBILE_MAP_LAYERS: MapLayers = {
   tradeRoutes: false,
   iranAttacks: false,
   ciiChoropleth: false,
+  nrcChoropleth: false,
   dayNight: false,
   // Commodity layers (limited on mobile)
   miningSites: true,
@@ -904,7 +917,7 @@ export const PANEL_CATEGORY_MAP: Record<string, { labelKey: string; panelKeys: s
   // Full (geopolitical) variant
   intelligence: {
     labelKey: 'header.panelCatIntelligence',
-    panelKeys: ['cii', 'strategic-risk', 'intel', 'gdelt-intel', 'narrative-analysis', 'cascade', 'telegram-intel'],
+    panelKeys: ['cii', 'nrc-resilience', 'nrc-analytics', 'csrc-cognitive', 'strategic-risk', 'intel', 'gdelt-intel', 'narrative-analysis', 'cascade', 'telegram-intel'],
     variants: ['full'],
   },
   regionalNews: {

@@ -57,6 +57,7 @@ export const LAYER_REGISTRY: Record<keyof MapLayers, LayerDefinition> = {
   minerals:                 def('minerals',                 '&#128142;', 'criticalMinerals',         'Critical Minerals'),
   gpsJamming:               def('gpsJamming',               '&#128225;', 'gpsJamming',               'GPS Jamming', ['flat', 'globe'], _desktop ? 'locked' : undefined),
   ciiChoropleth:            def('ciiChoropleth',            '&#127758;', 'ciiChoropleth',            'CII Instability', ['flat'], _desktop ? 'enhanced' : undefined),
+  nrcChoropleth:            def('nrcChoropleth',            '&#128737;', 'nrcChoropleth',            'NRC Resilience', ['flat'], _desktop ? 'enhanced' : undefined),
   dayNight:                 def('dayNight',                 '&#127763;', 'dayNight',                 'Day/Night', ['flat']),
   sanctions:                def('sanctions',                '&#128683;', 'sanctions',                'Sanctions', []),
   startupHubs:              def('startupHubs',              '&#128640;', 'startupHubs',              'Startup Hubs'),
@@ -88,7 +89,7 @@ const VARIANT_LAYER_ORDER: Record<MapVariant, Array<keyof MapLayers>> = {
     'ucdpEvents', 'displacement', 'climate', 'weather',
     'outages', 'cyberThreats', 'natural', 'fires',
     'waterways', 'economic', 'minerals', 'gpsJamming',
-    'satellites', 'ciiChoropleth', 'dayNight',
+    'satellites', 'ciiChoropleth', 'nrcChoropleth', 'dayNight',
   ],
   tech: [
     'startupHubs', 'techHQs', 'accelerators', 'cloudRegions',
@@ -211,6 +212,8 @@ export const LAYER_SYNONYMS: Record<string, Array<keyof MapLayers>> = {
   sanction: ['sanctions'],
   night: ['dayNight'],
   sun: ['dayNight'],
+  resilience: ['nrcChoropleth'],
+  nrc: ['nrcChoropleth'],
 };
 
 export function resolveLayerLabel(def: LayerDefinition, tFn?: (key: string) => string): string {

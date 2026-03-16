@@ -18,6 +18,9 @@ import {
   LiveNewsPanel,
   LiveWebcamsPanel,
   CIIPanel,
+  NRCPanel,
+  NRCAnalyticsPanel,
+  CSRCPanel,
   CascadePanel,
   StrategicRiskPanel,
   StrategicPosturePanel,
@@ -658,6 +661,22 @@ export class PanelLayoutManager implements AppModule {
         this.callbacks.openCountryBrief(code);
       });
       this.ctx.panels['cii'] = ciiPanel;
+    }
+
+    if (this.shouldCreatePanel('nrc-resilience')) {
+      const nrcPanel = new NRCPanel();
+      nrcPanel.setCountryClickHandler((code) => {
+        this.callbacks.openCountryBrief(code);
+      });
+      this.ctx.panels['nrc-resilience'] = nrcPanel;
+    }
+
+    if (this.shouldCreatePanel('nrc-analytics')) {
+      this.ctx.panels['nrc-analytics'] = new NRCAnalyticsPanel();
+    }
+
+    if (this.shouldCreatePanel('csrc-cognitive')) {
+      this.ctx.panels['csrc-cognitive'] = new CSRCPanel();
     }
 
     this.createPanel('cascade', () => new CascadePanel());

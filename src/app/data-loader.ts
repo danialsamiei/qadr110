@@ -87,6 +87,7 @@ import { fetchAllFires, flattenFires, computeRegionStats, toMapFires } from '@/s
 import { analyzeFlightsForSurge, surgeAlertToSignal, detectForeignMilitaryPresence, foreignPresenceToSignal, type TheaterPostureSummary } from '@/services/military-surge';
 import { fetchCachedTheaterPosture } from '@/services/cached-theater-posture';
 import { ingestProtestsForCII, ingestMilitaryForCII, ingestNewsForCII, ingestOutagesForCII, ingestConflictsForCII, ingestUcdpForCII, ingestHapiForCII, ingestDisplacementForCII, ingestClimateForCII, ingestStrikesForCII, ingestOrefForCII, ingestAviationForCII, ingestAdvisoriesForCII, ingestGpsJammingForCII, ingestAisDisruptionsForCII, ingestSatelliteFiresForCII, ingestCyberThreatsForCII, ingestTemporalAnomaliesForCII, isInLearningMode, resetHotspotActivity, setIntelligenceSignalsLoaded, hasAnyIntelligenceData, calculateCII } from '@/services/country-instability';
+import { calculateNRC } from '@/services/nrc-resilience';
 import { fetchGpsInterference } from '@/services/gps-interference';
 import { fetchSatelliteTLEs, initSatRecs, propagatePositions, startPropagationLoop } from '@/services/satellites';
 import type { SatRecEntry } from '@/services/satellites';
@@ -122,6 +123,7 @@ import {
   MonitorPanel,
   InsightsPanel,
   CIIPanel,
+  NRCPanel,
   StrategicPosturePanel,
   EconomicPanel,
   TechReadinessPanel,
@@ -260,6 +262,19 @@ export class DataLoaderManager implements AppModule {
     const scores = calculateCII();
     this.ctx.map?.setCIIScores(scores.map(s => ({ code: s.code, score: s.score, level: s.level })));
     this.ctx.map?.setLayerReady('ciiChoropleth', scores.length > 0);
+    // NRC resilience choropleth (piggybacks on CII data)
+    this.refreshNRC();
+  }
+
+  private refreshNRC(): void {
+    try {
+      const nrcScores = calculateNRC();
+      (this.ctx.panels['nrc-resilience'] as NRCPanel)?.refresh();
+      this.ctx.map?.setNRCScores(nrcScores.map(s => ({ code: s.countryCode, score: s.overallScore, level: s.level })));
+      this.ctx.map?.setLayerReady('nrcChoropleth', nrcScores.length > 0);
+    } catch (e) {
+      console.warn('[DataLoader] NRC refresh failed:', e);
+    }
   }
 
   private async tryFetchDigest(): Promise<ListFeedDigestResponse | null> {
