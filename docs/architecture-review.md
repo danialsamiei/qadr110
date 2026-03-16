@@ -513,6 +513,40 @@ stores/
    - افزایش error rate بالای آستانه
    - Cache miss rate بالا
 
+### ۸. بدهی معماری و ریسک‌ها (Architectural Debt)
+
+#### ۸.۱ سیستم دوگانه Legacy و Proto-First
+
+۳۸ endpoint قدیمی `api/*.js` در کنار ۲۴ دامنه Sebuf وجود دارند. این دوگانگی:
+
+- نگهداری را پیچیده می‌کند (دو الگوی مختلف error handling, caching, CORS)
+- تست‌نویسی را دشوار می‌کند
+- پیشنهاد: برنامه مهاجرت تدریجی endpoint‌های legacy به Proto-First
+
+#### ۸.۲ وابستگی تکی به Redis
+
+Upstash Redis تنها نقطه شکست (SPOF) هم برای cache و هم برای seed pipeline است:
+
+- پیشنهاد: fallback به in-memory cache با file persistence در صورت قطع Redis
+- بررسی Redis Cluster برای high availability
+
+#### ۸.۳ عدم وجود دیتابیس دائمی
+
+تمام state در Redis (ephemeral) یا IndexedDB (کلاینت‌ساید) ذخیره می‌شود:
+
+- تحلیل‌های تاریخی و روند بلندمدت نیازمند persistent storage هستند
+- پیشنهاد: بررسی ClickHouse یا TimescaleDB برای داده‌های سری زمانی
+
+#### ۸.۴ Railway Seed Pipeline
+
+۲۷ اسکریپت seed با استراتژی dual-key (domain + bootstrap) داده‌ها را
+از منابع بالادست جمع‌آوری و در Redis ذخیره می‌کنند:
+
+- بازه‌ها: از ۵ دقیقه (زلزله، بازار) تا ۳۰ دقیقه (جابجایی جمعیت)
+- in-flight deduplication از اجرای همزمان جلوگیری می‌کند
+- شکست‌ها cache موجود را خراب نمی‌کنند
+- پیشنهاد: اضافه کردن pub/sub برای invalidation آنی بجای بازه‌های ثابت
+
 ---
 
 ## اولویت‌بندی پیشنهادات
@@ -522,12 +556,15 @@ stores/
 | بحرانی | جایگزینی basic auth با SSO/JWT | امنیت | متوسط | credentials در سورس‌کد hardcode شده |
 | بالا | شکستن فایل‌های بزرگ | نگهداری + DX | متوسط | DeckGLMap, data-loader, GlobeMap |
 | بالا | اضافه کردن unit tests (Vitest) | کیفیت | کم | شروع از pure function services |
+| بالا | مهاجرت endpoint‌های legacy به Proto-First | یکپارچگی | بالا | ۳۸ endpoint قدیمی |
 | متوسط | Structured logging | عیب‌یابی | کم | جایگزینی console.* |
 | متوسط | Bundle analysis + code splitting | عملکرد | کم | rollup-plugin-visualizer |
 | متوسط | Performance metrics (Sentry) | عیب‌یابی | کم | Core Web Vitals + custom |
+| متوسط | Redis fallback/HA | تاب‌آوری | متوسط | حذف SPOF |
 | کم | Event bus مرکزی | مقیاس‌پذیری | متوسط | typed CustomEvent wrapper |
 | کم | Worker pool | عملکرد | بالا | موازی‌سازی تحلیل‌ها |
 | کم | Component catalog | DX | متوسط | dev-only page |
+| کم | Persistent storage (ClickHouse) | تحلیل تاریخی | بالا | داده‌های سری زمانی |
 
 ---
 
