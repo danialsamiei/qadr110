@@ -3,10 +3,50 @@ import type {
   GetCountryIntelBriefRequest,
   GetCountryIntelBriefResponse,
 } from '../../../../src/generated/server/worldmonitor/intelligence/v1/service_server';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import { cachedFetchJson } from '../../../_shared/redis';
-import { UPSTREAM_TIMEOUT_MS, GROQ_API_URL, GROQ_MODEL, TIER1_COUNTRIES, sha256Hex } from './_shared';
-import { CHROME_UA } from '../../../_shared/constants';
+import { UPSTREAM_TIMEOUT_MS, TIER1_COUNTRIES, sha256Hex } from './_shared';
+
+interface CountryIntelAiDeps {
+  callLlm: typeof import('../../../_shared/llm').callLlm;
+  getPolicyForTask: typeof import('../../../../src/platform/ai/policy').getPolicyForTask;
+  getProviderModel: typeof import('../../../../src/platform/ai/policy').getProviderModel;
+}
+
+let countryIntelAiDepsPromise: Promise<CountryIntelAiDeps> | null = null;
+
+async function loadCountryIntelAiDeps(): Promise<CountryIntelAiDeps> {
+  if (!countryIntelAiDepsPromise) {
+    countryIntelAiDepsPromise = (async () => {
+      try {
+        const [llm, policy] = await Promise.all([
+          import('../../../_shared/llm'),
+          import('../../../../src/platform/ai/policy'),
+        ]);
+        return {
+          callLlm: llm.callLlm,
+          getPolicyForTask: policy.getPolicyForTask,
+          getProviderModel: policy.getProviderModel,
+        };
+      } catch {
+        const repoRoot = process.cwd();
+        const [llm, policy] = await Promise.all([
+          import(pathToFileURL(resolve(repoRoot, 'server/_shared/llm.ts')).href),
+          import(pathToFileURL(resolve(repoRoot, 'src/platform/ai/policy.ts')).href),
+        ]);
+        return {
+          callLlm: llm.callLlm,
+          getPolicyForTask: policy.getPolicyForTask,
+          getProviderModel: policy.getProviderModel,
+        };
+      }
+    })();
+  }
+
+  return countryIntelAiDepsPromise;
+}
 
 // ========================================================================
 // Constants
@@ -22,18 +62,18 @@ export async function getCountryIntelBrief(
   ctx: ServerContext,
   req: GetCountryIntelBriefRequest,
 ): Promise<GetCountryIntelBriefResponse> {
+  const { callLlm, getPolicyForTask, getProviderModel } = await loadCountryIntelAiDeps();
   const empty: GetCountryIntelBriefResponse = {
     countryCode: req.countryCode,
     countryName: '',
     brief: '',
-    model: GROQ_MODEL,
+    model: getProviderModel('openrouter'),
     generatedAt: Date.now(),
   };
 
   if (!req.countryCode) return empty;
 
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) return empty;
+  if (!process.env.OPENROUTER_API_KEY && !process.env.OLLAMA_API_URL && !process.env.VLLM_API_URL && !process.env.GROQ_API_KEY && !process.env.LLM_API_KEY) return empty;
 
   let contextSnapshot = '';
   let lang = 'en';
@@ -77,31 +117,24 @@ Rules:
           userPromptParts.push(`Context snapshot:\n${contextSnapshot}`);
         }
 
-        const resp = await fetch(GROQ_API_URL, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', 'User-Agent': CHROME_UA },
-          body: JSON.stringify({
-            model: GROQ_MODEL,
-            messages: [
-              { role: 'system', content: systemPrompt },
-              { role: 'user', content: userPromptParts.join('\n\n') },
-            ],
-            temperature: 0.4,
-            max_tokens: 900,
-          }),
-          signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+        const policy = getPolicyForTask('country-brief');
+        const llmResult = await callLlm({
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPromptParts.join('\n\n') },
+          ],
+          temperature: 0.4,
+          maxTokens: policy.tokenBudget.outputTokenLimit,
+          timeoutMs: UPSTREAM_TIMEOUT_MS,
         });
-
-        if (!resp.ok) return null;
-        const data = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };
-        const brief = data.choices?.[0]?.message?.content?.trim() || '';
+        const brief = llmResult?.content?.trim() || '';
         if (!brief) return null;
 
         return {
           countryCode: req.countryCode,
           countryName,
           brief,
-          model: GROQ_MODEL,
+          model: llmResult?.model || getProviderModel('openrouter'),
           generatedAt: Date.now(),
         };
       } catch {

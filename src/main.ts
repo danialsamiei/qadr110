@@ -293,6 +293,7 @@ import { debugGetCells, getCellCount } from '@/services/geo-convergence';
 import { initMetaTags } from '@/services/meta-tags';
 import { installRuntimeFetchPatch, installWebApiRedirect } from '@/services/runtime';
 import { loadDesktopSecrets } from '@/services/runtime-config';
+import { initDemoModeFromUrl } from '@/platform/operations/demo-mode';
 import { applyStoredTheme } from '@/utils/theme-manager';
 import { applyFont } from '@/services/font-settings';
 import { SITE_VARIANT } from '@/config/variant';
@@ -300,6 +301,9 @@ import { clearChunkReloadGuard, installChunkReloadGuard } from '@/bootstrap/chun
 
 // Auto-reload on stale chunk 404s after deployment (Vite fires this for modulepreload failures).
 const chunkReloadStorageKey = installChunkReloadGuard(__APP_VERSION__);
+
+// Persist demo=1 in localStorage so demo mode survives subsequent reloads.
+initDemoModeFromUrl();
 
 // Initialize Vercel Analytics (10% sampling to reduce costs)
 inject({

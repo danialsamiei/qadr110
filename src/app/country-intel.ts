@@ -40,6 +40,16 @@ import type { StrategicPosturePanel } from '@/components/StrategicPosturePanel';
 import type { NewsItem } from '@/types';
 import { getNearbyInfrastructure } from '@/services/related-assets';
 import { toFlagEmoji } from '@/utils/country-flag';
+import { dispatchMapContext } from '@/platform/operations/map-context';
+import { dispatchOpenResilienceDashboard } from '@/platform';
+import {
+  buildGeoContextSnapshot,
+  buildGeoSuggestionGroups,
+  createCustomGeoSuggestion,
+  createGeoAnalysisDescriptor,
+  ensureMapAnalysisHudMounted,
+  mapAnalysisWorkspace,
+} from '@/services';
 
 type IntlDisplayNamesCtor = new (
   locales: string | string[],
@@ -76,10 +86,19 @@ export class CountryIntelManager implements AppModule {
 
   private setupCountryIntel(): void {
     if (!this.ctx.map) return;
+    ensureMapAnalysisHudMounted();
     this.ctx.countryBriefPage = new CountryDeepDivePanel(this.ctx.map);
     this.ctx.countryBriefPage.setShareStoryHandler((code, name) => {
       this.ctx.countryBriefPage?.hide();
       this.openCountryStory(code, name);
+    });
+    this.ctx.countryBriefPage.setResilienceHandler?.((code, name) => {
+      dispatchOpenResilienceDashboard(document, {
+        source: 'country-page',
+        primaryCountryCode: code,
+        focusTab: 'dashboard',
+        title: `داشبورد تاب‌آوری ${name}`,
+      });
     });
     this.ctx.countryBriefPage.setExportImageHandler(async (code, name) => {
       try {
@@ -115,10 +134,105 @@ export class CountryIntelManager implements AppModule {
     });
 
     this.ctx.map.onMapContextMenu((payload) => {
-      showMapContextMenu(payload.screenX, payload.screenY, [
-        { label: t('contextMenu.openCountryBrief'), action: () => this.openCountryBrief(payload.lat, payload.lon) },
-        { label: t('contextMenu.copyCoordinates'), action: () => navigator.clipboard.writeText(`${payload.lat.toFixed(5)}, ${payload.lon.toFixed(5)}`).catch(() => {}) },
-      ]);
+      const country = getCountryAtCoordinates(payload.lat, payload.lon);
+      const mapState = this.ctx.map?.getState();
+      const activeLayers = Object.entries(this.ctx.mapLayers)
+        .filter(([, enabled]) => enabled)
+        .map(([layerId]) => layerId);
+      const snapshot = buildGeoContextSnapshot({
+        lat: payload.lat,
+        lon: payload.lon,
+        countryCode: country?.code,
+        countryName: country?.name,
+        activeLayers,
+        timeRangeLabel: this.ctx.currentTimeRange,
+        zoom: mapState?.zoom ?? 2,
+        view: mapState?.view ?? this.ctx.resolvedLocation,
+        bbox: this.ctx.map?.getBbox(),
+        allNews: this.ctx.allNews,
+        outages: this.ctx.intelligenceCache.outages,
+        protests: this.ctx.intelligenceCache.protests?.events,
+        militaryFlights: this.ctx.intelligenceCache.military?.flights,
+        militaryVessels: this.ctx.intelligenceCache.military?.vessels,
+        cyberThreats: this.ctx.cyberThreatsCache ?? undefined,
+        earthquakes: this.ctx.intelligenceCache.earthquakes,
+        flightDelays: this.ctx.intelligenceCache.flightDelays,
+        freshnessSummary: dataFreshness.getSummary(),
+      });
+      const suggestionGroups = buildGeoSuggestionGroups(snapshot);
+      const menuSuggestionGroups = suggestionGroups.map((group) => ({
+        id: group.id,
+        label: group.label,
+        icon: group.icon,
+        items: group.items.map((suggestion) => ({
+          label: suggestion.label,
+          summary: suggestion.summary,
+          icon: suggestion.icon,
+          mode: suggestion.mode,
+          dependencies: suggestion.requiredData,
+          confidenceNote: suggestion.confidenceNote,
+          action: () => {
+            const descriptor = createGeoAnalysisDescriptor(snapshot, suggestion);
+            void mapAnalysisWorkspace.run({ descriptor, autoMinimize: descriptor.mode === 'long' });
+          },
+        })),
+      }));
+      dispatchMapContext(document, snapshot.context);
+
+      showMapContextMenu(payload.screenX, payload.screenY, {
+        title: country?.name ? `تحلیل ژئویی ${country.name}` : 'تحلیل ژئویی نقطه انتخابی',
+        subtitle: `${payload.lat.toFixed(4)}, ${payload.lon.toFixed(4)} | ${activeLayers.length} لایه فعال`,
+        groups: [
+          {
+            id: 'quick-actions',
+            label: 'اقدام‌های فوری',
+            icon: 'QCK',
+            items: [
+              {
+                label: t('contextMenu.openCountryBrief'),
+                summary: 'باز کردن brief کشور/مختصات در پنل اطلاعات کشور.',
+                icon: 'BRF',
+                mode: 'fast',
+                action: () => this.openCountryBrief(payload.lat, payload.lon),
+              },
+              {
+                label: t('contextMenu.copyCoordinates'),
+                summary: 'کپی مختصات برای استفاده در گزارش یا پیگیری.',
+                icon: 'CPY',
+                mode: 'fast',
+                action: () => navigator.clipboard.writeText(`${payload.lat.toFixed(5)}, ${payload.lon.toFixed(5)}`).catch(() => {}),
+              },
+              {
+                label: 'باز کردن داشبورد تاب‌آوری',
+                summary: 'اجرای مقایسه چندبعدی تاب‌آوری برای کشور/نقطه انتخابی.',
+                icon: 'RES',
+                mode: 'fast',
+                action: () => {
+                  dispatchOpenResilienceDashboard(document, {
+                    source: 'map-context',
+                    primaryCountryCode: country?.code,
+                    focusTab: 'dashboard',
+                    title: country?.name ? `تاب‌آوری ${country.name}` : 'تحلیل تاب‌آوری نقطه انتخابی',
+                    mapContextId: snapshot.context.id,
+                    promptText: snapshot.promptContext,
+                  });
+                },
+              },
+            ],
+          },
+          ...menuSuggestionGroups,
+        ],
+        customAction: {
+          label: 'تحلیل سفارشی درباره همین نقطه',
+          placeholder: 'مثلاً: در ۷۲ ساعت آینده چه سناریوهایی برای این نقطه محتمل است و چه شاخص‌هایی باید پایش شود؟',
+          submitLabel: 'اجرای تحلیل',
+          onSubmit: (value) => {
+            const descriptor = createGeoAnalysisDescriptor(snapshot, createCustomGeoSuggestion(value), value);
+            void mapAnalysisWorkspace.run({ descriptor, autoMinimize: descriptor.mode === 'long' });
+          },
+        },
+        footerNote: `چگالی شواهد: ${snapshot.sourceDensity.evidenceDensity} | پوشش داده: ${snapshot.dataFreshness.coveragePercent}%`,
+      });
     });
 
     this.ctx.countryBriefPage.onClose(() => {

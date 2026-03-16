@@ -29,10 +29,14 @@ interface SentimentResult {
 }
 
 export interface VectorSearchResult {
+  id?: string;
   text: string;
   pubDate: number;
   source: string;
   score: number;
+  url?: string;
+  tags?: string[];
+  updatedAt?: string;
 }
 
 type WorkerResult =

@@ -30,9 +30,9 @@ export class InfraTrafficCyberPanel extends Panel {
   }
 
   private freshnessLabel(freshness: FusionStream['freshness']): string {
-    if (freshness === 'fresh') return 'تازه';
-    if (freshness === 'aging') return 'در حال کهنگی';
-    return 'کهنه';
+    if (freshness === 'fresh') return t('components.infraTraffic.freshness.fresh');
+    if (freshness === 'aging') return t('components.infraTraffic.freshness.aging');
+    return t('components.infraTraffic.freshness.stale');
   }
 
   private confidenceLabel(confidence: number): string {
@@ -56,7 +56,7 @@ export class InfraTrafficCyberPanel extends Panel {
         </div>
         <div style="display:grid;grid-template-columns:repeat(2,minmax(120px,1fr));gap:8px;font-size:.95em">
           <span>اعتماد منبع: <strong>${this.confidenceLabel(stream.sourceConfidence)}</strong></span>
-          <span>تازگی: <strong>${this.freshnessLabel(stream.freshness)}</strong></span>
+          <span>${t('components.infraTraffic.freshnessLabel')}: <strong>${this.freshnessLabel(stream.freshness)}</strong></span>
         </div>
         <div><strong>پرچم تضاد:</strong> ${flags}</div>
         <div><strong>خلاصه موجودیت:</strong> ${entities}</div>

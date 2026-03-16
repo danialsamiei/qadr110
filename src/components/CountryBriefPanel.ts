@@ -91,6 +91,7 @@ export interface CountryBriefPanel {
   onClose(cb: () => void): void;
   setShareStoryHandler(handler: (code: string, name: string) => void): void;
   setExportImageHandler(handler: (code: string, name: string) => void): void;
+  setResilienceHandler?(handler: (code: string, name: string) => void): void;
   updateBrief(data: CountryIntelData): void;
   updateNews(headlines: NewsItem[]): void;
   updateMarkets(markets: PredictionMarket[]): void;

@@ -1,0 +1,34 @@
+{
+  "reportTitle": "تحلیل کوتاه نمونه",
+  "executiveSummary": "این یک خلاصه اولیه برای ارزیابی نرمال‌سازی خروجی مدل است.",
+  "observedFacts": {
+    "bullets": [
+      "یک سیگنال مرزی در 24 ساعت گذشته ثبت شد.",
+      "دو منبع خبری به اختلال لجستیکی اشاره کرده‌اند."
+    ],
+    "confidenceScore": 0.81
+  },
+  "analyticalInference": {
+    "narrative": "فشار لجستیکی می‌تواند نشانه‌ای از افزایش هزینه جابه‌جایی باشد."
+  },
+  "scenarios": [
+    {
+      "title": "سناریوی پایه",
+      "probability": "high",
+      "timeframe": "7 روزه",
+      "indicators": ["اختلال مرزی", "افزایش هزینه حمل"]
+    }
+  ],
+  "uncertainties": {},
+  "recommendations": {
+    "title": "توصیه‌ها",
+    "bullets": ["cross-check با داده‌های ثانویه", "رصد روند 72 ساعته"]
+  },
+  "resilienceNarrative": {
+    "narrative": "تاب‌آوری زنجیره تأمین به ظرفیت انطباق مرزی وابسته است."
+  },
+  "followUpSuggestions": [
+    "مقایسه با هفته قبل",
+    "افزودن شواهد بیشتر"
+  ]
+}

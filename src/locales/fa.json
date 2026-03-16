@@ -229,6 +229,8 @@
     "techHubs": "هات فناوری",
     "status": "وضعیت سیستم",
     "insights": "بینش هوش مصنوعی",
+    "analysisHub": "مرکز تحلیل",
+    "persianAnalysis": "تحلیل فارسی",
     "strategicPosture": "وضعیت استراتژیک هوش مصنوعی",
     "cii": "بی ثباتی کشور",
     "nrcResilience": "تاب‌آوری ملی (NRC)",
@@ -1826,6 +1828,7 @@
         "unavailable": "غیردسترس"
       },
       "freshness": {
+        "aging": "در حال کهنگی",
         "fresh": "تازه",
         "stale": "کهنه",
         "unknown": "نامشخص"

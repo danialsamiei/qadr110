@@ -1,6 +1,29 @@
 import { SITE_VARIANT } from '@/config/variant';
 
-const WS_API_URL = import.meta.env.VITE_WS_API_URL || '';
+type RuntimeEnv = Record<string, string | boolean | undefined>;
+
+function getRuntimeEnv(): RuntimeEnv {
+  try {
+    if (typeof import.meta === 'undefined') {
+      return {};
+    }
+    return (import.meta.env ?? {}) as RuntimeEnv;
+  } catch {
+    return {};
+  }
+}
+
+function readEnvString(key: string): string {
+  const value = getRuntimeEnv()[key];
+  return typeof value === 'string' ? value : '';
+}
+
+function readEnvFlag(key: string): boolean {
+  const value = getRuntimeEnv()[key];
+  return value === true || value === 'true' || value === '1';
+}
+
+const WS_API_URL = readEnvString('VITE_WS_API_URL');
 const DEFAULT_WEB_API_URL = 'https://api.qadr.alefba.dev';
 const KEYED_CLOUD_API_PATTERN = /^\/api\/(?:[^/]+\/v1\/|bootstrap(?:\?|$)|polymarket(?:\?|$)|ais-snapshot(?:\?|$))/;
 
@@ -13,7 +36,7 @@ const DEFAULT_REMOTE_HOSTS: Record<string, string> = {
 };
 
 const DEFAULT_LOCAL_API_PORT = 46123;
-const FORCE_DESKTOP_RUNTIME = import.meta.env.VITE_DESKTOP_RUNTIME === '1';
+const FORCE_DESKTOP_RUNTIME = readEnvFlag('VITE_DESKTOP_RUNTIME');
 
 let _resolvedPort: number | null = null;
 let _portPromise: Promise<number> | null = null;
@@ -103,7 +126,7 @@ export function getApiBaseUrl(): string {
     return '';
   }
 
-  const configuredBaseUrl = import.meta.env.VITE_TAURI_API_BASE_URL;
+  const configuredBaseUrl = readEnvString('VITE_TAURI_API_BASE_URL');
   if (configuredBaseUrl) {
     return normalizeBaseUrl(configuredBaseUrl);
   }
@@ -142,7 +165,7 @@ export function getCanonicalApiOrigin(): string {
 }
 
 export function getRemoteApiBaseUrl(): string {
-  const configuredRemoteBase = import.meta.env.VITE_TAURI_REMOTE_API_BASE_URL;
+  const configuredRemoteBase = readEnvString('VITE_TAURI_REMOTE_API_BASE_URL');
   if (configuredRemoteBase) {
     return normalizeBaseUrl(configuredRemoteBase);
   }
@@ -204,7 +227,7 @@ const APP_HOSTS = new Set([
   'api.qadr.alefba.dev',
   'localhost',
   '127.0.0.1',
-  ...extractHostnames(WS_API_URL, import.meta.env.VITE_WS_RELAY_URL),
+  ...extractHostnames(WS_API_URL, readEnvString('VITE_WS_RELAY_URL')),
 ]);
 
 function isAppOriginUrl(urlStr: string): boolean {

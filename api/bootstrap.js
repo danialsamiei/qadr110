@@ -25,8 +25,8 @@ const BOOTSTRAP_CACHE_KEYS = {
   techReadiness:    'economic:worldbank-techreadiness:v1',
   progressData:     'economic:worldbank-progress:v1',
   renewableEnergy:  'economic:worldbank-renewable:v1',
-  positiveGeoEvents: 'positive-events:geo-bootstrap:v1',
-  theaterPosture: 'theater-posture:sebuf:stale:v1',
+  positiveGeoEvents: 'positive_events:geo:v1',
+  theaterPosture: 'theater_posture:sebuf:stale:v1',
   riskScores: 'risk:scores:sebuf:stale:v1',
   naturalEvents: 'natural:events:v1',
   flightDelays: 'aviation:delays-bootstrap:v1',
@@ -41,7 +41,7 @@ const BOOTSTRAP_CACHE_KEYS = {
   temporalAnomalies: 'temporal:anomalies:v1',
   weatherAlerts:     'weather:alerts:v1',
   spending:          'economic:spending:v1',
-  techEvents:        'research:tech-events-bootstrap:v1',
+  techEvents:        'research:tech-events:v1',
 };
 
 const SLOW_KEYS = new Set([

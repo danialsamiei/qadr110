@@ -17,10 +17,14 @@ export interface StoredVector {
 }
 
 export interface VectorSearchResult {
+  id: string;
   text: string;
   pubDate: number;
   source: string;
   score: number;
+  url: string;
+  tags?: string[];
+  updatedAt?: string;
 }
 
 let db: IDBDatabase | null = null;
@@ -138,7 +142,16 @@ export function searchVectors(
 ): Promise<VectorSearchResult[]> {
   return enqueue(async () => {
     const database = await openDB();
-    const best = new Map<string, { text: string; pubDate: number; source: string; score: number }>();
+    const best = new Map<string, {
+      id: string;
+      text: string;
+      pubDate: number;
+      source: string;
+      score: number;
+      url: string;
+      tags?: string[];
+      updatedAt: string;
+    }>();
 
     await new Promise<void>((resolve, reject) => {
       const tx = database.transaction(STORE_NAME, 'readonly');
@@ -159,10 +172,14 @@ export function searchVectors(
           const existing = best.get(record.id);
           if (!existing || score > existing.score) {
             best.set(record.id, {
+              id: record.id,
               text: record.text,
               pubDate: record.pubDate,
               source: record.source,
               score,
+              url: record.url,
+              tags: record.tags,
+              updatedAt: new Date(record.pubDate || record.ingestedAt).toISOString(),
             });
           }
         }

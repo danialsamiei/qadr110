@@ -1,7 +1,7 @@
 /**
  * Summarization Service with Fallback Chain
  * Server-side Redis caching handles cross-user deduplication
- * Fallback: Ollama -> Groq -> OpenRouter -> Browser T5
+ * Default chain: OpenRouter -> Ollama -> Groq -> Browser T5
  *
  * Uses NewsServiceClient.summarizeArticle() RPC instead of legacy
  * per-provider fetch endpoints.
@@ -17,6 +17,7 @@ import { getCurrentLanguage } from './i18n';
 import { NewsServiceClient, type SummarizeArticleResponse } from '@/generated/client/worldmonitor/news/v1/service_client';
 import { createCircuitBreaker } from '@/utils';
 import { buildSummaryCacheKey } from '@/utils/summary-cache-key';
+import { getAiProviderOrder } from '@/platform/ai/policy';
 
 export type SummarizationProvider = 'ollama' | 'groq' | 'openrouter' | 'browser' | 'cache';
 
@@ -49,11 +50,15 @@ interface ApiProviderDef {
   label: string;
 }
 
-const API_PROVIDERS: ApiProviderDef[] = [
-  { featureId: 'aiOllama',      provider: 'ollama',     label: 'Ollama' },
-  { featureId: 'aiGroq',        provider: 'groq',       label: 'Groq AI' },
-  { featureId: 'aiOpenRouter',  provider: 'openrouter', label: 'OpenRouter' },
-];
+const API_PROVIDER_MAP: Record<'ollama' | 'groq' | 'openrouter', ApiProviderDef> = {
+  ollama: { featureId: 'aiOllama',      provider: 'ollama',     label: 'Ollama' },
+  groq: { featureId: 'aiGroq',          provider: 'groq',       label: 'Groq AI' },
+  openrouter: { featureId: 'aiOpenRouter',  provider: 'openrouter', label: 'OpenRouter' },
+};
+
+const API_PROVIDERS: ApiProviderDef[] = getAiProviderOrder('strategic-default')
+  .filter((provider): provider is 'ollama' | 'groq' | 'openrouter' => provider in API_PROVIDER_MAP)
+  .map((provider) => API_PROVIDER_MAP[provider]);
 
 let lastAttemptedProvider = 'none';
 
@@ -152,7 +157,7 @@ async function runApiChain(
 }
 
 /**
- * Generate a summary using the fallback chain: Ollama -> Groq -> OpenRouter -> Browser T5
+ * Generate a summary using the default chain: OpenRouter -> Ollama -> Groq -> Browser T5
  * Server-side Redis caching is handled by the SummarizeArticle RPC handler
  * @param geoContext Optional geographic signal context to include in the prompt
  */
@@ -208,8 +213,10 @@ async function generateSummaryInternal(
         onProgress?.(1, totalSteps, 'Running local AI model (beta)...');
         const browserResult = await tryBrowserT5(headlines, 'summarization-beta');
         if (browserResult) {
-          const groqProvider = API_PROVIDERS.find(p => p.provider === 'groq');
-          if (groqProvider && !options?.skipCloudProviders) tryApiProvider(groqProvider, headlines, geoContext).catch(() => {});
+          const firstCloudProvider = API_PROVIDERS[0];
+          if (firstCloudProvider && !options?.skipCloudProviders) {
+            tryApiProvider(firstCloudProvider, headlines, geoContext).catch(() => {});
+          }
 
           return browserResult;
         }
