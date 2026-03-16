@@ -265,6 +265,7 @@ export const DEFAULT_MAP_LAYERS: MapLayers = {
   tradeRoutes: false,
   iranAttacks: false,
   ciiChoropleth: false,
+  nrcChoropleth: false,
   dayNight: false,
   // Commodity variant layers (disabled in tech variant)
   miningSites: false,
@@ -325,6 +326,7 @@ export const MOBILE_DEFAULT_MAP_LAYERS: MapLayers = {
   tradeRoutes: false,
   iranAttacks: false,
   ciiChoropleth: false,
+  nrcChoropleth: false,
   dayNight: false,
   // Commodity variant layers (disabled in tech variant)
   miningSites: false,

@@ -354,6 +354,10 @@ export class DeckGLMap {
   private ciiScoresMap: Map<string, { score: number; level: string }> = new Map();
   private ciiScoresVersion = 0;
 
+  // NRC resilience choropleth data
+  private nrcScoresMap: Map<string, { score: number; level: string }> = new Map();
+  private nrcScoresVersion = 0;
+
   // Country highlight state
   private countryGeoJsonLoaded = false;
   private countryHoverSetup = false;
@@ -1506,6 +1510,11 @@ export class DeckGLMap {
     if (mapLayers.ciiChoropleth) {
       const ciiLayer = this.createCIIChoroplethLayer();
       if (ciiLayer) layers.push(ciiLayer);
+    }
+    // NRC choropleth (national resilience heat-map)
+    if (mapLayers.nrcChoropleth) {
+      const nrcLayer = this.createNRCChoroplethLayer();
+      if (nrcLayer) layers.push(nrcLayer);
     }
     // Phase 8: Species recovery zones
     if (mapLayers.speciesRecovery && this.speciesRecoveryZones.length > 0) {
@@ -3227,6 +3236,40 @@ export class DeckGLMap {
     });
   }
 
+  private static readonly NRC_LEVEL_COLORS: Record<string, [number, number, number, number]> = {
+    very_high: [34, 197, 94, 160],
+    high:      [132, 204, 22, 160],
+    moderate:  [234, 179, 8, 160],
+    low:       [249, 115, 22, 160],
+    very_low:  [239, 68, 68, 160],
+  };
+
+  private static readonly NRC_LEVEL_HEX: Record<string, string> = {
+    very_high: '#22c55e', high: '#84cc16', moderate: '#eab308', low: '#f97316', very_low: '#ef4444',
+  };
+
+  private createNRCChoroplethLayer(): GeoJsonLayer | null {
+    if (!this.countriesGeoJsonData || this.nrcScoresMap.size === 0) return null;
+    const scores = this.nrcScoresMap;
+    const colors = DeckGLMap.NRC_LEVEL_COLORS;
+    return new GeoJsonLayer({
+      id: 'nrc-choropleth-layer',
+      data: this.countriesGeoJsonData,
+      filled: true,
+      stroked: true,
+      getFillColor: (feature: { properties?: Record<string, unknown> }) => {
+        const code = feature.properties?.['ISO3166-1-Alpha-2'] as string | undefined;
+        const entry = code ? scores.get(code) : undefined;
+        return entry ? (colors[entry.level] ?? [0, 0, 0, 0]) : [0, 0, 0, 0];
+      },
+      getLineColor: [80, 80, 80, 80] as [number, number, number, number],
+      getLineWidth: 1,
+      lineWidthMinPixels: 0.5,
+      pickable: true,
+      updateTriggers: { getFillColor: [this.nrcScoresVersion] },
+    });
+  }
+
   private createSpeciesRecoveryLayer(): ScatterplotLayer {
     return new ScatterplotLayer({
       id: 'species-recovery-layer',
@@ -3496,6 +3539,15 @@ export class DeckGLMap {
         if (!ciiEntry) return { html: `<div class="deckgl-tooltip"><strong>${text(ciiName)}</strong><br/><span style="opacity:.7">No CII data</span></div>` };
         const levelColor = DeckGLMap.CII_LEVEL_HEX[ciiEntry.level] ?? '#888';
         return { html: `<div class="deckgl-tooltip"><strong>${text(ciiName)}</strong><br/>CII: <span style="color:${levelColor};font-weight:600">${ciiEntry.score}/100</span><br/><span style="text-transform:capitalize;opacity:.7">${text(ciiEntry.level)}</span></div>` };
+      }
+      case 'nrc-choropleth-layer': {
+        const nrcName = obj.properties?.name ?? 'Unknown';
+        const nrcCode = obj.properties?.['ISO3166-1-Alpha-2'];
+        const nrcEntry = nrcCode ? this.nrcScoresMap.get(nrcCode as string) : undefined;
+        if (!nrcEntry) return { html: `<div class="deckgl-tooltip"><strong>${text(nrcName)}</strong><br/><span style="opacity:.7">No NRC data</span></div>` };
+        const nrcLevelColor = DeckGLMap.NRC_LEVEL_HEX[nrcEntry.level] ?? '#888';
+        const nrcLabel = nrcEntry.level.replace('_', ' ');
+        return { html: `<div class="deckgl-tooltip"><strong>${text(nrcName)}</strong><br/>NRC: <span style="color:${nrcLevelColor};font-weight:600">${nrcEntry.score}/100</span><br/><span style="text-transform:capitalize;opacity:.7">${text(nrcLabel)}</span></div>` };
       }
       case 'species-recovery-layer': {
         return { html: `<div class="deckgl-tooltip"><strong>${text(obj.commonName)}</strong><br/>${text(obj.recoveryZone?.name ?? obj.region)}<br/><span style="opacity:.7">Status: ${text(obj.recoveryStatus)}</span></div>` };
@@ -4837,6 +4889,12 @@ export class DeckGLMap {
   public setCIIScores(scores: Array<{ code: string; score: number; level: string }>): void {
     this.ciiScoresMap = new Map(scores.map(s => [s.code, { score: s.score, level: s.level }]));
     this.ciiScoresVersion++;
+    this.render();
+  }
+
+  public setNRCScores(scores: Array<{ code: string; score: number; level: string }>): void {
+    this.nrcScoresMap = new Map(scores.map(s => [s.code, { score: s.score, level: s.level }]));
+    this.nrcScoresVersion++;
     this.render();
   }
 

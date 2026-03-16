@@ -72,6 +72,7 @@ interface TechEventMarker {
 type FireMarker = { lat: number; lon: number; brightness: number; frp: number; confidence: number; region: string; acq_date: string; daynight: string };
 type NewsLocationMarker = { lat: number; lon: number; title: string; threatLevel: string; timestamp?: Date };
 type CIIScore = { code: string; score: number; level: string };
+type NRCMapScore = { code: string; score: number; level: string };
 
 /**
  * Unified map interface that delegates to either DeckGLMap or MapComponent
@@ -130,6 +131,7 @@ export class MapContainer {
   private cachedKindnessData: KindnessPoint[] | null = null;
   private cachedHappinessScores: HappinessData | null = null;
   private cachedCIIScores: CIIScore[] | null = null;
+  private cachedNRCScores: NRCMapScore[] | null = null;
   private cachedSpeciesRecovery: SpeciesRecovery[] | null = null;
   private cachedRenewableInstallations: RenewableInstallation[] | null = null;
   private cachedHotspotActivity: NewsItem[] | null = null;
@@ -294,6 +296,7 @@ export class MapContainer {
     if (this.cachedKindnessData) this.setKindnessData(this.cachedKindnessData);
     if (this.cachedHappinessScores) this.setHappinessScores(this.cachedHappinessScores);
     if (this.cachedCIIScores) this.setCIIScores(this.cachedCIIScores);
+    if (this.cachedNRCScores) this.setNRCScores(this.cachedNRCScores);
     if (this.cachedSpeciesRecovery) this.setSpeciesRecoveryZones(this.cachedSpeciesRecovery);
     if (this.cachedRenewableInstallations) this.setRenewableInstallations(this.cachedRenewableInstallations);
     if (this.cachedHotspotActivity) this.updateHotspotActivity(this.cachedHotspotActivity);
@@ -643,6 +646,11 @@ export class MapContainer {
     if (this.useDeckGL) { this.deckGLMap?.setCIIScores(scores); }
   }
 
+  public setNRCScores(scores: NRCMapScore[]): void {
+    this.cachedNRCScores = scores;
+    if (this.useDeckGL) { this.deckGLMap?.setNRCScores(scores); }
+  }
+
   public setSpeciesRecoveryZones(species: SpeciesRecovery[]): void {
     this.cachedSpeciesRecovery = species;
     if (this.useGlobe) { this.globeMap?.setSpeciesRecoveryZones(species); return; }
@@ -984,6 +992,7 @@ export class MapContainer {
     this.cachedKindnessData = null;
     this.cachedHappinessScores = null;
     this.cachedCIIScores = null;
+    this.cachedNRCScores = null;
     this.cachedSpeciesRecovery = null;
     this.cachedRenewableInstallations = null;
     this.cachedHotspotActivity = null;
