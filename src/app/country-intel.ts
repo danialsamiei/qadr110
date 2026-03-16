@@ -218,13 +218,29 @@ export class CountryIntelManager implements AppModule {
                   });
                 },
               },
+              {
+                label: 'مقایسه تاب‌آوری با کشورهای دیگر',
+                summary: 'مقایسه تاب‌آوری ملی این کشور با کشورهای peer در ابعاد ۱۴‌گانه.',
+                icon: 'RCC',
+                mode: 'fast',
+                action: () => {
+                  dispatchOpenResilienceDashboard(document, {
+                    source: 'map-context',
+                    primaryCountryCode: country?.code,
+                    focusTab: 'compare',
+                    title: country?.name ? `مقایسه تاب‌آوری ${country.name}` : 'مقایسه تاب‌آوری',
+                    mapContextId: snapshot.context.id,
+                    promptText: snapshot.promptContext,
+                  });
+                },
+              },
             ],
           },
           ...menuSuggestionGroups,
         ],
         customAction: {
           label: 'تحلیل سفارشی درباره همین نقطه',
-          placeholder: 'مثلاً: در ۷۲ ساعت آینده چه سناریوهایی برای این نقطه محتمل است و چه شاخص‌هایی باید پایش شود؟',
+          placeholder: 'پرامپت‌های پیشنهادی:\n• در ۷۲ ساعت آینده چه سناریوهایی برای این نقطه محتمل است؟\n• ترندهای توییتر و تلگرام مرتبط با این منطقه چیست؟\n• وضعیت تاب‌آوری زیرساختی این نقطه در بحران چگونه است؟\n• چه کانال‌های خبری محلی این منطقه را پوشش می‌دهند؟',
           submitLabel: 'اجرای تحلیل',
           onSubmit: (value) => {
             const descriptor = createGeoAnalysisDescriptor(snapshot, createCustomGeoSuggestion(value), value);
