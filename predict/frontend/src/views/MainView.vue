@@ -1,21 +1,20 @@
 <template>
   <div class="main-view">
-    <!-- Header -->
     <header class="app-header">
       <div class="header-left">
-        <div class="brand" @click="router.push('/')">MIROFISH</div>
+        <div class="brand" @click="router.push('/')">{{ APP_BRAND }}</div>
       </div>
       
       <div class="header-center">
         <div class="view-switcher">
           <button 
-            v-for="mode in ['graph', 'split', 'workbench']" 
+            v-for="mode in viewModes" 
             :key="mode"
             class="switch-btn"
             :class="{ active: viewMode === mode }"
             @click="viewMode = mode"
           >
-            {{ { graph: '图谱', split: '双栏', workbench: '工作台' }[mode] }}
+            {{ VIEW_MODE_LABELS[mode] }}
           </button>
         </div>
       </div>
@@ -23,7 +22,7 @@
       <div class="header-right">
         <div class="workflow-step">
           <span class="step-num">Step {{ currentStep }}/5</span>
-          <span class="step-name">{{ stepNames[currentStep - 1] }}</span>
+          <span class="step-name">{{ stepLabel(currentStep) }}</span>
         </div>
         <div class="step-divider"></div>
         <span class="status-indicator" :class="statusClass">
@@ -82,16 +81,18 @@ import Step1GraphBuild from '../components/Step1GraphBuild.vue'
 import Step2EnvSetup from '../components/Step2EnvSetup.vue'
 import { generateOntology, getProject, buildGraph, getTaskStatus, getGraphData } from '../api/graph'
 import { getPendingUpload, clearPendingUpload } from '../store/pendingUpload'
+import { APP_BRAND, VIEW_MODE_LABELS, STEP_NAMES, STATUS_LABELS, stepLabel } from '../brand'
 
 const route = useRoute()
 const router = useRouter()
 
 // Layout State
 const viewMode = ref('split') // graph | split | workbench
+const viewModes = ['graph', 'split', 'workbench']
 
 // Step State
 const currentStep = ref(1) // 1: 图谱构建, 2: 环境搭建, 3: 开始模拟, 4: 报告生成, 5: 深度互动
-const stepNames = ['图谱构建', '环境搭建', '开始模拟', '报告生成', '深度互动']
+const stepNames = STEP_NAMES
 
 // Data State
 const currentProjectId = ref(route.params.projectId)
@@ -130,11 +131,11 @@ const statusClass = computed(() => {
 })
 
 const statusText = computed(() => {
-  if (error.value) return 'Error'
-  if (currentPhase.value >= 2) return 'Ready'
-  if (currentPhase.value === 1) return 'Building Graph'
-  if (currentPhase.value === 0) return 'Generating Ontology'
-  return 'Initializing'
+  if (error.value) return STATUS_LABELS.error
+  if (currentPhase.value >= 2) return STATUS_LABELS.ready
+  if (currentPhase.value === 1) return 'در حال ساخت گراف'
+  if (currentPhase.value === 0) return 'در حال تولید هستی شناسی'
+  return STATUS_LABELS.initializing
 })
 
 // --- Helpers ---

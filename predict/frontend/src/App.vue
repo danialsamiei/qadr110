@@ -1,18 +1,23 @@
 <template>
   <div class="predict-app-shell">
-    <a class="predict-return-link" :href="qadrHref">بازگشت به QADR110</a>
+    <a class="predict-return-link" :href="qadrHref">{{ RETURN_TO_QADR_LABEL }}</a>
+    <div class="predict-brand-badge">
+      <strong>{{ APP_BRAND }}</strong>
+      <span>{{ APP_TAGLINE }}</span>
+    </div>
     <router-view />
   </div>
 </template>
 
 <script setup>
+import { APP_BRAND, APP_TAGLINE, RETURN_TO_QADR_LABEL } from './brand'
+
 const qadrHref = typeof window !== 'undefined' && window.location.pathname.startsWith('/predict')
   ? '/'
   : 'https://qadr.alefba.dev/'
 </script>
 
 <style>
-/* 全局样式重置 */
 * {
   margin: 0;
   padding: 0;
@@ -20,15 +25,18 @@ const qadrHref = typeof window !== 'undefined' && window.location.pathname.start
 }
 
 #app {
-  font-family: 'JetBrains Mono', 'Space Grotesk', 'Noto Sans SC', monospace;
+  font-family: 'Vazirmatn', 'Tajawal', 'Segoe UI', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  color: #000000;
-  background-color: #ffffff;
+  color: #e5eefb;
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.18), transparent 28%),
+    linear-gradient(180deg, #07111d, #0b1524 42%, #0d1727);
+  direction: rtl;
 }
 
 body {
-  background: #ffffff;
+  background: #08111c;
 }
 
 .predict-app-shell {
@@ -38,46 +46,70 @@ body {
 .predict-return-link {
   position: fixed;
   top: 16px;
-  left: 16px;
+  right: 16px;
   z-index: 1000;
   display: inline-flex;
   align-items: center;
   gap: 8px;
   padding: 10px 14px;
   border-radius: 999px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  background: rgba(255, 255, 255, 0.92);
-  color: #111827;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(9, 15, 26, 0.88);
+  color: #f8fbff;
   text-decoration: none;
   font-size: 13px;
   font-weight: 700;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 20px 50px rgba(2, 8, 23, 0.35);
   backdrop-filter: blur(12px);
 }
 
 .predict-return-link:hover {
-  background: #ffffff;
+  background: rgba(15, 23, 42, 0.96);
 }
 
-/* 滚动条样式 */
+.predict-brand-badge {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 1000;
+  display: grid;
+  gap: 4px;
+  padding: 12px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(7, 12, 22, 0.78);
+  box-shadow: 0 24px 60px rgba(2, 8, 23, 0.4);
+  backdrop-filter: blur(16px);
+}
+
+.predict-brand-badge strong {
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  color: #f8fbff;
+}
+
+.predict-brand-badge span {
+  font-size: 12px;
+  color: rgba(226, 232, 240, 0.84);
+}
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: rgba(15, 23, 42, 0.5);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #000000;
+  background: rgba(148, 163, 184, 0.32);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #333333;
+  background: rgba(191, 219, 254, 0.52);
 }
 
-/* 全局按钮样式 */
 button {
   font-family: inherit;
 }

@@ -1,35 +1,33 @@
 <template>
   <div class="home-container">
-    <!-- 顶部导航栏 -->
     <nav class="navbar">
-      <div class="nav-brand">MIROFISH</div>
+      <div class="nav-brand">{{ APP_BRAND }}</div>
       <div class="nav-links">
         <a href="https://github.com/666ghj/MiroFish" target="_blank" class="github-link">
-          访问我们的Github主页 <span class="arrow">↗</span>
+          مخزن مبنا و مستندات فنی <span class="arrow">↗</span>
         </a>
       </div>
     </nav>
 
     <div class="main-content">
-      <!-- 上半部分：Hero 区域 -->
       <section class="hero-section">
         <div class="hero-left">
           <div class="tag-row">
-            <span class="orange-tag">简洁通用的群体智能引擎</span>
-            <span class="version-text">/ v0.1-预览版</span>
+            <span class="orange-tag">موتور پیش بینی و شبیه سازی چندعاملی</span>
+            <span class="version-text">/ نسخه فارسی QADRPredict</span>
           </div>
           
           <h1 class="main-title">
-            上传任意报告<br>
-            <span class="gradient-text">即刻推演未来</span>
+            گزارش و اسناد را بارگذاری کنید<br>
+            <span class="gradient-text">و آینده های محتمل را پیش نویسی کنید</span>
           </h1>
           
           <div class="hero-desc">
             <p>
-              即使只有一段文字，<span class="highlight-bold">MiroFish</span> 也能基于其中的现实种子，全自动生成与之对应的至多<span class="highlight-orange">百万级Agent</span>构成的平行世界。通过上帝视角注入变量，在复杂的群体交互中寻找动态环境下的<span class="highlight-code">“局部最优解”</span>
+              <span class="highlight-bold">{{ APP_BRAND }}</span> با تکیه بر متن، گزارش و اسناد اولیه، یک محیط شبیه سازی چندعاملی می سازد تا مسیرهای محتمل، واکنش بازیگران و اثرات موجی را در یک کارگاه تحلیلی فارسی بررسی کنید.
             </p>
             <p class="slogan-text">
-              让未来在 Agent 群中预演，让决策在百战后胜出<span class="blinking-cursor">_</span>
+              آینده را در بین عامل ها پیش نمایش کن و تصمیم را با شواهد لایه بندی شده بساز<span class="blinking-cursor">_</span>
             </p>
           </div>
            
@@ -37,9 +35,11 @@
         </div>
         
         <div class="hero-right">
-          <!-- Logo 区域 -->
           <div class="logo-container">
-            <img src="../assets/logo/MiroFish_logo_left.jpeg" alt="MiroFish Logo" class="hero-logo" />
+            <div class="hero-logo hero-logo-text">
+              <strong>{{ APP_BRAND }}</strong>
+              <span>Strategic Simulation Lab</span>
+            </div>
           </div>
           
           <button class="scroll-down-btn" @click="scrollToBottom">
@@ -48,84 +48,78 @@
         </div>
       </section>
 
-      <!-- 下半部分：双栏布局 -->
       <section class="dashboard-section">
-        <!-- 左栏：状态与步骤 -->
         <div class="left-panel">
           <div class="panel-header">
-            <span class="status-dot">■</span> 系统状态
+            <span class="status-dot">■</span> وضعیت سامانه
           </div>
           
-          <h2 class="section-title">准备就绪</h2>
+          <h2 class="section-title">آماده برای تحلیل</h2>
           <p class="section-desc">
-            预测引擎待命中，可上传多份非结构化数据以初始化模拟序列
+            موتور پیش بینی آماده است. چند سند، فایل متنی یا گزارش را بارگذاری کنید تا سناریوی پایه و شبیه سازی اولیه ساخته شود.
           </p>
           
-          <!-- 数据指标卡片 -->
           <div class="metrics-row">
             <div class="metric-card">
-              <div class="metric-value">低成本</div>
-              <div class="metric-label">常规模拟平均5$/次</div>
+              <div class="metric-value">چابک</div>
+              <div class="metric-label">ساخت سریع سناریوی اولیه و مسیر اجرای مرحله ای</div>
             </div>
             <div class="metric-card">
-              <div class="metric-value">高可用</div>
-              <div class="metric-label">最多百万级Agent模拟</div>
+              <div class="metric-value">مقیاس پذیر</div>
+              <div class="metric-label">پشتیبانی از جمعیت های بزرگ عامل و حافظه گرافی</div>
             </div>
           </div>
 
-          <!-- 项目模拟步骤介绍 (新增区域) -->
           <div class="steps-container">
             <div class="steps-header">
-               <span class="diamond-icon">◇</span> 工作流序列
+               <span class="diamond-icon">◇</span> مسیر اجرای QADRPredict
             </div>
             <div class="workflow-list">
               <div class="workflow-item">
                 <span class="step-num">01</span>
                 <div class="step-info">
-                  <div class="step-title">图谱构建</div>
-                  <div class="step-desc">现实种子提取 & 个体与群体记忆注入 & GraphRAG构建</div>
+                  <div class="step-title">ساخت گراف</div>
+                  <div class="step-desc">استخراج واقعیت اولیه، ساخت گراف مفهومی و آماده سازی حافظه عامل ها</div>
                 </div>
               </div>
               <div class="workflow-item">
                 <span class="step-num">02</span>
                 <div class="step-info">
-                  <div class="step-title">环境搭建</div>
-                  <div class="step-desc">实体关系抽取 & 人设生成 & 环境配置Agent注入仿真参数</div>
+                  <div class="step-title">آماده سازی محیط</div>
+                  <div class="step-desc">تولید پروفایل عامل ها، استخراج رابطه ها و تزریق پارامترهای شبیه سازی</div>
                 </div>
               </div>
               <div class="workflow-item">
                 <span class="step-num">03</span>
                 <div class="step-info">
-                  <div class="step-title">开始模拟</div>
-                  <div class="step-desc">双平台并行模拟 & 自动解析预测需求 & 动态更新时序记忆</div>
+                  <div class="step-title">اجرای شبیه سازی</div>
+                  <div class="step-desc">اجرا در چند کانال تعاملی، به روزرسانی حافظه زمانی و ثبت رفتار عامل ها</div>
                 </div>
               </div>
               <div class="workflow-item">
                 <span class="step-num">04</span>
                 <div class="step-info">
-                  <div class="step-title">报告生成</div>
-                  <div class="step-desc">ReportAgent拥有丰富的工具集与模拟后环境进行深度交互</div>
+                  <div class="step-title">تولید گزارش</div>
+                  <div class="step-desc">ساخت گزارش تحلیلی، استخراج یافته ها، watchpoint و جمع بندی اجرایی</div>
                 </div>
               </div>
               <div class="workflow-item">
                 <span class="step-num">05</span>
                 <div class="step-info">
-                  <div class="step-title">深度互动</div>
-                  <div class="step-desc">与模拟世界中的任意一位进行对话 & 与ReportAgent进行对话</div>
+                  <div class="step-title">تعامل عمیق</div>
+                  <div class="step-desc">گفتگو با عامل ها یا Agent گزارش و بررسی سناریوها با پرسش های تکمیلی</div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-
-        <!-- 右栏：交互控制台 -->
+        
         <div class="right-panel">
           <div class="console-box">
-            <!-- 上传区域 -->
             <div class="console-section">
               <div class="console-header">
-                <span class="console-label">01 / 现实种子</span>
-                <span class="console-meta">支持格式: PDF, MD, TXT</span>
+                <span class="console-label">01 / بذر واقعیت</span>
+                <span class="console-meta">فرمت های پشتیبانی شده: PDF، MD، TXT</span>
               </div>
               
               <div 
@@ -148,8 +142,8 @@
                 
                 <div v-if="files.length === 0" class="upload-placeholder">
                   <div class="upload-icon">↑</div>
-                  <div class="upload-title">拖拽文件上传</div>
-                  <div class="upload-hint">或点击浏览文件系统</div>
+                  <div class="upload-title">فایل را بکشید و رها کنید</div>
+                  <div class="upload-hint">یا برای انتخاب از فایل سیستم کلیک کنید</div>
                 </div>
                 
                 <div v-else class="file-list">
@@ -162,37 +156,34 @@
               </div>
             </div>
 
-            <!-- 分割线 -->
             <div class="console-divider">
-              <span>输入参数</span>
+              <span>تنظیم ورودی</span>
             </div>
 
-            <!-- 输入区域 -->
             <div class="console-section">
               <div class="console-header">
-                <span class="console-label">>_ 02 / 模拟提示词</span>
+                <span class="console-label">>_ 02 / دستور تحلیل و شبیه سازی</span>
               </div>
               <div class="input-wrapper">
                 <textarea
                   v-model="formData.simulationRequirement"
                   class="code-input"
-                  placeholder="// 用自然语言输入模拟或预测需求（例.武大若发布撤销肖某处分的公告，会引发什么舆情走向）"
+                  placeholder="// با زبان طبیعی توضیح دهید چه چیزی را می خواهید شبیه سازی یا پیش بینی کنید."
                   rows="6"
                   :disabled="loading"
                 ></textarea>
-                <div class="model-badge">引擎: MiroFish-V1.0</div>
+                <div class="model-badge">موتور: QADRPredict Core</div>
               </div>
             </div>
 
-            <!-- 启动按钮 -->
             <div class="console-section btn-section">
               <button 
                 class="start-engine-btn"
                 @click="startSimulation"
                 :disabled="!canSubmit || loading"
               >
-                <span v-if="!loading">启动引擎</span>
-                <span v-else>初始化中...</span>
+                <span v-if="!loading">شروع شبیه سازی</span>
+                <span v-else>در حال مقداردهی اولیه...</span>
                 <span class="btn-arrow">→</span>
               </button>
             </div>
@@ -210,6 +201,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import HistoryDatabase from '../components/HistoryDatabase.vue'
+import { APP_BRAND } from '../brand'
 
 const router = useRouter()
 
@@ -513,6 +505,27 @@ const startSimulation = () => {
 .hero-logo {
   max-width: 500px; /* 调整logo大小 */
   width: 100%;
+}
+
+.hero-logo-text {
+  min-height: 280px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  display: grid;
+  place-items: center;
+  gap: 12px;
+  padding: 24px;
+  background: radial-gradient(circle at top, rgba(255, 69, 0, 0.08), rgba(255, 255, 255, 0.94));
+}
+
+.hero-logo-text strong {
+  font-family: var(--font-mono);
+  font-size: 2.6rem;
+  letter-spacing: 0.08em;
+}
+
+.hero-logo-text span {
+  font-size: 1rem;
+  color: var(--gray-text);
 }
 
 .scroll-down-btn {

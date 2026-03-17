@@ -21,7 +21,7 @@ test('analytical workbench shell keeps the new nested report structure', () => {
   assert.match(layout, /qadrFocusOverlay/);
   assert.match(layout, /qadrCompareOverlay/);
   assert.match(layout, /WORKBENCH_SPECIAL_PAGES/);
-  assert.match(layout, /Predict Lab/);
+  assert.match(layout, /QADRPredict/);
   assert.match(layout, /href: '\/predict\//);
   assert.match(layout, /qadr-workbench-page-strip/);
   assert.match(layout, /data-workbench-action="open-page"/);

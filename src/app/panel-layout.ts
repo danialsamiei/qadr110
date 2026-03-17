@@ -238,9 +238,9 @@ const WORKBENCH_SPECIAL_PAGES: WorkbenchSpecialPage[] = [
   },
   {
     id: 'predict',
-    label: 'Predict Lab',
-    kicker: 'PRED',
-    description: 'MiroFish workspace برای شبیه‌سازی، گزارش و تعامل چندعاملی',
+    label: 'QADRPredict',
+    kicker: 'QDP',
+    description: 'کارگاه فارسی شبیه سازی، گزارش سازی و تعامل سناریویی QADR',
     panelId: 'strategic-foresight',
     mode: 'foresight',
     sheet: 'reports',
