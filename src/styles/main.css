@@ -3422,38 +3422,48 @@ body {
   background:
     radial-gradient(circle at top, rgba(59, 130, 246, 0.08), transparent 34%),
     var(--bg);
-  overflow: hidden;
+  overflow: auto;
 }
 
 #app[data-qadr-shell="analytical-workbench"] .qadr-command-rail {
   grid-column: auto;
+  flex: 0 0 auto;
   min-height: auto;
+  max-height: 232px;
   block-size: auto;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: stretch;
+  display: grid;
+  grid-template-columns: minmax(210px, 240px) minmax(0, 1fr) minmax(160px, 190px);
+  align-items: start;
   gap: var(--qadr-space-3);
   padding: var(--qadr-space-3);
   border-radius: var(--qadr-radius-md);
   background: linear-gradient(180deg, rgba(14, 20, 32, 0.96), rgba(11, 16, 26, 0.94));
+  overflow: hidden;
 }
 
 #app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-header {
-  flex: 0 0 220px;
+  min-width: 0;
+  min-height: 0;
   justify-content: space-between;
 }
 
 #app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-scroll {
-  flex: 1 1 720px;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: start;
   gap: var(--qadr-space-3);
-  overflow: visible;
+  overflow-x: auto;
+  overflow-y: hidden;
   padding-inline-end: 0;
+  scrollbar-width: thin;
 }
 
 #app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-section {
-  min-width: 0;
+  flex: 0 0 280px;
+  min-width: 220px;
+  max-width: 320px;
   gap: 10px;
 }
 
@@ -3461,7 +3471,7 @@ body {
 #app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-pages,
 #app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-actions {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(116px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -3485,8 +3495,9 @@ body {
 }
 
 #app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-footer {
-  flex: 0 0 180px;
-  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+  justify-content: flex-start;
 }
 
 #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-main {
@@ -3504,6 +3515,8 @@ body {
   grid-template-columns: 1fr;
   gap: var(--qadr-space-3);
   padding: var(--qadr-space-3);
+  max-block-size: 228px;
+  overflow: auto;
 }
 
 #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-meta-grid {
@@ -3511,23 +3524,42 @@ body {
 }
 
 #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-toolbar {
-  gap: var(--qadr-space-2);
+  gap: 8px;
 }
 
 #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-page-strip {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  overflow: visible;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: var(--qadr-space-2);
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-block-end: 2px;
 }
 
 #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-page-btn {
-  flex: 1 1 auto;
+  flex: 0 0 208px;
   min-width: 0;
+  min-height: 52px;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-workbench-page-strip-wrap {
+  gap: 4px;
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-workbench-page-meta small {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-stage {
   grid-template-columns: minmax(0, 1fr) minmax(320px, 360px);
   flex: 1 1 auto;
+  min-block-size: 0;
 }
 
 #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-canvas {
@@ -3550,16 +3582,18 @@ body {
 
 @media (max-width: 1400px) {
   #app[data-qadr-shell="analytical-workbench"] .qadr-command-rail {
-    flex-direction: column;
+    grid-template-columns: 1fr;
+    max-height: none;
   }
 
   #app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-header,
   #app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-footer {
-    flex: 0 0 auto;
+    min-width: 0;
   }
 
   #app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-scroll {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    flex-wrap: wrap;
+    overflow: visible;
   }
 
   #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-stage {
@@ -3582,6 +3616,7 @@ body {
   }
 
   #app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-scroll {
+    display: grid;
     grid-template-columns: minmax(0, 1fr);
   }
 

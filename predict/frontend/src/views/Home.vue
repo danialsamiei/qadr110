@@ -38,7 +38,7 @@
           <div class="logo-container">
             <div class="hero-logo hero-logo-text">
               <strong>{{ APP_BRAND }}</strong>
-              <span>Strategic Simulation Lab</span>
+              <span>{{ APP_TAGLINE }}</span>
             </div>
           </div>
           
@@ -201,7 +201,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import HistoryDatabase from '../components/HistoryDatabase.vue'
-import { APP_BRAND } from '../brand'
+import { APP_BRAND, APP_TAGLINE } from '../brand'
 
 const router = useRouter()
 
