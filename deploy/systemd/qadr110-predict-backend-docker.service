@@ -10,7 +10,7 @@ User=root
 Group=root
 WorkingDirectory=/opt/qadr110/predict
 ExecStartPre=-/usr/bin/docker rm -f qadr110-predict-backend
-ExecStart=/usr/bin/docker run --rm --name qadr110-predict-backend --env-file /opt/qadr110/predict/.env -e FLASK_HOST=0.0.0.0 -e FLASK_PORT=5001 -e FLASK_DEBUG=false -e MIROFISH_ALLOW_DEGRADED_START=true -p 127.0.0.1:5101:5001 -v /opt/qadr110/predict/backend/uploads:/app/backend/uploads qadr110-predict-backend:latest bash -lc "cd /app/backend && uv run python run.py"
+ExecStart=/usr/bin/docker run --rm --name qadr110-predict-backend --env-file /opt/qadr110/predict/.env -e FLASK_HOST=0.0.0.0 -e FLASK_PORT=5001 -e FLASK_DEBUG=false -e MIROFISH_ALLOW_DEGRADED_START=true -p 127.0.0.1:5101:5001 -v /opt/qadr110/predict/backend/uploads:/app/backend/uploads qadr110-predict-backend:latest
 ExecStop=/usr/bin/docker stop qadr110-predict-backend
 Restart=always
 RestartSec=5
