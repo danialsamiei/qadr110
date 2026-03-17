@@ -2259,7 +2259,7 @@ body {
   flex: 1 1 auto;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(88px, 104px) minmax(0, 1fr);
+  grid-template-columns: minmax(118px, 148px) minmax(0, 1fr);
   gap: var(--qadr-space-4);
   padding: var(--qadr-space-4);
   background: var(--qadr-shell-bg);
@@ -2359,9 +2359,19 @@ body {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--qadr-space-2);
+  gap: var(--qadr-space-3);
   overflow-y: auto;
   padding-inline-end: 2px;
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-section {
+  display: grid;
+  gap: var(--qadr-space-2);
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-section + .qadr-command-rail-section {
+  padding-block-start: var(--qadr-space-2);
+  border-block-start: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 #app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-section-label {
@@ -2374,6 +2384,11 @@ body {
 #app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-actions {
   display: flex;
   flex-direction: column;
+  gap: 8px;
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-pages {
+  display: grid;
   gap: 8px;
 }
 
@@ -2404,9 +2419,87 @@ body {
   color: var(--qadr-shell-kicker);
 }
 
+#app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-page,
+#app[data-qadr-shell="analytical-workbench"] .qadr-workbench-page-btn,
+#app[data-qadr-shell="analytical-workbench"] .qadr-page-inline-chip {
+  appearance: none;
+  border: 1px solid var(--qadr-shell-border);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.02));
+  color: var(--qadr-shell-ink);
+  font: inherit;
+  cursor: pointer;
+  transition:
+    transform var(--qadr-motion-fast) ease,
+    background-color var(--qadr-motion-fast) ease,
+    border-color var(--qadr-motion-fast) ease,
+    box-shadow var(--qadr-motion-fast) ease;
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-page:hover,
+#app[data-qadr-shell="analytical-workbench"] .qadr-workbench-page-btn:hover,
+#app[data-qadr-shell="analytical-workbench"] .qadr-page-inline-chip:hover {
+  transform: translateY(-1px);
+  border-color: var(--qadr-shell-border-strong);
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.18), rgba(59, 130, 246, 0.08));
+  box-shadow: 0 12px 28px rgba(9, 16, 30, 0.28);
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-page:focus-visible,
+#app[data-qadr-shell="analytical-workbench"] .qadr-workbench-page-btn:focus-visible,
+#app[data-qadr-shell="analytical-workbench"] .qadr-page-inline-chip:focus-visible {
+  outline: 2px solid rgba(191, 208, 255, 0.94);
+  outline-offset: 2px;
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-page {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  min-height: 78px;
+  padding: 10px 8px;
+  border-radius: var(--qadr-radius-md);
+  text-align: center;
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-page-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-page-label {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-page-kicker {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--qadr-shell-kicker);
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-section-compact {
+  gap: 10px;
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-hints {
+  display: grid;
+  gap: 6px;
+  color: var(--qadr-shell-muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-hints kbd {
+  margin-inline-start: 0;
+}
+
 #app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-chip.active,
+#app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-page.active,
 #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-tab.active,
-#app[data-qadr-shell="analytical-workbench"] .qadr-workbench-mode-btn.active {
+#app[data-qadr-shell="analytical-workbench"] .qadr-workbench-mode-btn.active,
+#app[data-qadr-shell="analytical-workbench"] .qadr-workbench-page-btn.active,
+#app[data-qadr-shell="analytical-workbench"] .qadr-page-inline-chip.active {
   background: linear-gradient(180deg, rgba(141, 166, 255, 0.2), rgba(141, 166, 255, 0.1));
   border-color: rgba(191, 208, 255, 0.5);
   box-shadow: 0 10px 30px rgba(67, 111, 214, 0.18);
@@ -2482,6 +2575,11 @@ body {
   min-width: 0;
 }
 
+#app[data-qadr-shell="analytical-workbench"] .qadr-workbench-toolbar-stack {
+  display: grid;
+  gap: var(--qadr-space-3);
+}
+
 #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-mode-switch,
 #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-tabs,
 #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-toolbar-actions,
@@ -2524,6 +2622,64 @@ body {
 #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-mode-btn:focus-visible {
   outline: 2px solid rgba(191, 208, 255, 0.9);
   outline-offset: 2px;
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-workbench-page-strip-wrap {
+  display: grid;
+  gap: 10px;
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-workbench-page-strip-label {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--qadr-shell-kicker);
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-workbench-page-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--qadr-space-2);
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-workbench-page-btn {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+  min-height: 76px;
+  padding: 12px 14px;
+  border-radius: var(--qadr-radius-md);
+  text-align: start;
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-workbench-page-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 34px;
+  block-size: 34px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 18px;
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-workbench-page-meta {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-workbench-page-meta strong {
+  font-size: 13px;
+  color: rgba(245, 248, 255, 0.96);
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-workbench-page-meta small,
+#app[data-qadr-shell="analytical-workbench"] .qadr-page-inline-meta small {
+  color: var(--qadr-shell-muted);
+  line-height: 1.65;
 }
 
 #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-breadcrumbs {
@@ -2881,6 +3037,37 @@ body {
   gap: 8px;
 }
 
+#app[data-qadr-shell="analytical-workbench"] .qadr-page-chip-grid {
+  display: grid;
+  gap: 10px;
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-page-inline-chip {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--qadr-radius-md);
+  text-align: start;
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-page-inline-icon {
+  flex: 0 0 auto;
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-page-inline-meta {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-page-inline-meta strong {
+  color: rgba(245, 248, 255, 0.96);
+  font-size: 13px;
+}
+
 #app[data-qadr-shell="analytical-workbench"] .qadr-evidence-drawer {
   display: flex;
   flex-direction: column;
@@ -3073,6 +3260,14 @@ body {
 }
 
 @media (max-width: 1360px) {
+  #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-topbar {
+    grid-template-columns: 1fr;
+  }
+
+  #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-page-strip {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  }
+
   #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-stage {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -3098,9 +3293,19 @@ body {
     flex-wrap: wrap;
   }
 
+  #app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-pages {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
   #app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-chip,
-  #app[data-qadr-shell="analytical-workbench"] .qadr-rail-utility {
+  #app[data-qadr-shell="analytical-workbench"] .qadr-rail-utility,
+  #app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-page {
     inline-size: auto;
+  }
+
+  #app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-page {
+    min-inline-size: 116px;
   }
 
   #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-topbar {
@@ -3112,6 +3317,10 @@ body {
   }
 
   #app[data-qadr-shell="analytical-workbench"] .qadr-panel-overlay-body-compare {
+    grid-template-columns: 1fr;
+  }
+
+  #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-page-strip {
     grid-template-columns: 1fr;
   }
 }

@@ -20,6 +20,9 @@ test('analytical workbench shell keeps the new nested report structure', () => {
   assert.match(layout, /qadrReportSheetStack/);
   assert.match(layout, /qadrFocusOverlay/);
   assert.match(layout, /qadrCompareOverlay/);
+  assert.match(layout, /WORKBENCH_SPECIAL_PAGES/);
+  assert.match(layout, /qadr-workbench-page-strip/);
+  assert.match(layout, /data-workbench-action="open-page"/);
   assert.match(layout, /data-workbench-sheet="reports"/);
   assert.match(layout, /data-workbench-sheet="timeline"/);
   assert.match(layout, /data-workbench-sheet="notebook"/);
@@ -32,12 +35,15 @@ test('analytical workbench shell keeps the new nested report structure', () => {
   assert.match(styles, /QADR110 Analytical Workbench Shell/);
   assert.match(styles, /--qadr-shell-bg/);
   assert.match(styles, /\.qadr-command-rail/);
+  assert.match(styles, /\.qadr-command-rail-page/);
   assert.match(styles, /\.qadr-workbench-stage/);
+  assert.match(styles, /\.qadr-workbench-page-strip/);
   assert.match(styles, /\.qadr-evidence-drawer/);
   assert.match(styles, /\.qadr-panel-overlay/);
 
   assert.match(rtl, /QADR110 analytical workbench/);
   assert.match(rtl, /qadr-workbench-stage/);
+  assert.match(rtl, /qadr-workbench-page-btn/);
   assert.match(rtl, /qadr-panel-overlay-body-compare/);
 });
 

@@ -130,10 +130,13 @@
 
 [dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-palette,
 [dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-chip,
+[dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-page,
 [dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-meta-card,
+[dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-page-btn,
 [dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-inspector-card,
 [dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-notebook-card,
-[dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-mini-card {
+[dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-mini-card,
+[dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-page-inline-chip {
   text-align: right;
 }
 
@@ -143,7 +146,8 @@
 
 [dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-mode-switch,
 [dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-tabs,
-[dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-toolbar-actions {
+[dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-toolbar-actions,
+[dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-page-strip {
   justify-content: flex-start;
 }
 

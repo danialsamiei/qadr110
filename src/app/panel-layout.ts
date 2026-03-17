@@ -115,6 +115,17 @@ type WorkbenchModeAction = {
   panelId: string;
 };
 
+type WorkbenchSpecialPage = {
+  id: string;
+  label: string;
+  kicker: string;
+  description: string;
+  panelId: string;
+  mode: WorkbenchMode;
+  sheet: WorkbenchSheet;
+  icon: string;
+};
+
 const ANALYSIS_NAV_ACTIONS: AnalysisNavAction[] = [
   { id: 'media', label: 'رسانه', panelId: 'iran-media-matrix', panelCalls: [{ panelId: 'iran-media-matrix', method: 'applyQuickFilter', args: [''] }] },
   { id: 'pipelines', label: 'Pipeline', panelId: 'media-pipelines', panelCalls: [{ panelId: 'media-pipelines', method: 'applyPlatformFilter', args: ['all'] }] },
@@ -141,6 +152,99 @@ const WORKBENCH_MODES: WorkbenchModeAction[] = [
   { id: 'scenario', label: 'سناریو', kicker: 'S', description: 'سناریونویسی، graph و timeline', panelId: 'scenario-planner' },
   { id: 'war-room', label: 'War Room', kicker: 'W', description: 'مناظره چندعاملی و battlefield', panelId: 'war-room' },
   { id: 'foresight', label: 'پیش‌نگری', kicker: 'F', description: 'سنتز foresight و board view', panelId: 'strategic-foresight' },
+];
+
+const WORKBENCH_SPECIAL_PAGES: WorkbenchSpecialPage[] = [
+  {
+    id: 'overview',
+    label: 'نمای کلان',
+    kicker: 'HQ',
+    description: 'مانیتورینگ هاب، جمع‌بندی و ورود سریع به پرونده‌ها',
+    panelId: 'qadr-monitoring-hub',
+    mode: 'analysis',
+    sheet: 'reports',
+    icon: '◈',
+  },
+  {
+    id: 'assistant',
+    label: 'دستیار',
+    kicker: 'AI',
+    description: 'چت، evidence card و handoff بین تحلیل و نقشه',
+    panelId: 'qadr-assistant',
+    mode: 'analysis',
+    sheet: 'reports',
+    icon: '✦',
+  },
+  {
+    id: 'map-analysis',
+    label: 'تحلیل نقشه',
+    kicker: 'MAP',
+    description: 'تحلیل مکان‌محور، drill-down و promptهای جغرافیایی',
+    panelId: 'map-analysis',
+    mode: 'analysis',
+    sheet: 'reports',
+    icon: '⌖',
+  },
+  {
+    id: 'cognitive',
+    label: 'شناختی',
+    kicker: 'COG',
+    description: 'روایت‌ها، کمپین‌ها و ریسک‌های شناختی/رسانه‌ای',
+    panelId: 'cognitive-warfare',
+    mode: 'analysis',
+    sheet: 'reports',
+    icon: '☍',
+  },
+  {
+    id: 'scenario-lab',
+    label: 'آزمایشگاه سناریو',
+    kicker: 'SIM',
+    description: 'مدل‌سازی If/Then، causal chain و branching futures',
+    panelId: 'scenario-planner',
+    mode: 'scenario',
+    sheet: 'timeline',
+    icon: '⟁',
+  },
+  {
+    id: 'black-swan',
+    label: 'بلک سوان',
+    kicker: 'BS',
+    description: 'فرضیه‌های کم‌احتمال/پراثر، watchpoint و stress test',
+    panelId: 'black-swan-watch',
+    mode: 'scenario',
+    sheet: 'notebook',
+    icon: '⚠',
+  },
+  {
+    id: 'war-room',
+    label: 'War Room',
+    kicker: 'WR',
+    description: 'مناظره چندعاملی، conflict heatmap و synthesis',
+    panelId: 'war-room',
+    mode: 'war-room',
+    sheet: 'timeline',
+    icon: '⚖',
+  },
+  {
+    id: 'foresight',
+    label: 'پیش‌نگری',
+    kicker: 'FX',
+    description: 'ترکیب scenario، meta-scenario، black swan و debate',
+    panelId: 'strategic-foresight',
+    mode: 'foresight',
+    sheet: 'reports',
+    icon: '◇',
+  },
+  {
+    id: 'audit',
+    label: 'ممیزی عملیات',
+    kicker: 'LOG',
+    description: 'audit trail، سلامت اجزا و رهگیری تصمیم‌ها',
+    panelId: 'ops-audit',
+    mode: 'analysis',
+    sheet: 'notebook',
+    icon: '⊕',
+  },
 ];
 
 const MAP_VIEW_LABELS: Record<string, string> = {
@@ -479,36 +583,68 @@ export class PanelLayoutManager implements AppModule {
           </button>
         </div>
         <div class="qadr-command-rail-scroll">
-          <div class="qadr-command-rail-section-label">حالت‌ها</div>
-          <div class="qadr-command-rail-actions qadr-command-rail-mode-grid">
-            ${WORKBENCH_MODES.map((mode) => `
-              <button
-                class="qadr-command-rail-chip qadr-command-rail-mode"
-                type="button"
-                data-workbench-action="set-mode"
-                data-workbench-mode="${mode.id}"
-                data-panel-target="${mode.panelId}"
-                title="${mode.description}"
-              >
-                <span class="qadr-command-rail-chip-kicker">${mode.kicker}</span>
-                <span class="qadr-command-rail-chip-label">${mode.label}</span>
-              </button>
-            `).join('')}
-          </div>
-          <div class="qadr-command-rail-section-label">فرمان‌های میدانی</div>
-          <div class="qadr-command-rail-actions">
-            ${ANALYSIS_NAV_ACTIONS.map((item) => `
-              <button
-                class="analysis-nav-chip qadr-command-rail-chip"
-                type="button"
-                data-analysis-action="${item.id}"
-                data-panel-target="${item.panelId}"
-                title="${item.label}"
-              >
-                <span class="qadr-command-rail-chip-label">${item.label}</span>
-              </button>
-            `).join('')}
-          </div>
+          <section class="qadr-command-rail-section">
+            <div class="qadr-command-rail-section-label">حالت‌ها</div>
+            <div class="qadr-command-rail-actions qadr-command-rail-mode-grid">
+              ${WORKBENCH_MODES.map((mode) => `
+                <button
+                  class="qadr-command-rail-chip qadr-command-rail-mode"
+                  type="button"
+                  data-workbench-action="set-mode"
+                  data-workbench-mode="${mode.id}"
+                  data-panel-target="${mode.panelId}"
+                  title="${mode.description}"
+                >
+                  <span class="qadr-command-rail-chip-kicker">${mode.kicker}</span>
+                  <span class="qadr-command-rail-chip-label">${mode.label}</span>
+                </button>
+              `).join('')}
+            </div>
+          </section>
+          <section class="qadr-command-rail-section">
+            <div class="qadr-command-rail-section-label">صفحات ویژه</div>
+            <div class="qadr-command-rail-pages">
+              ${WORKBENCH_SPECIAL_PAGES.map((page) => `
+                <button
+                  class="qadr-command-rail-page"
+                  type="button"
+                  data-workbench-action="open-page"
+                  data-workbench-page="${page.id}"
+                  data-panel-target="${page.panelId}"
+                  title="${page.description}"
+                >
+                  <span class="qadr-command-rail-page-icon" aria-hidden="true">${page.icon}</span>
+                  <span class="qadr-command-rail-page-label">${page.label}</span>
+                  <span class="qadr-command-rail-page-kicker">${page.kicker}</span>
+                </button>
+              `).join('')}
+            </div>
+          </section>
+          <section class="qadr-command-rail-section">
+            <div class="qadr-command-rail-section-label">فرمان‌های میدانی</div>
+            <div class="qadr-command-rail-actions">
+              ${ANALYSIS_NAV_ACTIONS.map((item) => `
+                <button
+                  class="analysis-nav-chip qadr-command-rail-chip"
+                  type="button"
+                  data-analysis-action="${item.id}"
+                  data-panel-target="${item.panelId}"
+                  title="${item.label}"
+                >
+                  <span class="qadr-command-rail-chip-label">${item.label}</span>
+                </button>
+              `).join('')}
+            </div>
+          </section>
+          <section class="qadr-command-rail-section qadr-command-rail-section-compact">
+            <div class="qadr-command-rail-section-label">میانبرها</div>
+            <div class="qadr-command-rail-hints">
+              <span><kbd>Alt+A</kbd> تحلیل</span>
+              <span><kbd>Alt+S</kbd> سناریو</span>
+              <span><kbd>Alt+W</kbd> War Room</span>
+              <span><kbd>Alt+F</kbd> پیش‌نگری</span>
+            </div>
+          </section>
         </div>
         <div class="qadr-command-rail-footer">
           <button class="qadr-rail-utility" type="button" data-workbench-action="focus">تمرکز</button>
@@ -548,19 +684,42 @@ export class PanelLayoutManager implements AppModule {
           </div>
         </div>
         <div class="qadr-workbench-toolbar">
-          <div class="qadr-workbench-mode-switch" role="tablist" aria-label="حالت‌های کارگاه">
-            ${WORKBENCH_MODES.map((mode) => `
-              <button
-                class="qadr-workbench-mode-btn"
-                type="button"
-                role="tab"
-                data-workbench-action="set-mode"
-                data-workbench-mode="${mode.id}"
-                aria-selected="false"
-              >
-                ${mode.label}
-              </button>
-            `).join('')}
+          <div class="qadr-workbench-toolbar-stack">
+            <div class="qadr-workbench-mode-switch" role="tablist" aria-label="حالت‌های کارگاه">
+              ${WORKBENCH_MODES.map((mode) => `
+                <button
+                  class="qadr-workbench-mode-btn"
+                  type="button"
+                  role="tab"
+                  data-workbench-action="set-mode"
+                  data-workbench-mode="${mode.id}"
+                  aria-selected="false"
+                >
+                  ${mode.label}
+                </button>
+              `).join('')}
+            </div>
+            <div class="qadr-workbench-page-strip-wrap">
+              <div class="qadr-workbench-page-strip-label">صفحات ویژه</div>
+              <div class="qadr-workbench-page-strip" role="navigation" aria-label="صفحات ویژه">
+                ${WORKBENCH_SPECIAL_PAGES.map((page) => `
+                  <button
+                    class="qadr-workbench-page-btn"
+                    type="button"
+                    data-workbench-action="open-page"
+                    data-workbench-page="${page.id}"
+                    data-panel-target="${page.panelId}"
+                    title="${page.description}"
+                  >
+                    <span class="qadr-workbench-page-icon" aria-hidden="true">${page.icon}</span>
+                    <span class="qadr-workbench-page-meta">
+                      <strong>${page.label}</strong>
+                      <small>${page.description}</small>
+                    </span>
+                  </button>
+                `).join('')}
+              </div>
+            </div>
           </div>
           <div class="qadr-workbench-tabs" id="qadrWorkbenchSheetTabs" role="tablist" aria-label="sheet tabs">
             <button class="qadr-workbench-tab active" id="qadrSheetTabReports" type="button" role="tab" aria-selected="true" aria-controls="qadrSheetReports" data-workbench-sheet="reports">پرونده‌ها</button>
@@ -704,6 +863,9 @@ export class PanelLayoutManager implements AppModule {
         const action = breadcrumb.dataset.breadcrumbAction;
         if (action === 'map') {
           this.focusPanel('map');
+        } else if (action === 'page') {
+          const pageId = breadcrumb.dataset.breadcrumbPage;
+          if (pageId) this.openWorkbenchPage(pageId);
         } else if (action === 'report') {
           this.setActiveSheet('notebook');
           if (this.ctx.countryBriefPage?.maximize && this.countryBriefState.visible) {
@@ -815,6 +977,11 @@ export class PanelLayoutManager implements AppModule {
       case 'assistant':
         this.focusPanel('qadr-assistant');
         break;
+      case 'open-page': {
+        const pageId = source?.dataset.workbenchPage;
+        if (pageId) this.openWorkbenchPage(pageId);
+        break;
+      }
       case 'toggle-inspector':
         this.toggleInspectorCollapsed();
         break;
@@ -921,9 +1088,15 @@ export class PanelLayoutManager implements AppModule {
     if (!breadcrumbsEl) return;
 
     const parts: string[] = [];
+    const activePage = this.getActiveWorkbenchPage();
     parts.push(`
       <button class="qadr-breadcrumb" type="button" data-breadcrumb-action="map">کارگاه تحلیلی</button>
     `);
+    if (activePage) {
+      parts.push(`
+        <button class="qadr-breadcrumb" type="button" data-breadcrumb-action="page" data-breadcrumb-page="${activePage.id}">${escapeHtml(activePage.label)}</button>
+      `);
+    }
     parts.push(`
       <button class="qadr-breadcrumb" type="button" data-breadcrumb-action="sheet" data-breadcrumb-sheet="${this.activeSheet}">${this.getSheetLabel(this.activeSheet)}</button>
     `);
@@ -1067,6 +1240,12 @@ export class PanelLayoutManager implements AppModule {
             : '<li>در حال حاضر گزارش nested فعال نیست.</li>'}
         </ul>
       </section>
+      <section class="qadr-inspector-card">
+        <div class="qadr-inspector-kicker">صفحات ویژه</div>
+        <div class="qadr-page-chip-grid">
+          ${this.renderInlinePageButtons()}
+        </div>
+      </section>
     `;
   }
 
@@ -1112,6 +1291,12 @@ export class PanelLayoutManager implements AppModule {
           <button class="qadr-inline-action" type="button" data-workbench-action="assistant">ارسال به دستیار</button>
         </div>
       </article>
+      <article class="qadr-notebook-card">
+        <span class="qadr-notebook-kicker">صفحات ویژه</span>
+        <div class="qadr-page-chip-grid">
+          ${this.renderInlinePageButtons()}
+        </div>
+      </article>
     `;
   }
 
@@ -1126,6 +1311,14 @@ export class PanelLayoutManager implements AppModule {
     const modeButtons = Array.from(this.ctx.container.querySelectorAll<HTMLElement>('[data-workbench-mode]'));
     modeButtons.forEach((button) => {
       button.classList.toggle('active', button.dataset.workbenchMode === activeMode);
+    });
+
+    const activePage = this.getActiveWorkbenchPage();
+    const pageButtons = Array.from(this.ctx.container.querySelectorAll<HTMLElement>('[data-workbench-page]'));
+    pageButtons.forEach((button) => {
+      const isActive = button.dataset.workbenchPage === activePage?.id;
+      button.classList.toggle('active', isActive);
+      button.setAttribute('aria-current', isActive ? 'page' : 'false');
     });
   }
 
@@ -1184,6 +1377,46 @@ export class PanelLayoutManager implements AppModule {
     if (!target) return;
     this.setActiveSheet('reports');
     this.focusPanel(target.panelId);
+  }
+
+  private openWorkbenchPage(pageId: string): void {
+    const page = WORKBENCH_SPECIAL_PAGES.find((item) => item.id === pageId);
+    if (!page) return;
+    this.setActiveSheet(page.sheet);
+    this.focusPanel(page.panelId);
+  }
+
+  private getActiveWorkbenchPage(): WorkbenchSpecialPage | null {
+    if (this.selectedPanelId) {
+      const exact = WORKBENCH_SPECIAL_PAGES.find((page) => page.panelId === this.selectedPanelId);
+      if (exact) return exact;
+    }
+
+    if (this.countryBriefState.visible) {
+      return WORKBENCH_SPECIAL_PAGES.find((page) => page.id === 'scenario-lab') ?? null;
+    }
+
+    const activeMode = this.getWorkbenchMode();
+    return WORKBENCH_SPECIAL_PAGES.find((page) => page.mode === activeMode) ?? null;
+  }
+
+  private renderInlinePageButtons(): string {
+    return WORKBENCH_SPECIAL_PAGES.map((page) => `
+      <button
+        class="qadr-page-inline-chip"
+        type="button"
+        data-workbench-action="open-page"
+        data-workbench-page="${page.id}"
+        data-panel-target="${page.panelId}"
+        title="${page.description}"
+      >
+        <span class="qadr-page-inline-icon" aria-hidden="true">${page.icon}</span>
+        <span class="qadr-page-inline-meta">
+          <strong>${escapeHtml(page.label)}</strong>
+          <small>${escapeHtml(page.description)}</small>
+        </span>
+      </button>
+    `).join('');
   }
 
   private toggleInspectorCollapsed(): void {
