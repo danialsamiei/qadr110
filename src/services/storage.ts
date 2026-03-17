@@ -1,4 +1,7 @@
-const DB_NAME = 'worldmonitor_db';
+import { APP_STORAGE_PREFIX, LEGACY_STORAGE_PREFIX } from '@/utils/qadr-branding';
+
+const DB_NAME = `${APP_STORAGE_PREFIX}_db`;
+const LEGACY_DB_NAME = `${LEGACY_STORAGE_PREFIX}_db`;
 const DB_VERSION = 1;
 
 interface BaselineEntry {
@@ -11,6 +14,78 @@ interface BaselineEntry {
 }
 
 let db: IDBDatabase | null = null;
+let migrationPromise: Promise<void> | null = null;
+
+function createStores(database: IDBDatabase): void {
+  if (!database.objectStoreNames.contains('baselines')) {
+    database.createObjectStore('baselines', { keyPath: 'key' });
+  }
+
+  if (!database.objectStoreNames.contains('snapshots')) {
+    const store = database.createObjectStore('snapshots', { keyPath: 'timestamp' });
+    store.createIndex('by_time', 'timestamp');
+  }
+}
+
+async function listDatabaseNames(): Promise<string[]> {
+  const indexedDbWithListing = indexedDB as IDBFactory & { databases?: () => Promise<Array<{ name?: string }>> };
+  if (typeof indexedDbWithListing.databases !== 'function') return [];
+  const entries = await indexedDbWithListing.databases();
+  return entries.map((entry) => entry.name ?? '').filter(Boolean);
+}
+
+function openDatabase(name: string): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(name, DB_VERSION);
+
+    request.onerror = () => reject(request.error);
+    request.onupgradeneeded = () => createStores(request.result);
+    request.onsuccess = () => resolve(request.result);
+  });
+}
+
+async function migrateLegacyDatabaseIfNeeded(targetDb: IDBDatabase): Promise<void> {
+  if (migrationPromise) return migrationPromise;
+
+  migrationPromise = (async () => {
+    const databaseNames = await listDatabaseNames();
+    if (!databaseNames.includes(LEGACY_DB_NAME)) return;
+
+    const legacyDb = await openDatabase(LEGACY_DB_NAME);
+    try {
+      const baselineEntries = await new Promise<BaselineEntry[]>((resolve, reject) => {
+        const tx = legacyDb.transaction('baselines', 'readonly');
+        const request = tx.objectStore('baselines').getAll();
+        request.onsuccess = () => resolve((request.result as BaselineEntry[] | undefined) ?? []);
+        request.onerror = () => reject(request.error);
+      });
+
+      const snapshotEntries = await new Promise<DashboardSnapshot[]>((resolve, reject) => {
+        const tx = legacyDb.transaction('snapshots', 'readonly');
+        const request = tx.objectStore('snapshots').getAll();
+        request.onsuccess = () => resolve((request.result as DashboardSnapshot[] | undefined) ?? []);
+        request.onerror = () => reject(request.error);
+      });
+
+      await new Promise<void>((resolve, reject) => {
+        const tx = targetDb.transaction(['baselines', 'snapshots'], 'readwrite');
+        const baselineStore = tx.objectStore('baselines');
+        const snapshotStore = tx.objectStore('snapshots');
+        for (const entry of baselineEntries) baselineStore.put(entry);
+        for (const entry of snapshotEntries) snapshotStore.put(entry);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    } finally {
+      legacyDb.close();
+    }
+  })().catch((error) => {
+    migrationPromise = null;
+    throw error;
+  });
+
+  return migrationPromise;
+}
 
 export async function initDB(): Promise<IDBDatabase> {
   if (db) return db;
@@ -23,20 +98,15 @@ export async function initDB(): Promise<IDBDatabase> {
     request.onsuccess = () => {
       db = request.result;
       db.onclose = () => { db = null; };
-      resolve(db);
+      void migrateLegacyDatabaseIfNeeded(db)
+        .catch((error) => {
+          console.warn('[Storage] Legacy IndexedDB migration failed', error);
+        })
+        .finally(() => resolve(db!));
     };
 
     request.onupgradeneeded = (event) => {
-      const database = (event.target as IDBOpenDBRequest).result;
-
-      if (!database.objectStoreNames.contains('baselines')) {
-        database.createObjectStore('baselines', { keyPath: 'key' });
-      }
-
-      if (!database.objectStoreNames.contains('snapshots')) {
-        const store = database.createObjectStore('snapshots', { keyPath: 'timestamp' });
-        store.createIndex('by_time', 'timestamp');
-      }
+      createStores((event.target as IDBOpenDBRequest).result);
     };
   });
 }

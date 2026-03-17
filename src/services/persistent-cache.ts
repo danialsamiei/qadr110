@@ -1,6 +1,7 @@
 import { isDesktopRuntime } from './runtime';
 import { invokeTauri } from './tauri-bridge';
 import { isStorageQuotaExceeded, isQuotaError, markStorageQuotaExceeded } from '@/utils';
+import { APP_STORAGE_PREFIX, LEGACY_STORAGE_PREFIX } from '@/utils/qadr-branding';
 
 type CacheEnvelope<T> = {
   key: string;
@@ -8,12 +9,15 @@ type CacheEnvelope<T> = {
   data: T;
 };
 
-const CACHE_PREFIX = 'worldmonitor-persistent-cache:';
-const CACHE_DB_NAME = 'worldmonitor_persistent_cache';
+const CACHE_PREFIX = `${APP_STORAGE_PREFIX}-persistent-cache:`;
+const LEGACY_CACHE_PREFIX = `${LEGACY_STORAGE_PREFIX}-persistent-cache:`;
+const CACHE_DB_NAME = `${APP_STORAGE_PREFIX}_persistent_cache`;
+const LEGACY_CACHE_DB_NAME = `${LEGACY_STORAGE_PREFIX}_persistent_cache`;
 const CACHE_DB_VERSION = 1;
 const CACHE_STORE = 'entries';
 
 let cacheDbPromise: Promise<IDBDatabase> | null = null;
+let cacheMigrationPromise: Promise<void> | null = null;
 
 function isIndexedDbAvailable(): boolean {
   return typeof window !== 'undefined' && typeof window.indexedDB !== 'undefined';
@@ -41,11 +45,70 @@ function getCacheDb(): Promise<IDBDatabase> {
     request.onsuccess = () => {
       const db = request.result;
       db.onclose = () => { cacheDbPromise = null; };
-      resolve(db);
+      void migrateLegacyCacheDatabaseIfNeeded(db)
+        .catch((error) => {
+          console.warn('[persistent-cache] Legacy IndexedDB migration failed', error);
+        })
+        .finally(() => resolve(db));
     };
   });
 
   return cacheDbPromise;
+}
+
+async function listCacheDatabaseNames(): Promise<string[]> {
+  const indexedDbWithListing = indexedDB as IDBFactory & { databases?: () => Promise<Array<{ name?: string }>> };
+  if (typeof indexedDbWithListing.databases !== 'function') return [];
+  const entries = await indexedDbWithListing.databases();
+  return entries.map((entry) => entry.name ?? '').filter(Boolean);
+}
+
+function openCacheDatabase(name: string): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(name, CACHE_DB_VERSION);
+    request.onerror = () => reject(request.error ?? new Error(`Failed to open IndexedDB ${name}`));
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(CACHE_STORE)) {
+        db.createObjectStore(CACHE_STORE, { keyPath: 'key' });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+  });
+}
+
+async function migrateLegacyCacheDatabaseIfNeeded(targetDb: IDBDatabase): Promise<void> {
+  if (cacheMigrationPromise) return cacheMigrationPromise;
+
+  cacheMigrationPromise = (async () => {
+    const dbNames = await listCacheDatabaseNames();
+    if (!dbNames.includes(LEGACY_CACHE_DB_NAME)) return;
+
+    const legacyDb = await openCacheDatabase(LEGACY_CACHE_DB_NAME);
+    try {
+      const legacyEntries = await new Promise<Array<CacheEnvelope<unknown>>>((resolve, reject) => {
+        const tx = legacyDb.transaction(CACHE_STORE, 'readonly');
+        const request = tx.objectStore(CACHE_STORE).getAll();
+        request.onsuccess = () => resolve((request.result as Array<CacheEnvelope<unknown>> | undefined) ?? []);
+        request.onerror = () => reject(request.error);
+      });
+
+      await new Promise<void>((resolve, reject) => {
+        const tx = targetDb.transaction(CACHE_STORE, 'readwrite');
+        const store = tx.objectStore(CACHE_STORE);
+        for (const entry of legacyEntries) store.put(entry);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    } finally {
+      legacyDb.close();
+    }
+  })().catch((error) => {
+    cacheMigrationPromise = null;
+    throw error;
+  });
+
+  return cacheMigrationPromise;
 }
 
 async function getFromIndexedDb<T>(key: string): Promise<CacheEnvelope<T> | null> {
@@ -90,7 +153,9 @@ export async function getPersistentCache<T>(key: string): Promise<CacheEnvelope<
 
   try {
     const raw = localStorage.getItem(`${CACHE_PREFIX}${key}`);
-    return raw ? JSON.parse(raw) as CacheEnvelope<T> : null;
+    if (raw) return JSON.parse(raw) as CacheEnvelope<T>;
+    const legacyRaw = localStorage.getItem(`${LEGACY_CACHE_PREFIX}${key}`);
+    return legacyRaw ? JSON.parse(legacyRaw) as CacheEnvelope<T> : null;
   } catch {
     return null;
   }
@@ -156,6 +221,7 @@ export async function deletePersistentCache(key: string): Promise<void> {
   if (isStorageQuotaExceeded()) return;
   try {
     localStorage.removeItem(`${CACHE_PREFIX}${key}`);
+    localStorage.removeItem(`${LEGACY_CACHE_PREFIX}${key}`);
   } catch {
     // Ignore
   }

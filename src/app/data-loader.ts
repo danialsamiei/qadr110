@@ -131,6 +131,7 @@ import {
   TradePolicyPanel,
   SupplyChainPanel,
   NarrativeAnalysisPanel,
+  CognitiveWarfarePanel,
 } from '@/components';
 import { SatelliteFiresPanel } from '@/components/SatelliteFiresPanel';
 import { classifyNewsItem } from '@/services/positive-classifier';
@@ -235,14 +236,14 @@ export class DataLoaderManager implements AppModule {
   init(): void {
     this.boundMarketWatchlistHandler = () => {
       void this.loadMarkets().then(async () => {
-        if (SITE_VARIANT === 'finance' && getSecretState('WORLDMONITOR_API_KEY').present) {
+        if (SITE_VARIANT === 'finance' && getSecretState('QADR110_API_KEY').present) {
           await this.loadStockAnalysis();
           await this.loadStockBacktest();
           await this.loadDailyMarketBrief(true);
         }
       });
     };
-    window.addEventListener('wm-market-watchlist-changed', this.boundMarketWatchlistHandler as EventListener);
+    window.addEventListener('qadr110-market-watchlist-changed', this.boundMarketWatchlistHandler as EventListener);
   }
 
   destroy(): void {
@@ -251,7 +252,7 @@ export class DataLoaderManager implements AppModule {
     this.applyTimeRangeFilterToNewsPanelsDebounced.cancel();
     stopOrefPolling();
     if (this.boundMarketWatchlistHandler) {
-      window.removeEventListener('wm-market-watchlist-changed', this.boundMarketWatchlistHandler as EventListener);
+      window.removeEventListener('qadr110-market-watchlist-changed', this.boundMarketWatchlistHandler as EventListener);
       this.boundMarketWatchlistHandler = null;
     }
   }
@@ -381,10 +382,10 @@ export class DataLoaderManager implements AppModule {
       if (shouldLoadAny(['markets', 'heatmap', 'commodities', 'crypto'])) {
         tasks.push({ name: 'markets', task: runGuarded('markets', () => this.loadMarkets()) });
       }
-      if (SITE_VARIANT === 'finance' && getSecretState('WORLDMONITOR_API_KEY').present && shouldLoad('stock-analysis')) {
+      if (SITE_VARIANT === 'finance' && getSecretState('QADR110_API_KEY').present && shouldLoad('stock-analysis')) {
         tasks.push({ name: 'stockAnalysis', task: runGuarded('stockAnalysis', () => this.loadStockAnalysis()) });
       }
-      if (SITE_VARIANT === 'finance' && getSecretState('WORLDMONITOR_API_KEY').present && shouldLoad('stock-backtest')) {
+      if (SITE_VARIANT === 'finance' && getSecretState('QADR110_API_KEY').present && shouldLoad('stock-backtest')) {
         tasks.push({ name: 'stockBacktest', task: runGuarded('stockBacktest', () => this.loadStockBacktest()) });
       }
       if (shouldLoad('polymarket')) {
@@ -508,7 +509,7 @@ export class DataLoaderManager implements AppModule {
 
     this.updateSearchIndex();
 
-    if (SITE_VARIANT === 'finance' && getSecretState('WORLDMONITOR_API_KEY').present) {
+    if (SITE_VARIANT === 'finance' && getSecretState('QADR110_API_KEY').present) {
       await this.loadDailyMarketBrief();
     }
 
@@ -1058,6 +1059,7 @@ export class DataLoaderManager implements AppModule {
     this.updateMonitorResults();
 
     const narrativePanel = this.ctx.panels['narrative-analysis'] as NarrativeAnalysisPanel | undefined;
+    const cognitiveWarfarePanel = this.ctx.panels['cognitive-warfare'] as CognitiveWarfarePanel | undefined;
 
     try {
       this.ctx.latestClusters = mlWorker.isAvailable
@@ -1067,6 +1069,7 @@ export class DataLoaderManager implements AppModule {
       const insightsPanel = this.ctx.panels['insights'] as InsightsPanel | undefined;
       insightsPanel?.updateInsights(this.ctx.latestClusters);
       narrativePanel?.renderNarratives(this.ctx.allNews, this.ctx.latestClusters);
+      cognitiveWarfarePanel?.renderIntelligence(this.ctx.allNews, this.ctx.latestClusters);
 
       const geoLocated = this.ctx.latestClusters
         .filter((c): c is typeof c & { lat: number; lon: number } => c.lat != null && c.lon != null)
@@ -1085,6 +1088,7 @@ export class DataLoaderManager implements AppModule {
       const insightsPanel = this.ctx.panels['insights'] as InsightsPanel | undefined;
       insightsPanel?.updateInsights([]);
       narrativePanel?.renderNarratives(this.ctx.allNews, []);
+      cognitiveWarfarePanel?.renderIntelligence(this.ctx.allNews, []);
     }
 
     // Happy variant: run multi-stage positive news pipeline + map layers
@@ -1313,7 +1317,7 @@ export class DataLoaderManager implements AppModule {
   }
 
   async loadDailyMarketBrief(force = false): Promise<void> {
-    if (SITE_VARIANT !== 'finance' || !getSecretState('WORLDMONITOR_API_KEY').present) return;
+    if (SITE_VARIANT !== 'finance' || !getSecretState('QADR110_API_KEY').present) return;
     if (this.ctx.isDestroyed || this.ctx.inFlight.has('dailyMarketBrief')) return;
 
     this.ctx.inFlight.add('dailyMarketBrief');
@@ -1519,7 +1523,7 @@ export class DataLoaderManager implements AppModule {
 
   async loadIntelligenceSignals(): Promise<void> {
     resetHotspotActivity();
-    const _desktopLocked = isDesktopRuntime() && !getSecretState('WORLDMONITOR_API_KEY').present;
+    const _desktopLocked = isDesktopRuntime() && !getSecretState('QADR110_API_KEY').present;
     const tasks: Promise<void>[] = [];
 
     tasks.push((async () => {
@@ -2664,7 +2668,7 @@ export class DataLoaderManager implements AppModule {
   }
 
   async loadTelegramIntel(): Promise<void> {
-    if (isDesktopRuntime() && !getSecretState('WORLDMONITOR_API_KEY').present) return;
+    if (isDesktopRuntime() && !getSecretState('QADR110_API_KEY').present) return;
     try {
       const result = await fetchTelegramFeed();
       this.callPanel('telegram-intel', 'setData', result);

@@ -1,4 +1,5 @@
 import type { AppContext, AppModule } from '@/app/app-context';
+import { openExternalUrl } from '@/services/desktop-opener';
 import { invokeTauri } from '@/services/tauri-bridge';
 import { trackUpdateShown, trackUpdateClicked, trackUpdateDismissed } from '@/services/analytics';
 import { escapeHtml } from '@/utils/sanitize';
@@ -11,6 +12,12 @@ interface DesktopRuntimeInfo {
 
 type UpdaterOutcome = 'no_update' | 'update_available' | 'open_failed' | 'fetch_failed';
 type DesktopBuildVariant = 'full' | 'tech' | 'finance';
+type UpdateCandidate = {
+  version: string;
+  releaseUrl: string;
+  install?: () => Promise<void>;
+  source: 'plugin' | 'manual';
+};
 
 const DESKTOP_BUILD_VARIANT: DesktopBuildVariant = (
   import.meta.env.VITE_VARIANT === 'tech' || import.meta.env.VITE_VARIANT === 'finance'
@@ -67,6 +74,74 @@ export class DesktopUpdater implements AppModule {
   }
 
   private async checkForUpdate(): Promise<void> {
+    const pluginCandidate = await this.checkForPluginUpdate();
+    if (pluginCandidate) {
+      await this.presentUpdate(pluginCandidate);
+      return;
+    }
+
+    await this.checkForReleaseUpdate();
+  }
+
+  private async presentUpdate(candidate: UpdateCandidate): Promise<void> {
+    const dismissKey = `qadr110-update-dismissed-${candidate.version}`;
+    if (getDismissed(dismissKey)) {
+      this.logUpdaterOutcome('update_available', {
+        current: __APP_VERSION__,
+        remote: candidate.version,
+        source: candidate.source,
+        dismissed: true,
+      });
+      return;
+    }
+
+    this.logUpdaterOutcome('update_available', {
+      current: __APP_VERSION__,
+      remote: candidate.version,
+      source: candidate.source,
+      dismissed: false,
+    });
+    trackUpdateShown(__APP_VERSION__, candidate.version);
+    await this.showUpdateToast(candidate.version, candidate.releaseUrl, candidate.install);
+  }
+
+  private async checkForPluginUpdate(): Promise<UpdateCandidate | null> {
+    if (!this.ctx.isDesktopApp) return null;
+
+    try {
+      const { check } = await import('@tauri-apps/plugin-updater');
+      const update = await check({ timeout: 8000 });
+      if (!update) {
+        this.logUpdaterOutcome('no_update', { current: __APP_VERSION__, source: 'plugin' });
+        return null;
+      }
+
+      return {
+        version: update.version,
+        releaseUrl: this.resolvePluginReleaseUrl(update.rawJson),
+        install: async () => {
+          await update.downloadAndInstall();
+        },
+        source: 'plugin',
+      };
+    } catch (error) {
+      this.logUpdaterOutcome('fetch_failed', {
+        provider: 'plugin-updater',
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return null;
+    }
+  }
+
+  private resolvePluginReleaseUrl(rawJson: Record<string, unknown>): string {
+    const directUrl = rawJson.url;
+    if (typeof directUrl === 'string' && directUrl) {
+      return directUrl;
+    }
+    return 'https://github.com/danialsamiei/qadr110/releases/latest';
+  }
+
+  private async checkForReleaseUpdate(): Promise<void> {
     try {
       const res = await fetch('https://api.qadr.alefba.dev/api/version', {
         signal: AbortSignal.timeout(8000),
@@ -88,18 +163,14 @@ export class DesktopUpdater implements AppModule {
         return;
       }
 
-      const dismissKey = `wm-update-dismissed-${remote}`;
-      if (getDismissed(dismissKey)) {
-        this.logUpdaterOutcome('update_available', { current, remote, dismissed: true });
-        return;
-      }
-
       const releaseUrl = typeof data.url === 'string' && data.url
         ? data.url
         : 'https://github.com/danialsamiei/qadr110/releases/latest';
-      this.logUpdaterOutcome('update_available', { current, remote, dismissed: false });
-      trackUpdateShown(current, remote);
-      await this.showUpdateToast(remote, releaseUrl);
+      await this.presentUpdate({
+        version: remote,
+        releaseUrl,
+        source: 'manual',
+      });
     } catch (error) {
       this.logUpdaterOutcome('fetch_failed', {
         error: error instanceof Error ? error.message : String(error),
@@ -159,7 +230,11 @@ export class DesktopUpdater implements AppModule {
     return releaseUrl;
   }
 
-  private async showUpdateToast(version: string, releaseUrl: string): Promise<void> {
+  private async showUpdateToast(
+    version: string,
+    releaseUrl: string,
+    installUpdate?: () => Promise<void>,
+  ): Promise<void> {
     const existing = document.querySelector<HTMLElement>('.update-toast');
     if (existing?.dataset.version === version) return;
     existing?.remove();
@@ -181,14 +256,26 @@ export class DesktopUpdater implements AppModule {
         <div class="update-toast-title">Update Available</div>
         <div class="update-toast-detail">v${escapeHtml(__APP_VERSION__)} \u2192 v${escapeHtml(version)}</div>
       </div>
-      <button class="update-toast-action" data-action="download">Download</button>
+      <button class="update-toast-action" data-action="download">${installUpdate ? 'نصب' : 'دانلود'}</button>
       <button class="update-toast-dismiss" data-action="dismiss" aria-label="Dismiss">\u00d7</button>
     `;
 
-    const dismissToast = () => {
-      setDismissed(`wm-update-dismissed-${version}`);
+    const dismissToast = (persistDismissal = true) => {
+      if (persistDismissal) {
+        setDismissed(`qadr110-update-dismissed-${version}`);
+      }
       toast.classList.remove('visible');
       setTimeout(() => toast.remove(), 300);
+    };
+
+    const actionButton = toast.querySelector<HTMLButtonElement>('.update-toast-action');
+    const dismissButton = toast.querySelector<HTMLButtonElement>('.update-toast-dismiss');
+    const detail = toast.querySelector<HTMLElement>('.update-toast-detail');
+
+    const setBusy = (busy: boolean) => {
+      actionButton?.toggleAttribute('disabled', busy);
+      dismissButton?.toggleAttribute('disabled', busy);
+      toast.dataset.busy = busy ? '1' : '0';
     };
 
     toast.addEventListener('click', (e) => {
@@ -196,14 +283,40 @@ export class DesktopUpdater implements AppModule {
       const action = target.closest<HTMLElement>('[data-action]')?.dataset.action;
       if (action === 'download') {
         trackUpdateClicked(version);
-        if (this.ctx.isDesktopApp) {
-          void invokeTauri<void>('open_url', { url }).catch((error) => {
-            this.logUpdaterOutcome('open_failed', { url, error: error instanceof Error ? error.message : String(error) });
-            window.open(url, '_blank', 'noopener');
-          });
-        } else {
-          window.open(url, '_blank', 'noopener');
+        if (installUpdate) {
+          setBusy(true);
+          void installUpdate()
+            .then(() => {
+              setDismissed(`qadr110-update-dismissed-${version}`);
+              if (actionButton) {
+                actionButton.textContent = 'نصب شد';
+                actionButton.disabled = true;
+              }
+              if (detail) {
+                detail.textContent = 'به‌روزرسانی نصب شد؛ برنامه را دوباره اجرا کنید.';
+              }
+              setTimeout(() => dismissToast(false), 1600);
+            })
+            .catch((error) => {
+              this.logUpdaterOutcome('open_failed', {
+                url,
+                provider: 'plugin-updater',
+                error: error instanceof Error ? error.message : String(error),
+              });
+              void openExternalUrl(url).catch((openError) => {
+                this.logUpdaterOutcome('open_failed', {
+                  url,
+                  error: openError instanceof Error ? openError.message : String(openError),
+                });
+              });
+              dismissToast();
+            });
+          return;
         }
+
+        void openExternalUrl(url).catch((error) => {
+          this.logUpdaterOutcome('open_failed', { url, error: error instanceof Error ? error.message : String(error) });
+        });
         dismissToast();
       } else if (action === 'dismiss') {
         trackUpdateDismissed(version);

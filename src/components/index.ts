@@ -48,6 +48,9 @@ export * from './UnifiedSettings';
 export * from './TradePolicyPanel';
 export * from './SupplyChainPanel';
 export * from './ScenarioPlannerPanel';
+export * from './StrategicForesightPanel';
+export * from './WarRoomPanel';
+export * from './BlackSwanPanel';
 export * from './SecurityAdvisoriesPanel';
 export * from './OrefSirensPanel';
 export * from './TelegramIntelPanel';
@@ -60,6 +63,7 @@ export { AviationCommandBar } from './AviationCommandBar';
 export * from './PersianStrategicPanel';
 
 export * from './NarrativeAnalysisPanel';
+export * from './CognitiveWarfarePanel';
 export * from './MapAnalysisPanel';
 export * from './ReleaseNotesPanel';
 export * from './OpsAuditPanel';

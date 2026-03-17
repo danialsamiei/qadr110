@@ -294,54 +294,16 @@ import { initMetaTags } from '@/services/meta-tags';
 import { installRuntimeFetchPatch, installWebApiRedirect } from '@/services/runtime';
 import { loadDesktopSecrets } from '@/services/runtime-config';
 import { initDemoModeFromUrl } from '@/platform/operations/demo-mode';
+import { prepareDesktopShellState } from '@/services/desktop-shell-store';
+import {
+  registerDesktopWindowStatePersistence,
+  restoreCurrentDesktopWindowState,
+} from '@/services/desktop-window-state';
 import { applyStoredTheme } from '@/utils/theme-manager';
 import { applyFont } from '@/services/font-settings';
 import { SITE_VARIANT } from '@/config/variant';
 import { clearChunkReloadGuard, installChunkReloadGuard } from '@/bootstrap/chunk-reload';
-
-// Auto-reload on stale chunk 404s after deployment (Vite fires this for modulepreload failures).
-const chunkReloadStorageKey = installChunkReloadGuard(__APP_VERSION__);
-
-// Persist demo=1 in localStorage so demo mode survives subsequent reloads.
-initDemoModeFromUrl();
-
-// Initialize Vercel Analytics (10% sampling to reduce costs)
-inject({
-  beforeSend: (event) => (Math.random() > 0.1 ? null : event),
-});
-
-// Initialize dynamic meta tags for sharing
-initMetaTags();
-
-// In desktop mode, route /api/* calls to the local Tauri sidecar backend.
-installRuntimeFetchPatch();
-// In web production, route RPC calls through api.qadr.alefba.dev (Cloudflare edge).
-installWebApiRedirect();
-loadDesktopSecrets().catch(() => {});
-
-// Apply stored theme preference before app initialization (safety net for inline script)
-applyStoredTheme();
-applyFont();
-
-// Set data-variant on <html> so CSS theme overrides activate
-if (SITE_VARIANT && SITE_VARIANT !== 'full') {
-  document.documentElement.dataset.variant = SITE_VARIANT;
-
-  // Swap favicons to variant-specific versions before browser finishes fetching defaults
-  document.querySelectorAll<HTMLLinkElement>('link[rel="icon"], link[rel="apple-touch-icon"]').forEach(link => {
-    link.href = link.href
-      .replace(/\/favico\/favicon/g, `/favico/${SITE_VARIANT}/favicon`)
-      .replace(/\/favico\/apple-touch-icon/g, `/favico/${SITE_VARIANT}/apple-touch-icon`);
-  });
-}
-
-// Remove no-transition class after first paint to enable smooth theme transitions
-requestAnimationFrame(() => {
-  document.documentElement.classList.remove('no-transition');
-});
-
-// Clear stale settings-open flag (survives ungraceful shutdown)
-localStorage.removeItem('wm-settings-open');
+import { migrateLegacyBrandStorage, QADR_SETTINGS_OPEN_KEY } from '@/utils/qadr-branding';
 
 // Standalone windows: ?settings=1 = panel display settings, ?live-channels=1 = channel management
 // Both need i18n initialized so t() does not return undefined.
@@ -391,33 +353,85 @@ function showAccessGate(): Promise<boolean> {
   });
 }
 
-if (urlParams.get('settings') === '1') {
-  void Promise.all([import('./services/i18n'), import('./settings-window')]).then(
-    async ([i18n, m]) => {
-      await i18n.initI18n();
-      m.initSettingsWindow();
-    }
-  );
-} else if (urlParams.get('live-channels') === '1') {
-  void Promise.all([import('./services/i18n'), import('./live-channels-window')]).then(
-    async ([i18n, m]) => {
-      await i18n.initI18n();
-      m.initLiveChannelsWindow();
-    }
-  );
-} else {
-  installUtmInterceptor();
-  void showAccessGate().then((allowed) => {
-    if (!allowed) return;
-    const app = new App('app');
-    app
-      .init()
-      .then(() => {
-        clearChunkReloadGuard(chunkReloadStorageKey);
-      })
-      .catch(console.error);
+async function bootstrapApplication(): Promise<void> {
+  migrateLegacyBrandStorage();
+  await prepareDesktopShellState();
+  await restoreCurrentDesktopWindowState();
+  registerDesktopWindowStatePersistence();
+
+  const chunkReloadStorageKey = installChunkReloadGuard(__APP_VERSION__);
+
+  // Persist demo=1 in localStorage so demo mode survives subsequent reloads.
+  initDemoModeFromUrl();
+
+  // Initialize Vercel Analytics (10% sampling to reduce costs)
+  inject({
+    beforeSend: (event) => (Math.random() > 0.1 ? null : event),
   });
+
+  // Initialize dynamic meta tags for sharing
+  initMetaTags();
+
+  // In desktop mode, route /api/* calls to the local Tauri sidecar backend.
+  installRuntimeFetchPatch();
+  // In web production, route RPC calls through api.qadr.alefba.dev (Cloudflare edge).
+  installWebApiRedirect();
+  loadDesktopSecrets().catch(() => {});
+
+  // Apply stored theme preference before app initialization (safety net for inline script)
+  applyStoredTheme();
+  applyFont();
+
+  // Set data-variant on <html> so CSS theme overrides activate
+  if (SITE_VARIANT && SITE_VARIANT !== 'full') {
+    document.documentElement.dataset.variant = SITE_VARIANT;
+
+    // Swap favicons to variant-specific versions before browser finishes fetching defaults
+    document.querySelectorAll<HTMLLinkElement>('link[rel="icon"], link[rel="apple-touch-icon"]').forEach(link => {
+      link.href = link.href
+        .replace(/\/favico\/favicon/g, `/favico/${SITE_VARIANT}/favicon`)
+        .replace(/\/favico\/apple-touch-icon/g, `/favico/${SITE_VARIANT}/apple-touch-icon`);
+    });
+  }
+
+  // Remove no-transition class after first paint to enable smooth theme transitions
+  requestAnimationFrame(() => {
+    document.documentElement.classList.remove('no-transition');
+  });
+
+  // Clear stale settings-open flag (survives ungraceful shutdown)
+  localStorage.removeItem(QADR_SETTINGS_OPEN_KEY);
+
+  if (urlParams.get('settings') === '1') {
+    await Promise.all([import('./services/i18n'), import('./settings-window')]).then(
+      async ([i18n, m]) => {
+        await i18n.initI18n();
+        m.initSettingsWindow();
+      }
+    );
+    return;
+  }
+
+  if (urlParams.get('live-channels') === '1') {
+    await Promise.all([import('./services/i18n'), import('./live-channels-window')]).then(
+      async ([i18n, m]) => {
+        await i18n.initI18n();
+        m.initLiveChannelsWindow();
+      }
+    );
+    return;
+  }
+
+  installUtmInterceptor();
+  const allowed = await showAccessGate();
+  if (!allowed) return;
+
+  const app = new App('app');
+  await app.init();
+  clearChunkReloadGuard(chunkReloadStorageKey);
 }
+
+void bootstrapApplication().catch(console.error);
 
 // Debug helpers for geo-convergence testing (remove in production)
 (window as unknown as Record<string, unknown>).geoDebug = {
@@ -477,7 +491,7 @@ if (!('__TAURI_INTERNALS__' in window) && !('__TAURI__' in window) && 'serviceWo
 // It runs once per user (guarded by a localStorage key), nukes all SWs and caches, then reloads.
 // IMPORTANT: This causes a visible double-load for every new/unkeyed user. Remove once rollout is complete.
 //
-// const nukeKey = 'wm-sw-nuked-v3';
+// const nukeKey = 'qadr110-sw-nuked-v3';
 // let alreadyNuked = false;
 // try { alreadyNuked = !!localStorage.getItem(nukeKey); } catch {}
 // if (!alreadyNuked) {

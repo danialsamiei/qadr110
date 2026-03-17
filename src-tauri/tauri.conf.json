@@ -1,9 +1,9 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "QADR110",
-  "mainBinaryName": "world-monitor",
+  "mainBinaryName": "qadr110",
   "version": "2.6.1",
-  "identifier": "app.worldmonitor.desktop",
+  "identifier": "dev.alefba.qadr110.desktop",
   "build": {
     "beforeDevCommand": "npm run build:sidecar-sebuf && node scripts/build-sidecar-handlers.mjs && npm run dev",
     "beforeBuildCommand": "npm run build:desktop",
@@ -13,6 +13,7 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "QADR110",
         "width": 1440,
         "height": 900,
@@ -42,8 +43,8 @@
       "appimage"
     ],
     "category": "Productivity",
-    "shortDescription": "QADR110 desktop app (supports World and Tech variants)",
-    "longDescription": "QADR110 desktop app for global analytical monitoring. Build with VITE_VARIANT=tech to package Tech Monitor branding and dataset defaults.",
+    "shortDescription": "QADR110 desktop app for Persian-first strategic monitoring",
+    "longDescription": "QADR110 desktop app for Persian-first strategic monitoring and map-centric analytical workflows. Build with VITE_VARIANT=tech to package the technology-focused dataset defaults.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

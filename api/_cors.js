@@ -1,7 +1,7 @@
 const ALLOWED_ORIGIN_PATTERNS = [
   /^https:\/\/qadr\.alefba\.dev$/,
-  /^https:\/\/worldmonitor\.app$/,
-  /^https:\/\/worldmonitor-[a-z0-9-]+-elie-[a-z0-9]+\.vercel\.app$/,
+  /^https:\/\/qadr110-[a-z0-9-]+\.vercel\.app$/,
+  /^https:\/\/qadr-[a-z0-9-]+\.vercel\.app$/,
   /^https?:\/\/localhost(:\d+)?$/,
   /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
   /^https?:\/\/tauri\.localhost(:\d+)?$/,
@@ -20,7 +20,7 @@ export function getCorsHeaders(req, methods = 'GET, OPTIONS') {
   return {
     'Access-Control-Allow-Origin': allowOrigin,
     'Access-Control-Allow-Methods': methods,
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-WorldMonitor-Key',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-QADR110-Key, X-WorldMonitor-Key',
     'Access-Control-Max-Age': '86400',
     'Vary': 'Origin',
   };

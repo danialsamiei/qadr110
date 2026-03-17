@@ -2,10 +2,11 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Finance Monitor",
   "mainBinaryName": "finance-monitor",
-  "identifier": "app.worldmonitor.finance.desktop",
+  "identifier": "dev.alefba.qadr110.finance.desktop",
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "Finance Monitor"
       }
     ]

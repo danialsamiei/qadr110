@@ -1,94 +1,90 @@
-export type OrchestratorIntent =
-  | 'trend-analysis'
-  | 'conflict-monitoring'
-  | 'media-monitoring'
-  | 'resilience-monitoring'
-  | 'general-intel';
+import type {
+  AssistantContextPacket,
+  AssistantEvidenceCard,
+  AssistantRunRequest,
+  AssistantStructuredOutput,
+} from '@/platform/ai/assistant-contracts';
+import type { AiGatewayProvider } from '@/platform/ai/contracts';
+import type {
+  AssistantSessionContext,
+  OrchestratorNodeName,
+  OrchestratorPlan,
+  OrchestratorRouteClass,
+  OrchestratorToolName,
+} from '@/platform/ai/orchestrator-contracts';
+import type { SourceRecord } from '@/platform/domain/model';
 
-export type ToolPluginId =
-  | 'web-search'
-  | 'gdelt'
-  | 'netblocks'
-  | 'google-trends'
-  | 'media-pipelines'
-  | 'internal-panels';
+export type {
+  AssistantSessionContext,
+  OrchestratorComplexity,
+  OrchestratorNodeName,
+  OrchestratorPlan,
+  OrchestratorRouteClass,
+  OrchestratorToolName,
+  OrchestratorToolPhase,
+  OrchestratorToolSpec,
+  OrchestratorTraceSummary,
+} from '@/platform/ai/orchestrator-contracts';
 
-export type ModelProvider = 'openrouter' | 'ollama' | 'vllm';
-
-export interface SourceRecord {
-  id: string;
-  title: string;
-  url?: string;
-  provider: ToolPluginId;
-  publishedAt?: string;
-  reliability?: number;
+export interface OrchestratorToolContext {
+  request: AssistantRunRequest;
+  sessionContext: AssistantSessionContext;
+  evidenceCards: AssistantEvidenceCard[];
+  toolResults: OrchestratorToolResult[];
+  timeContext: string;
+  plan: OrchestratorPlan;
+  systemPrompt?: string;
+  userPrompt?: string;
 }
 
-export interface ToolResult {
-  pluginId: ToolPluginId;
+export interface OrchestratorToolResult {
+  tool: OrchestratorToolName;
+  ok: boolean;
   summary: string;
+  warnings: string[];
   sources: SourceRecord[];
-  latencyMs: number;
-  confidence: number;
-  riskFlags: string[];
+  contextPackets: AssistantContextPacket[];
+  durationMs: number;
+  data?: Record<string, unknown>;
 }
 
-export interface ModelRoutingDecision {
-  provider: ModelProvider;
-  model: string;
-  reason: string;
-  estimatedCostUsd: number;
-  estimatedLatencyMs: number;
-  estimatedQuality: number;
+export interface OrchestratorCompletionRequest {
+  routeClass: OrchestratorRouteClass;
+  taskClass: AssistantRunRequest['taskClass'];
+  systemPrompt: string;
+  userPrompt: string;
+  validate?: (content: string) => boolean;
 }
 
-export interface PolicyConstraints {
-  maxCostUsd?: number;
-  maxLatencyMs?: number;
-  minQuality?: number;
+export interface OrchestratorCompletionResult {
+  content: string | null;
+  provider?: AiGatewayProvider;
+  model?: string;
+  providerChain: AiGatewayProvider[];
+  routeClass: OrchestratorRouteClass;
+  warnings: string[];
+  attempts: number;
+  escalated: boolean;
 }
 
-export interface OrchestratorQuery {
-  query: string;
-  locale?: string;
-  constraints?: PolicyConstraints;
-  preferredProviders?: ModelProvider[];
+export interface OrchestratorRunResult {
+  output: AssistantStructuredOutput;
+  sessionContext: AssistantSessionContext;
+  plan: OrchestratorPlan;
+  nodeTimeline: OrchestratorNodeName[];
+  toolResults: OrchestratorToolResult[];
+  additionalContextPackets: AssistantContextPacket[];
+  optimizedPrompt: string;
+  contextSummary: string;
+  completion: OrchestratorCompletionResult;
+  warnings: string[];
 }
 
-export interface Citation {
-  index: number;
-  sourceId: string;
-  title: string;
-  url?: string;
-  provider: ToolPluginId;
-}
-
-export interface CitationRendering {
-  answerWithCitations: string;
-  citations: Citation[];
-}
-
-export interface OrchestratorOutput {
-  answer: string;
-  sources: SourceRecord[];
-  confidence: number;
-  riskFlags: string[];
-  nextActions: string[];
-  meta: {
-    intent: OrchestratorIntent;
-    sourcePlan: ToolPluginId[];
-    modelDecision: ModelRoutingDecision;
-    stages: ReadonlyArray<'intent-detection' | 'source-routing' | 'model-routing' | 'synthesis' | 'citation-rendering'>;
-  };
-}
-
-export interface ToolPlugin {
-  id: ToolPluginId;
-  execute(context: ToolExecutionContext): Promise<ToolResult>;
-}
-
-export interface ToolExecutionContext {
-  query: string;
-  intent: OrchestratorIntent;
-  locale: string;
+export interface OrchestratorRunnerDependencies {
+  complete(input: OrchestratorCompletionRequest): Promise<OrchestratorCompletionResult>;
+  parse(content: string): AssistantStructuredOutput | null;
+  buildFallbackOutput(
+    request: AssistantRunRequest,
+    evidenceCards: AssistantEvidenceCard[],
+  ): AssistantStructuredOutput;
 }

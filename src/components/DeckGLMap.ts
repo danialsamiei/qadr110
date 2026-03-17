@@ -113,6 +113,7 @@ import type { FeatureCollection, Geometry } from 'geojson';
 
 import { isAllowedPreviewUrl } from '@/utils/imagery-preview';
 import type { ConvergenceSignal, NormalizedGeoSignal } from '@/services/spatial-convergence';
+import type { MapPointClickPayload, MapProjectedPoint } from './map-interactions';
 
 export type TimeRange = '1h' | '6h' | '24h' | '48h' | '7d' | 'all';
 export type DeckMapView = 'global' | 'america' | 'mena' | 'eu' | 'asia' | 'latam' | 'africa' | 'oceania';
@@ -367,6 +368,7 @@ export class DeckGLMap {
   private onHotspotClick?: (hotspot: Hotspot) => void;
   private onTimeRangeChange?: (range: TimeRange) => void;
   private onCountryClick?: (country: CountryClickPayload) => void;
+  private onMapClick?: (payload: MapPointClickPayload) => void;
   private onMapContextMenu?: (payload: { lat: number; lon: number; screenX: number; screenY: number }) => void;
   private readonly handleContextMenu = (e: MouseEvent): void => {
     e.preventDefault();
@@ -3593,6 +3595,21 @@ export class DeckGLMap {
   ]);
 
   private handleClick(info: PickingInfo): void {
+    if (info.coordinate && this.onMapClick) {
+      const [lon, lat] = info.coordinate as [number, number];
+      const country = this.resolveCountryFromCoordinate(lon, lat);
+      this.onMapClick({
+        lat,
+        lon,
+        screenX: Number.isFinite(info.x) ? info.x : this.container.clientWidth / 2,
+        screenY: Number.isFinite(info.y) ? info.y : this.container.clientHeight / 2,
+        zoom: this.state.zoom,
+        bbox: this.getBbox(),
+        view: this.state.view,
+        ...(country ? { countryCode: country.code, countryName: country.name } : {}),
+      });
+    }
+
     const isChoropleth = info.layer?.id ? DeckGLMap.CHOROPLETH_LAYER_IDS.has(info.layer.id) : false;
     if (!info.object || isChoropleth) {
       if (info.coordinate && this.onCountryClick) {
@@ -3953,7 +3970,7 @@ export class DeckGLMap {
     toggles.className = 'layer-toggles deckgl-layer-toggles';
 
     const layerDefs = getLayersForVariant((SITE_VARIANT || 'full') as MapVariant, 'flat');
-    const _wmKey = getSecretState('WORLDMONITOR_API_KEY').present;
+    const _wmKey = getSecretState('QADR110_API_KEY').present;
     const layerConfig = layerDefs.map(def => ({
       key: def.key,
       label: resolveLayerLabel(def, t),
@@ -5145,6 +5162,10 @@ export class DeckGLMap {
     return { x: point.x, y: point.y };
   }
 
+  public project(lat: number, lon: number): MapProjectedPoint | null {
+    return this.projectToScreen(lat, lon);
+  }
+
   // Trigger click methods - show popup at item location without moving the map
   public triggerHotspotClick(id: string): void {
     const hotspot = this.hotspots.find(h => h.id === id);
@@ -5287,6 +5308,10 @@ export class DeckGLMap {
 
   public setOnCountryClick(cb: (country: CountryClickPayload) => void): void {
     this.onCountryClick = cb;
+  }
+
+  public setOnMapClick(cb: (payload: MapPointClickPayload) => void): void {
+    this.onMapClick = cb;
   }
 
   public setOnMapContextMenu(cb: (payload: { lat: number; lon: number; screenX: number; screenY: number }) => void): void {

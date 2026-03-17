@@ -1,0 +1,11 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "settings-desktop",
+  "description": "Desktop plugins required by the QADR110 settings window",
+  "windows": ["settings"],
+  "permissions": [
+    "store:default",
+    "window-state:default",
+    "opener:default"
+  ]
+}

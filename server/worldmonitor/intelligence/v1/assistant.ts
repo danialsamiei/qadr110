@@ -1,9 +1,8 @@
-import { callLlm } from '../../../_shared/llm';
 import { cachedFetchJsonWithMeta } from '../../../_shared/redis';
 import {
-  ASSISTANT_RESPONSE_SCHEMA,
   parseAssistantResponseJson,
 } from '../../../../src/platform/ai/assistant-schema';
+import { buildMapContextCacheKey } from '../../../../src/platform/operations/map-context';
 import {
   createConfidenceRecord,
   type AssistantContextPacket,
@@ -25,6 +24,7 @@ import {
 } from '../../../../src/platform/retrieval';
 import type { ConfidenceRecord, EvidenceRecord, SourceRecord } from '../../../../src/platform/domain/model';
 import { sha256Hex } from './_shared';
+import { runAssistantOrchestrator } from './orchestrator';
 
 const ASSISTANT_CACHE_TTL_SECONDS = 900;
 const MAX_QUERY_LEN = 1200;
@@ -68,6 +68,11 @@ function dedupePackets(packets: AssistantContextPacket[]): AssistantContextPacke
   }
 
   return deduped;
+}
+
+function resolveStableMapCacheKey(request: AssistantRunRequest): string | undefined {
+  if (!request.mapContext) return undefined;
+  return request.mapContext.cacheKey || buildMapContextCacheKey(request.mapContext);
 }
 
 function toContextPacket(hit: KnowledgeRetrievalHit): AssistantContextPacket {
@@ -226,56 +231,6 @@ function buildDeterministicOutput(
   };
 }
 
-function buildEvidenceDigest(cards: AssistantEvidenceCard[]): string {
-  if (cards.length === 0) {
-    return 'هیچ کارت شاهدی برای این اجرا در دسترس نبود.';
-  }
-
-  return cards.slice(0, 6).map((card, index) => [
-    `${index + 1}. ${card.title}`,
-    `source=${card.source.title}`,
-    `time=${card.timeContext}`,
-    `score=${card.score}`,
-    `summary=${card.summary}`,
-  ].join(' | ')).join('\n');
-}
-
-function buildConversationDigest(messages: AssistantRunRequest['messages']): string {
-  return messages.slice(-MAX_MESSAGE_HISTORY).map((message) =>
-    `${message.role.toUpperCase()}: ${sanitizeText(message.content, 500)}`).join('\n');
-}
-
-function buildSystemPrompt(request: AssistantRunRequest, timeContext: string): string {
-  return [
-    'You are QADR110, a Persian-first strategic intelligence assistant.',
-    'Respond in Persian only, with lawful defensive decision-support guidance.',
-    'Do not provide offensive cyber, intrusion, bypass, weaponization, target-selection, or kinetic action guidance.',
-    'Every answer must strictly separate: observed facts, analytical inference, scenarios, uncertainties, and recommendations.',
-    'Use only the supplied context, retrieval packets, map context, and conversation memory.',
-    'If evidence is thin, say so explicitly instead of fabricating citations or certainty.',
-    'Return valid JSON matching the requested schema. Avoid markdown fences.',
-    `Current time context: ${timeContext}`,
-    `Domain mode: ${request.domainMode}`,
-    `Task class: ${request.taskClass}`,
-  ].join('\n');
-}
-
-function buildUserPrompt(request: AssistantRunRequest, evidenceCards: AssistantEvidenceCard[], timeContext: string): string {
-  const promptParts = [
-    `Query: ${request.query}`,
-    request.promptText ? `Prompt pack:\n${sanitizeText(request.promptText, MAX_PROMPT_LEN)}` : '',
-    request.mapContext ? `Map context:\n${JSON.stringify(request.mapContext)}` : '',
-    request.memoryNotes.length > 0
-      ? `Workspace memory:\n${request.memoryNotes.slice(0, MAX_MEMORY_NOTES).map((note) => `${note.title}: ${note.content}`).join('\n')}`
-      : '',
-    request.messages.length > 0 ? `Conversation history:\n${buildConversationDigest(request.messages)}` : '',
-    `Evidence digest:\n${buildEvidenceDigest(evidenceCards)}`,
-    `Time context: ${timeContext}`,
-  ].filter(Boolean);
-
-  return promptParts.join('\n\n');
-}
-
 function buildRefusalResponse(request: AssistantRunRequest, reason: string, redirect: string): AssistantRunResponse {
   const policy = getPolicyForTask(request.taskClass);
   const now = new Date().toISOString();
@@ -347,6 +302,7 @@ export async function runIntelligenceAssistant(request: AssistantRunRequest): Pr
       createdAt: message.createdAt,
     })),
     pinnedEvidence: (request.pinnedEvidence ?? []).slice(0, 6),
+    sessionContext: request.sessionContext,
   };
 
   const safety = evaluateAssistantSafety(query);
@@ -371,9 +327,15 @@ export async function runIntelligenceAssistant(request: AssistantRunRequest): Pr
     mode: sanitizedRequest.domainMode,
     task: sanitizedRequest.taskClass,
     prompt: sanitizedRequest.promptText,
-    map: sanitizedRequest.mapContext?.id,
+    map: resolveStableMapCacheKey(sanitizedRequest),
     packetIds: packets.map((packet) => packet.id),
     memory: sanitizedRequest.memoryNotes.map((note) => note.id),
+    session: {
+      id: sanitizedRequest.sessionContext?.sessionId,
+      updatedAt: sanitizedRequest.sessionContext?.lastUpdatedAt,
+      intents: sanitizedRequest.sessionContext?.intentHistory?.slice(-3).map((item) => item.query),
+      maps: sanitizedRequest.sessionContext?.mapInteractions?.slice(-2).map((item) => item.mapContextId || item.label),
+    },
   });
   const cacheKey = `assistant:v1:${(await sha256Hex(cacheSeed)).slice(0, 24)}`;
 
@@ -382,86 +344,67 @@ export async function runIntelligenceAssistant(request: AssistantRunRequest): Pr
     ASSISTANT_CACHE_TTL_SECONDS,
     async () => {
       const policy = getPolicyForTask(sanitizedRequest.taskClass);
-      const systemPrompt = buildSystemPrompt(sanitizedRequest, timeContext);
-      const userPrompt = buildUserPrompt(sanitizedRequest, evidenceCards, timeContext);
-      const openRouterConfig = policy.providerMetadata?.openRouter;
-      const providerBody = openRouterConfig ? {
-        provider: {
-          ...(openRouterConfig.providerOrder?.length ? { order: openRouterConfig.providerOrder } : {}),
-          ...(typeof openRouterConfig.allowFallbacks === 'boolean' ? { allow_fallbacks: openRouterConfig.allowFallbacks } : {}),
-          ...(typeof openRouterConfig.requireParameters === 'boolean' ? { require_parameters: openRouterConfig.requireParameters } : {}),
-          ...(openRouterConfig.dataCollection ? { data_collection: openRouterConfig.dataCollection } : {}),
-          ...(openRouterConfig.onlyProviders?.length ? { only: openRouterConfig.onlyProviders } : {}),
-          ...(openRouterConfig.ignoreProviders?.length ? { ignore: openRouterConfig.ignoreProviders } : {}),
-        },
-        response_format: {
-          type: 'json_schema',
-          json_schema: ASSISTANT_RESPONSE_SCHEMA,
-        },
-        ...(policy.providerMetadata?.useResponseHealing && !sanitizedRequest.stream ? { plugins: [{ id: 'response-healing' }] } : {}),
-      } : {};
-
-      const llmResult = await callLlm({
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        temperature: 0.2,
-        maxTokens: policy.tokenBudget.outputTokenLimit,
-        timeoutMs: policy.streaming.maxLatencyMs,
-        retries: policy.retry.maxAttempts,
-        retryDelayMs: policy.retry.baseDelayMs,
-        extraBodyByProvider: {
-          openrouter: providerBody,
-        },
-        validate: (content) => Boolean(parseAssistantResponseJson(content)),
+      const orchestrated = await runAssistantOrchestrator({
+        request: sanitizedRequest,
+        evidenceCards,
+        timeContext,
+        parse: parseAssistantResponseJson,
+        buildFallbackOutput: buildDeterministicOutput,
       });
-
-      const output = llmResult?.content
-        ? parseAssistantResponseJson(llmResult.content)
-        : null;
-
-      const selectedOutput = output || buildDeterministicOutput(sanitizedRequest, evidenceCards);
+      const finalPackets = dedupePackets([
+        ...packets,
+        ...sanitizeContextPackets(orchestrated.additionalContextPackets),
+      ]).slice(0, MAX_CONTEXT_PACKETS + 6);
+      const finalEvidenceCards = finalPackets.map((packet) => packetToEvidenceCard(
+        packet,
+        sanitizedRequest.pinnedEvidence.some((pinned) => pinned.id === packet.id),
+      ));
       const trace = createAiExecutionTrace(
         policy,
-        llmResult?.provider as typeof policy.preferredProviders[number] | undefined,
-        llmResult?.model,
+        orchestrated.provider as typeof policy.preferredProviders[number] | undefined,
+        orchestrated.model,
       );
       const now = new Date().toISOString();
       const message: AssistantMessage = {
         id: `assistant-${Date.now()}`,
         role: 'assistant',
         createdAt: now,
-        content: selectedOutput.executiveSummary,
+        content: orchestrated.output.executiveSummary,
         domainMode: sanitizedRequest.domainMode,
         taskClass: sanitizedRequest.taskClass,
-        structured: selectedOutput,
-        evidenceCards,
-        provider: llmResult?.provider || 'fallback',
-        model: llmResult?.model || 'retrieval-fallback',
+        structured: orchestrated.output,
+        evidenceCards: finalEvidenceCards,
+        provider: orchestrated.provider || 'fallback',
+        model: orchestrated.model || 'retrieval-fallback',
         traceId: trace.traceId,
-        confidenceBand: selectedOutput.analyticalInference.confidence.band,
+        confidenceBand: orchestrated.output.analyticalInference.confidence.band,
       };
 
       return {
         conversationId: sanitizedRequest.conversationId,
         message,
         status: 'completed',
-        provider: llmResult?.provider || 'fallback',
-        model: llmResult?.model || 'retrieval-fallback',
+        provider: orchestrated.provider || 'fallback',
+        model: orchestrated.model || 'retrieval-fallback',
         cached: false,
-        followUpSuggestions: [...selectedOutput.followUpSuggestions],
-        evidenceCards,
-        trace: toAssistantTraceMetadata({
-          ...trace,
-          selectedProvider: llmResult?.provider,
-          selectedModel: llmResult?.model,
-        }, {
-          completedAt: now,
-          cached: false,
-          timeContext,
-          warnings: output ? [] : ['خروجی مدل JSON معتبر نداشت و fallback قطعی بر پایه شواهد اجرا شد.'],
-        }),
+        followUpSuggestions: [...orchestrated.output.followUpSuggestions],
+        evidenceCards: finalEvidenceCards,
+        trace: {
+          ...toAssistantTraceMetadata({
+            ...trace,
+            selectedProvider: orchestrated.provider as typeof policy.preferredProviders[number] | undefined,
+            selectedModel: orchestrated.model,
+          }, {
+            completedAt: now,
+            cached: false,
+            timeContext,
+            warnings: orchestrated.warnings,
+          }),
+          orchestratorRoute: orchestrated.routeClass as 'fast-local' | 'reasoning-local' | 'cloud-escalation' | 'structured-json',
+          orchestratorNodes: [...orchestrated.nodeTimeline],
+          toolPlan: [...orchestrated.toolPlan],
+          sessionReuseCount: orchestrated.sessionReuseCount,
+        },
       };
     },
   );
@@ -506,9 +449,13 @@ export async function runIntelligenceAssistant(request: AssistantRunRequest): Pr
   return {
     ...response,
     cached: cached.source === 'cache',
-    trace: {
-      ...response.trace,
-      cached: cached.source === 'cache',
-    },
-  };
-}
+      trace: {
+        ...response.trace,
+        cached: cached.source === 'cache',
+        orchestratorRoute: response.trace.orchestratorRoute,
+        orchestratorNodes: response.trace.orchestratorNodes,
+        toolPlan: response.trace.toolPlan,
+        sessionReuseCount: response.trace.sessionReuseCount,
+      },
+    };
+  }

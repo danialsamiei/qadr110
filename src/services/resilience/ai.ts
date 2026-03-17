@@ -1,6 +1,7 @@
 import type { AssistantEvidenceCard } from '@/platform/ai/assistant-contracts';
 import type { KnowledgeDocument } from '@/platform/retrieval';
 import { createConfidenceRecord } from '@/platform/ai/assistant-contracts';
+import { appendAssistantIntent, createAssistantSessionContext } from '@/services/ai-orchestrator/session';
 import { runPersianAssistant } from '@/services/intelligence-assistant';
 
 import { buildResilienceReport } from './reporting';
@@ -78,18 +79,27 @@ export async function narrateResilienceReportWithAi(
     }, null, 2), report.generatedAt),
   ];
   const pinnedEvidence = buildPinnedEvidence(report.title, report.executiveSummary, report.generatedAt);
+  const query = `برای داشبورد تاب‌آوری ${model.primary.countryName} یک روایت فارسی بساز که فقط بر داده‌های ساخت‌یافته این گزارش تکیه کند. بخش‌های «واقعیت‌های مشاهده‌شده»، «استنباط تحلیلی»، «سناریوها»، «عدم‌قطعیت‌ها» و «توصیه‌های دفاعی» را جدا کن. ارزش عددی نمودارها را از داده‌های ساخت‌یافته بردار و ارجاع جعلی نساز.`;
+  const sessionContext = appendAssistantIntent(createAssistantSessionContext(`resilience-${model.primary.countryCode}`), {
+    query,
+    taskClass: 'chart-narration',
+    domainMode: 'economic-resilience',
+    messages: [],
+    createdAt: report.generatedAt,
+  });
 
   const response = await runPersianAssistant({
     conversationId: `resilience-${model.primary.countryCode}-${Date.now()}`,
     domainMode: 'economic-resilience',
     taskClass: 'chart-narration',
-    query: `برای داشبورد تاب‌آوری ${model.primary.countryName} یک روایت فارسی بساز که فقط بر داده‌های ساخت‌یافته این گزارش تکیه کند. بخش‌های «واقعیت‌های مشاهده‌شده»، «استنباط تحلیلی»، «سناریوها»، «عدم‌قطعیت‌ها» و «توصیه‌های دفاعی» را جدا کن. ارزش عددی نمودارها را از داده‌های ساخت‌یافته بردار و ارجاع جعلی نساز.`,
+    query,
     promptId: 'resilience-chart-narration',
     promptText: report.markdown,
     messages: [],
     pinnedEvidence,
     memoryNotes: [],
     knowledgeDocuments,
+    sessionContext,
     workflowId: 'resilience-reporting',
   });
 

@@ -7,6 +7,13 @@ import type {
 } from '../domain/model';
 import type { MapContextEnvelope } from '../operations/map-context';
 import type { AiGatewayProvider, AiTaskClass } from './contracts';
+import type {
+  AssistantSessionContext,
+  OrchestratorNodeName,
+  OrchestratorRouteClass,
+  OrchestratorToolName,
+} from './orchestrator-contracts';
+export type { AssistantSessionContext } from './orchestrator-contracts';
 
 export type AssistantDomainMode =
   | 'osint-digest'
@@ -15,6 +22,7 @@ export type AssistantDomainMode =
   | 'economic-resilience'
   | 'social-resilience'
   | 'cultural-cognitive-analysis'
+  | 'strategic-foresight'
   | 'scenario-planning'
   | 'predictive-analysis'
   | 'infrastructure-risk'
@@ -24,8 +32,13 @@ export type AssistantDomainMode =
 
 export type AssistantMessageRole = 'system' | 'user' | 'assistant';
 export type AssistantProbabilityBand = 'low' | 'medium' | 'high';
+export type AssistantImpactLevel = 'low' | 'medium' | 'high' | 'critical';
+export type AssistantUncertaintyLevel = 'low' | 'medium' | 'high';
+export type AssistantCausalStage = 'event' | 'reaction' | 'escalation' | 'outcome';
 export type AssistantRunStatus = 'completed' | 'refused' | 'failed';
 export type AssistantExportFormat = 'json' | 'markdown' | 'html';
+export type AssistantSimulationMode = 'fast' | 'deep';
+export type AssistantMetaScenarioRelationshipType = 'amplifying' | 'suppressing' | 'competing' | 'converging';
 
 export interface AssistantContextPacket {
   id: string;
@@ -48,13 +61,383 @@ export interface AssistantSection {
   confidence: ConfidenceRecord;
 }
 
+export interface AssistantScenarioCausalStep {
+  stage: AssistantCausalStage;
+  summary: string;
+  affected_domains?: string[];
+}
+
 export interface AssistantScenario {
+  id?: string;
   title: string;
   probability: AssistantProbabilityBand;
+  probability_score?: number;
   timeframe: string;
+  time_horizon?: string;
   description: string;
   indicators: string[];
+  indicators_to_watch?: string[];
+  drivers?: string[];
+  causal_chain?: AssistantScenarioCausalStep[];
+  mitigation_options?: string[];
+  impact_level?: AssistantImpactLevel;
+  impact_score?: number;
+  uncertainty_level?: AssistantUncertaintyLevel;
+  second_order_effects?: string[];
+  cross_domain_impacts?: Record<string, string[]>;
+  strategic_relevance?: number;
+  likelihood_score?: number;
   confidence: ConfidenceRecord;
+}
+
+export interface AssistantSimulationStep {
+  id: string;
+  title: string;
+  stage: AssistantCausalStage | 'checkpoint';
+  summary: string;
+  probability_score: number;
+  impact_score: number;
+  uncertainty_level: AssistantUncertaintyLevel;
+  indicators_to_watch: string[];
+  tool_calls: string[];
+}
+
+export interface AssistantSimulationBranch {
+  id: string;
+  title: string;
+  description: string;
+  probability: AssistantProbabilityBand;
+  probability_score: number;
+  impact_level: AssistantImpactLevel;
+  impact_score: number;
+  uncertainty_level: AssistantUncertaintyLevel;
+  time_horizon: string;
+  local_risks: string[];
+  regional_spillovers: string[];
+  global_ripple_effects: string[];
+  controls_summary: string[];
+  tool_plan: string[];
+  steps: AssistantSimulationStep[];
+}
+
+export interface AssistantSimulationGraphNode {
+  id: string;
+  label: string;
+  kind: 'root' | 'branch' | 'step';
+  branch_id?: string;
+  emphasis?: number;
+}
+
+export interface AssistantSimulationGraphEdge {
+  from: string;
+  to: string;
+  label: string;
+  weight?: number;
+}
+
+export interface AssistantSimulation {
+  title: string;
+  event: string;
+  mode: AssistantSimulationMode;
+  compare_summary: string;
+  controls_summary: string[];
+  branches: AssistantSimulationBranch[];
+  graph: {
+    nodes: AssistantSimulationGraphNode[];
+    edges: AssistantSimulationGraphEdge[];
+  };
+}
+
+export interface AssistantDecisionAction {
+  label: string;
+  rationale: string;
+  timeframe: 'immediate' | 'near-term' | 'long-term';
+}
+
+export interface AssistantDecisionTradeoff {
+  label: string;
+  cost: string;
+  benefit: string;
+  short_term: string;
+  long_term: string;
+}
+
+export interface AssistantDecisionLeveragePoint {
+  title: string;
+  why: string;
+}
+
+export interface AssistantDecisionUncertainty {
+  title: string;
+  why: string;
+  indicators: string[];
+}
+
+export interface AssistantActorModel {
+  actor: string;
+  role: string;
+  intent: string;
+  likely_behaviors: string[];
+  constraints: string[];
+}
+
+export interface AssistantScenarioDecisionSupport {
+  scenario_id?: string;
+  scenario_title: string;
+  probability: AssistantProbabilityBand;
+  impact_level?: AssistantImpactLevel;
+  recommended_actions: AssistantDecisionAction[];
+  mitigation_strategies: string[];
+  tradeoffs: AssistantDecisionTradeoff[];
+}
+
+export interface AssistantDecisionSupport {
+  executive_summary: string;
+  actionable_insights: string[];
+  strategic_insights: string[];
+  leverage_points: AssistantDecisionLeveragePoint[];
+  critical_uncertainties: AssistantDecisionUncertainty[];
+  actor_models: AssistantActorModel[];
+  scenario_support: AssistantScenarioDecisionSupport[];
+}
+
+export interface AssistantMetaScenario {
+  id: string;
+  title: string;
+  source_scenarios: string[];
+  relationship_type: AssistantMetaScenarioRelationshipType;
+  summary: string;
+  combined_probability: AssistantProbabilityBand;
+  combined_probability_score?: number;
+  impact_level: AssistantImpactLevel;
+  uncertainty_level: AssistantUncertaintyLevel;
+  critical_dependencies: string[];
+  trigger_indicators: string[];
+  watchpoints: string[];
+  strategic_implications: string[];
+  recommended_actions: string[];
+}
+
+export interface AssistantScenarioConflict {
+  id: string;
+  left_scenario_id: string;
+  right_scenario_id: string;
+  relationship_type: Extract<AssistantMetaScenarioRelationshipType, 'suppressing' | 'competing'>;
+  interaction_strength: number;
+  direction: string;
+  summary: string;
+  probability_redistribution: Record<string, number>;
+  decisive_indicators: string[];
+}
+
+export interface AssistantBlackSwanCandidate {
+  id: string;
+  title: string;
+  summary: string;
+  probability: AssistantProbabilityBand;
+  impact_level: AssistantImpactLevel;
+  uncertainty_level: AssistantUncertaintyLevel;
+  why_it_matters: string;
+  low_probability_reason: string;
+  high_impact_reason: string;
+  broken_assumptions: string[];
+  affected_domains: string[];
+  weak_signals: string[];
+  contradictory_evidence: string[];
+  regime_shift_indicators: string[];
+  leading_indicators: string[];
+  watchpoints: string[];
+  recommended_actions: string[];
+  confidence_note: string;
+  uncertainty_note: string;
+  severity_score?: number;
+  monitoring_status?: 'watch' | 'rising' | 'critical' | 'cooling';
+}
+
+export interface AssistantMetaScenarioOutput {
+  executive_summary: string;
+  higher_order_insights: string[];
+  meta_scenarios: AssistantMetaScenario[];
+  scenario_conflicts: AssistantScenarioConflict[];
+  black_swan_candidates: AssistantBlackSwanCandidate[];
+}
+
+export type AssistantWarRoomMarker = 'support' | 'challenge' | 'revision' | 'uncertainty';
+export type AssistantWarRoomRoundStage = 'assessment' | 'critique' | 'revision' | 'synthesis';
+export type AssistantWarRoomDebateMode = 'fast' | 'deep';
+export type AssistantWarRoomTransitionStage = 'initialized' | AssistantWarRoomRoundStage | 'completed';
+export type AssistantWarRoomScenarioStance = 'dominant' | 'overrated' | 'underappreciated' | 'contested' | 'replacement';
+export type AssistantWarRoomScenarioAdjustmentType = 'promote' | 'demote' | 'watch' | 'replace';
+
+export interface AssistantWarRoomAgentCritique {
+  target_agent_id: string;
+  summary: string;
+  marker: AssistantWarRoomMarker;
+}
+
+export interface AssistantWarRoomAgent {
+  id: string;
+  role: string;
+  label: string;
+  role_prompt: string;
+  position: string;
+  revised_position?: string;
+  confidence_score: number;
+  confidence_note: string;
+  supporting_points: string[];
+  watchpoints: string[];
+  assumptions: string[];
+  critiques: AssistantWarRoomAgentCritique[];
+}
+
+export interface AssistantWarRoomRoundEntry {
+  agent_id: string;
+  label: string;
+  content: string;
+  target_agent_ids: string[];
+  markers: AssistantWarRoomMarker[];
+}
+
+export interface AssistantWarRoomRound {
+  id: string;
+  title: string;
+  stage: AssistantWarRoomRoundStage;
+  summary: string;
+  entries: AssistantWarRoomRoundEntry[];
+}
+
+export interface AssistantWarRoomDisagreement {
+  id: string;
+  title: string;
+  summary: string;
+  agent_ids: string[];
+  severity: AssistantProbabilityBand;
+}
+
+export interface AssistantWarRoomConvergence {
+  id: string;
+  title: string;
+  summary: string;
+  agent_ids: string[];
+}
+
+export interface AssistantWarRoomTranscriptEntry {
+  id: string;
+  round_id: string;
+  round_stage: AssistantWarRoomRoundStage;
+  round_index: number;
+  agent_id: string;
+  label: string;
+  prompt_excerpt: string;
+  response: string;
+  target_agent_ids: string[];
+  markers: AssistantWarRoomMarker[];
+  evidence_basis: string[];
+  quality_flags: string[];
+}
+
+export interface AssistantWarRoomStateTransition {
+  id: string;
+  from_stage: AssistantWarRoomTransitionStage;
+  to_stage: AssistantWarRoomTransitionStage;
+  round_id?: string;
+  round_index: number;
+  summary: string;
+  timestamp: string;
+}
+
+export interface AssistantWarRoomDisagreementMatrixCell {
+  target_agent_id: string;
+  disagreement_score: number;
+  challenge_count: number;
+  evidence_backed: boolean;
+  summary: string;
+}
+
+export interface AssistantWarRoomDisagreementMatrixRow {
+  agent_id: string;
+  label: string;
+  cells: AssistantWarRoomDisagreementMatrixCell[];
+}
+
+export interface AssistantWarRoomQualityControls {
+  repetitive_debate: boolean;
+  shallow_agreement: boolean;
+  voice_collapse_risk: AssistantProbabilityBand;
+  evidence_backed_disagreement_ratio: number;
+  alerts: string[];
+  enforcement_notes: string[];
+}
+
+export interface AssistantWarRoomScenarioRankingItem {
+  scenario_id: string;
+  title: string;
+  baseline_rank: number;
+  revised_rank: number;
+  stance: AssistantWarRoomScenarioStance;
+  summary: string;
+  why: string;
+  consensus_shift: number;
+  linked_agent_ids: string[];
+  linked_conflict_ids: string[];
+  linked_black_swan_ids: string[];
+  watchpoints: string[];
+}
+
+export interface AssistantWarRoomScenarioAdjustment {
+  id: string;
+  scenario_id: string;
+  title: string;
+  adjustment_type: AssistantWarRoomScenarioAdjustmentType;
+  summary: string;
+  rationale: string;
+  disagreement_driver: string;
+  affected_agent_ids: string[];
+  linked_conflict_id?: string;
+  linked_black_swan_id?: string;
+  updated_watchpoints: string[];
+  confidence: AssistantProbabilityBand;
+}
+
+export interface AssistantWarRoomScenarioFocus {
+  dominant_scenario_id?: string;
+  dominant_scenario_title?: string;
+  overrated_scenario_id?: string;
+  overrated_scenario_title?: string;
+  underappreciated_scenario_id?: string;
+  underappreciated_scenario_title?: string;
+  key_conflict_id?: string;
+  key_conflict_title?: string;
+  black_swan_threat_id?: string;
+  black_swan_threat_title?: string;
+  scenario_shift_summary: string;
+}
+
+export interface AssistantWarRoomOutput {
+  question: string;
+  anchor_label: string;
+  mode: AssistantWarRoomDebateMode;
+  active_agent_ids: string[];
+  excluded_agent_ids: string[];
+  round_count: number;
+  agents: AssistantWarRoomAgent[];
+  rounds: AssistantWarRoomRound[];
+  debate_transcript: AssistantWarRoomTranscriptEntry[];
+  replay_trace: AssistantWarRoomStateTransition[];
+  disagreement_matrix: AssistantWarRoomDisagreementMatrixRow[];
+  quality_controls: AssistantWarRoomQualityControls;
+  disagreements: AssistantWarRoomDisagreement[];
+  convergences: AssistantWarRoomConvergence[];
+  unresolved_uncertainties: string[];
+  moderator_summary: string;
+  executive_summary: string;
+  final_synthesis: string;
+  scenario_ranking: AssistantWarRoomScenarioRankingItem[];
+  scenario_adjustments: AssistantWarRoomScenarioAdjustment[];
+  scenario_focus: AssistantWarRoomScenarioFocus;
+  executive_recommendations: string[];
+  updated_watchpoints: string[];
+  recommended_watchpoints: string[];
 }
 
 export interface AssistantEvidenceCard {
@@ -78,6 +461,10 @@ export interface AssistantStructuredOutput {
   observedFacts: AssistantSection;
   analyticalInference: AssistantSection;
   scenarios: AssistantScenario[];
+  simulation?: AssistantSimulation;
+  decisionSupport?: AssistantDecisionSupport;
+  metaScenario?: AssistantMetaScenarioOutput;
+  warRoom?: AssistantWarRoomOutput;
   uncertainties: AssistantSection;
   recommendations: AssistantSection;
   resilienceNarrative: AssistantSection;
@@ -96,6 +483,7 @@ export interface AssistantMessage {
   provider?: string;
   model?: string;
   traceId?: string;
+  trace?: AssistantTraceMetadata;
   confidenceBand?: ConfidenceBand;
 }
 
@@ -130,6 +518,7 @@ export interface AssistantConversationThread {
   messages: AssistantMessage[];
   pinnedEvidenceIds: string[];
   workflowId?: string;
+  sessionContext?: AssistantSessionContext;
 }
 
 export interface AssistantTraceMetadata {
@@ -149,6 +538,10 @@ export interface AssistantTraceMetadata {
   cacheNamespace?: string;
   providerTags?: string[];
   openRouterProviderOrder?: string[];
+  orchestratorRoute?: OrchestratorRouteClass;
+  orchestratorNodes?: OrchestratorNodeName[];
+  toolPlan?: OrchestratorToolName[];
+  sessionReuseCount?: number;
 }
 
 export interface AssistantRunRequest {
@@ -164,6 +557,7 @@ export interface AssistantRunRequest {
   pinnedEvidence: AssistantEvidenceCard[];
   localContextPackets: AssistantContextPacket[];
   memoryNotes: AssistantMemoryNote[];
+  sessionContext?: AssistantSessionContext;
   workflowId?: string;
   stream?: boolean;
 }
@@ -220,6 +614,11 @@ export const ASSISTANT_DOMAIN_MODE_OPTIONS: Array<{
     id: 'cultural-cognitive-analysis',
     label: 'تحلیل شناختی-فرهنگی',
     summary: 'جنگ روایت، الگوهای شناختی، و میدان ادراکی.',
+  },
+  {
+    id: 'strategic-foresight',
+    label: 'پیش‌نگری راهبردی',
+    summary: 'ترکیب سناریو، متا‌سناریو، قوی‌سیاه، debate و watchpointها در یک synthesis هیئت‌محور.',
   },
   {
     id: 'scenario-planning',

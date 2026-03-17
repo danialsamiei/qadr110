@@ -32,6 +32,7 @@ import { trackEvent, trackDeeplinkOpened } from '@/services/analytics';
 import { preloadCountryGeometry, getCountryNameByCode } from '@/services/country-geometry';
 import { initI18n } from '@/services/i18n';
 import { initOpsLogging } from '@/platform/operations/observability';
+import { QADR_SETTINGS_OPEN_KEY, QADR_VARIANT_KEY } from '@/utils/qadr-branding';
 
 import { computeDefaultDisabledSources, getLocaleBoostedSources, getTotalFeedCount } from '@/config/feeds';
 import { fetchBootstrapData } from '@/services/bootstrap';
@@ -42,6 +43,11 @@ import { RefreshScheduler } from '@/app/refresh-scheduler';
 import { PanelLayoutManager } from '@/app/panel-layout';
 import { DataLoaderManager } from '@/app/data-loader';
 import { EventHandlerManager } from '@/app/event-handlers';
+import { PromptSuggestionEngine } from '@/services/PromptSuggestionEngine';
+import { MapAwareAiBridge } from '@/services/MapAwareAiBridge';
+import { ScenarioIntelligenceEngine } from '@/services/scenario-intelligence';
+import { BlackSwanIntelligenceEngine } from '@/services/black-swan-intelligence';
+import { ScenarioMapOverlay } from '@/services/ScenarioMapOverlay';
 import { resolveUserRegion, resolvePreciseUserCoordinates, type PreciseCoordinates } from '@/utils/user-location';
 
 const CYBER_LAYER_ENABLED = import.meta.env.VITE_ENABLE_CYBER_LAYER === 'true';
@@ -61,6 +67,11 @@ export class App {
   private countryIntel: CountryIntelManager;
   private refreshScheduler: RefreshScheduler;
   private desktopUpdater: DesktopUpdater;
+  private promptSuggestionEngine: PromptSuggestionEngine;
+  private mapAwareAiBridge: MapAwareAiBridge;
+  private scenarioIntelligenceEngine: ScenarioIntelligenceEngine;
+  private blackSwanIntelligenceEngine: BlackSwanIntelligenceEngine;
+  private scenarioMapOverlay: ScenarioMapOverlay;
 
   private modules: { destroy(): void }[] = [];
   private unsubAiFlow: (() => void) | null = null;
@@ -143,7 +154,7 @@ export class App {
     if (shouldPrime('supply-chain')) {
       primeTask('supplyChain', () => this.dataLoader.loadSupplyChain());
     }
-    if (SITE_VARIANT === 'finance' && getSecretState('WORLDMONITOR_API_KEY').present) {
+    if (SITE_VARIANT === 'finance' && getSecretState('QADR110_API_KEY').present) {
       if (shouldPrime('stock-analysis')) {
         primeTask('stockAnalysis', () => this.dataLoader.loadStockAnalysis());
       }
@@ -163,9 +174,13 @@ export class App {
   constructor(containerId: string) {
     const el = document.getElementById(containerId);
     if (!el) throw new Error(`Container ${containerId} not found`);
+    el.dataset.qadrShell = 'analytical-workbench';
+    el.classList.add('qadr-root-shell');
 
     const PANEL_ORDER_KEY = 'panel-order';
-    const PANEL_SPANS_KEY = 'worldmonitor-panel-spans';
+    const PANEL_SPANS_KEY = 'qadr110-panel-spans';
+    const LEGACY_ANALYSIS_HUB_PANEL = 'world-monitoring-hub';
+    const QADR_ANALYSIS_HUB_PANEL = 'qadr-monitoring-hub';
 
     const isMobile = isMobileDevice();
     const isDesktopApp = isDesktopRuntime();
@@ -178,13 +193,13 @@ export class App {
     let panelSettings: Record<string, PanelConfig>;
 
     // Check if variant changed - reset all settings to variant defaults
-    const storedVariant = localStorage.getItem('worldmonitor-variant');
+    const storedVariant = localStorage.getItem(QADR_VARIANT_KEY);
     const currentVariant = SITE_VARIANT;
     console.log(`[App] Variant check: stored="${storedVariant}", current="${currentVariant}"`);
     if (storedVariant !== currentVariant) {
       // Variant changed - use defaults for new variant, clear old settings
       console.log('[App] Variant changed - resetting to defaults');
-      localStorage.setItem('worldmonitor-variant', currentVariant);
+      localStorage.setItem(QADR_VARIANT_KEY, currentVariant);
       localStorage.removeItem(STORAGE_KEYS.mapLayers);
       localStorage.removeItem(STORAGE_KEYS.panels);
       localStorage.removeItem(PANEL_ORDER_KEY);
@@ -208,10 +223,32 @@ export class App {
           panelSettings[key] = { ...config };
         }
       }
+
+      if (panelSettings[LEGACY_ANALYSIS_HUB_PANEL] && !panelSettings[QADR_ANALYSIS_HUB_PANEL]) {
+        panelSettings[QADR_ANALYSIS_HUB_PANEL] = panelSettings[LEGACY_ANALYSIS_HUB_PANEL]!;
+        delete panelSettings[LEGACY_ANALYSIS_HUB_PANEL];
+        saveToStorage(STORAGE_KEYS.panels, panelSettings);
+      }
+
+      for (const orderKey of [PANEL_ORDER_KEY, PANEL_ORDER_KEY + '-bottom-set', PANEL_ORDER_KEY + '-bottom']) {
+        try {
+          const raw = localStorage.getItem(orderKey);
+          if (!raw) continue;
+          const parsed = JSON.parse(raw);
+          if (!Array.isArray(parsed) || !parsed.includes(LEGACY_ANALYSIS_HUB_PANEL)) continue;
+          const migrated = parsed.map((panelId: string) =>
+            panelId === LEGACY_ANALYSIS_HUB_PANEL ? QADR_ANALYSIS_HUB_PANEL : panelId
+          );
+          localStorage.setItem(orderKey, JSON.stringify(migrated));
+        } catch {
+          localStorage.removeItem(orderKey);
+        }
+      }
+
       console.log('[App] Loaded panel settings from storage:', Object.entries(panelSettings).filter(([_, v]) => !v.enabled).map(([k]) => k));
 
       // One-time migration: reorder panels for existing users (v1.9 panel layout)
-      const PANEL_ORDER_MIGRATION_KEY = 'worldmonitor-panel-order-v1.9';
+      const PANEL_ORDER_MIGRATION_KEY = 'qadr110-panel-order-v1.9';
       if (!localStorage.getItem(PANEL_ORDER_MIGRATION_KEY)) {
         const savedOrder = localStorage.getItem(PANEL_ORDER_KEY);
         if (savedOrder) {
@@ -234,7 +271,7 @@ export class App {
 
       // Tech variant migration: move insights to top (after live-news)
       if (currentVariant === 'tech') {
-        const TECH_INSIGHTS_MIGRATION_KEY = 'worldmonitor-tech-insights-top-v1';
+        const TECH_INSIGHTS_MIGRATION_KEY = 'qadr110-tech-insights-top-v1';
         if (!localStorage.getItem(TECH_INSIGHTS_MIGRATION_KEY)) {
           const savedOrder = localStorage.getItem(PANEL_ORDER_KEY);
           if (savedOrder) {
@@ -257,7 +294,7 @@ export class App {
     }
 
     // One-time migration: prune removed panel keys from stored settings and order
-    const PANEL_PRUNE_KEY = 'worldmonitor-panel-prune-v1';
+    const PANEL_PRUNE_KEY = 'qadr110-panel-prune-v1';
     if (!localStorage.getItem(PANEL_PRUNE_KEY)) {
       const validKeys = new Set(Object.keys(DEFAULT_PANELS));
       let pruned = false;
@@ -282,7 +319,7 @@ export class App {
     }
 
     // One-time migration: clear stale panel ordering and sizing state
-    const LAYOUT_RESET_MIGRATION_KEY = 'worldmonitor-layout-reset-v2.5';
+    const LAYOUT_RESET_MIGRATION_KEY = 'qadr110-layout-reset-v2.5';
     if (!localStorage.getItem(LAYOUT_RESET_MIGRATION_KEY)) {
       const hadSavedOrder = !!localStorage.getItem(PANEL_ORDER_KEY);
       const hadSavedSpans = !!localStorage.getItem(PANEL_SPANS_KEY);
@@ -318,7 +355,7 @@ export class App {
     }
     // One-time migration: reduce default-enabled sources (full variant only)
     if (currentVariant === 'full') {
-      const baseKey = 'worldmonitor-sources-reduction-v3';
+      const baseKey = 'qadr110-sources-reduction-v3';
       if (!localStorage.getItem(baseKey)) {
         const defaultDisabled = computeDefaultDisabledSources();
         saveToStorage(STORAGE_KEYS.disabledFeeds, defaultDisabled);
@@ -328,7 +365,7 @@ export class App {
       }
       // Locale boost: additively enable locale-matched sources (runs once per locale)
       const userLang = ((navigator.language ?? 'en').split('-')[0] ?? 'en').toLowerCase();
-      const localeKey = `worldmonitor-locale-boost-${userLang}`;
+      const localeKey = `qadr110-locale-boost-${userLang}`;
       if (userLang !== 'en' && !localStorage.getItem(localeKey)) {
         const boosted = getLocaleBoostedSources(userLang);
         if (boosted.size > 0) {
@@ -433,6 +470,11 @@ export class App {
       refreshOpenCountryBrief: () => this.countryIntel.refreshOpenBrief(),
       stopLayerActivity: (layer) => this.dataLoader.stopLayerActivity(layer),
     });
+    this.promptSuggestionEngine = new PromptSuggestionEngine(this.state);
+    this.mapAwareAiBridge = new MapAwareAiBridge(this.state);
+    this.scenarioIntelligenceEngine = new ScenarioIntelligenceEngine(this.state);
+    this.blackSwanIntelligenceEngine = new BlackSwanIntelligenceEngine();
+    this.scenarioMapOverlay = new ScenarioMapOverlay(this.state);
 
     // Wire cross-module callback: DataLoader → SearchManager
     this.dataLoader.updateSearchIndex = () => this.searchManager.updateSearchIndex();
@@ -446,6 +488,11 @@ export class App {
       this.dataLoader,
       this.refreshScheduler,
       this.eventHandlers,
+      this.promptSuggestionEngine,
+      this.mapAwareAiBridge,
+      this.scenarioIntelligenceEngine,
+      this.blackSwanIntelligenceEngine,
+      this.scenarioMapOverlay,
     ];
   }
 
@@ -535,12 +582,12 @@ export class App {
       this.state.findingsBadge = new IntelligenceGapBadge();
       this.state.findingsBadge.setOnSignalClick((signal) => {
         if (this.state.countryBriefPage?.isVisible()) return;
-        if (localStorage.getItem('wm-settings-open') === '1') return;
+        if (localStorage.getItem(QADR_SETTINGS_OPEN_KEY) === '1') return;
         this.state.signalModal?.showSignal(signal);
       });
       this.state.findingsBadge.setOnAlertClick((alert) => {
         if (this.state.countryBriefPage?.isVisible()) return;
-        if (localStorage.getItem('wm-settings-open') === '1') return;
+        if (localStorage.getItem(QADR_SETTINGS_OPEN_KEY) === '1') return;
         this.state.signalModal?.showAlert(alert);
       });
     }
@@ -562,6 +609,9 @@ export class App {
     this.searchManager.init();
     this.eventHandlers.setupMapLayerHandlers();
     this.countryIntel.init();
+    this.panelLayout.bindCountryBriefState();
+    this.mapAwareAiBridge.init();
+    this.promptSuggestionEngine.init();
 
     // Phase 5: Event listeners + URL sync
     this.eventHandlers.init();
@@ -594,6 +644,10 @@ export class App {
       this.dataLoader.loadAllData(true),
       this.primeVisiblePanelData(true),
     ]);
+    this.promptSuggestionEngine.refresh('initial-data');
+    this.scenarioIntelligenceEngine.init();
+    this.blackSwanIntelligenceEngine.init();
+    this.scenarioMapOverlay.init();
 
     startLearning();
 
@@ -730,19 +784,19 @@ export class App {
         'stock-analysis',
         () => this.dataLoader.loadStockAnalysis(),
         15 * 60 * 1000,
-        () => getSecretState('WORLDMONITOR_API_KEY').present && this.isPanelNearViewport('stock-analysis'),
+        () => getSecretState('QADR110_API_KEY').present && this.isPanelNearViewport('stock-analysis'),
       );
       this.refreshScheduler.scheduleRefresh(
         'daily-market-brief',
         () => this.dataLoader.loadDailyMarketBrief(),
         60 * 60 * 1000,
-        () => getSecretState('WORLDMONITOR_API_KEY').present && this.isPanelNearViewport('daily-market-brief'),
+        () => getSecretState('QADR110_API_KEY').present && this.isPanelNearViewport('daily-market-brief'),
       );
       this.refreshScheduler.scheduleRefresh(
         'stock-backtest',
         () => this.dataLoader.loadStockBacktest(),
         4 * 60 * 60 * 1000,
-        () => getSecretState('WORLDMONITOR_API_KEY').present && this.isPanelNearViewport('stock-backtest'),
+        () => getSecretState('QADR110_API_KEY').present && this.isPanelNearViewport('stock-backtest'),
       );
     }
 

@@ -41,8 +41,12 @@ import {
   AviationCommandBar,
   PersianStrategicPanel,
   NarrativeAnalysisPanel,
+  CognitiveWarfarePanel,
   MapAnalysisPanel,
   ScenarioPlannerPanel,
+  StrategicForesightPanel,
+  WarRoomPanel,
+  BlackSwanPanel,
 } from '@/components';
 import { SatelliteFiresPanel } from '@/components/SatelliteFiresPanel';
 import { DarkwebDefensivePanel } from '@/components/DarkwebDefensivePanel';
@@ -55,7 +59,7 @@ import { QadrAssistantPanel } from '@/components/QadrAssistantPanel';
 import { ReleaseNotesPanel } from '@/components/ReleaseNotesPanel';
 import { OpsAuditPanel } from '@/components/OpsAuditPanel';
 import { RegionalSlicesPanel } from '@/components/RegionalSlicesPanel';
-import { WorldMonitoringHubPanel } from '@/components/WorldMonitoringHubPanel';
+import { QadrMonitoringHubPanel } from '@/components/QadrMonitoringHubPanel';
 import { focusInvestmentOnMap } from '@/services/investments-focus';
 import { debounce, saveToStorage, loadFromStorage } from '@/utils';
 import { escapeHtml } from '@/utils/sanitize';
@@ -94,6 +98,23 @@ type AnalysisNavAction = {
   panelCalls?: AnalysisNavPanelCall[];
 };
 
+type WorkbenchSheet = 'reports' | 'timeline' | 'notebook';
+type WorkbenchMode = 'analysis' | 'scenario' | 'war-room' | 'foresight';
+
+type WorkbenchPanelRestore = {
+  panelId: string;
+  parentId: string;
+  nextSiblingPanelId: string | null;
+};
+
+type WorkbenchModeAction = {
+  id: WorkbenchMode;
+  label: string;
+  kicker: string;
+  description: string;
+  panelId: string;
+};
+
 const ANALYSIS_NAV_ACTIONS: AnalysisNavAction[] = [
   { id: 'media', label: 'رسانه', panelId: 'iran-media-matrix', panelCalls: [{ panelId: 'iran-media-matrix', method: 'applyQuickFilter', args: [''] }] },
   { id: 'pipelines', label: 'Pipeline', panelId: 'media-pipelines', panelCalls: [{ panelId: 'media-pipelines', method: 'applyPlatformFilter', args: ['all'] }] },
@@ -103,6 +124,7 @@ const ANALYSIS_NAV_ACTIONS: AnalysisNavAction[] = [
   { id: 'aparat', label: 'Aparat', panelId: 'iran-media-matrix', panelCalls: [{ panelId: 'iran-media-matrix', method: 'applyQuickFilter', args: ['Aparat'] }] },
   { id: 'telewebion', label: 'Telewebion', panelId: 'iran-media-matrix', panelCalls: [{ panelId: 'iran-media-matrix', method: 'applyQuickFilter', args: ['Telewebion'] }] },
   { id: 'gdelt', label: 'GDELT', panelId: 'gdelt-intel' },
+  { id: 'cognitive', label: 'شناختی', panelId: 'cognitive-warfare', panelCalls: [{ panelId: 'cognitive-warfare', method: 'setView', args: ['graph'] }] },
   { id: 'netblocks', label: 'NetBlocks', panelId: 'infra-traffic-cyber', panelCalls: [{ panelId: 'infra-traffic-cyber', method: 'focusStream', args: ['netblocks'] }] },
   { id: 'google-trends', label: 'GoogleTrends', panelId: 'infra-traffic-cyber', panelCalls: [{ panelId: 'infra-traffic-cyber', method: 'focusStream', args: ['trends'] }] },
   { id: 'traffic', label: 'ترافیک', panelId: 'infra-traffic-cyber', layers: ['roadTraffic', 'flights', 'ais', 'waterways'] },
@@ -114,15 +136,49 @@ const ANALYSIS_NAV_ACTIONS: AnalysisNavAction[] = [
   { id: 'ess', label: 'ESS', panelId: 'media-pipelines' },
 ];
 
+const WORKBENCH_MODES: WorkbenchModeAction[] = [
+  { id: 'analysis', label: 'تحلیل', kicker: 'A', description: 'مرکز تحلیل و شواهد زنده', panelId: 'qadr-monitoring-hub' },
+  { id: 'scenario', label: 'سناریو', kicker: 'S', description: 'سناریونویسی، graph و timeline', panelId: 'scenario-planner' },
+  { id: 'war-room', label: 'War Room', kicker: 'W', description: 'مناظره چندعاملی و battlefield', panelId: 'war-room' },
+  { id: 'foresight', label: 'پیش‌نگری', kicker: 'F', description: 'سنتز foresight و board view', panelId: 'strategic-foresight' },
+];
+
+const MAP_VIEW_LABELS: Record<string, string> = {
+  global: 'جهانی',
+  america: 'آمریکا',
+  mena: 'خاورمیانه',
+  eu: 'اروپا',
+  asia: 'آسیا',
+  latam: 'آمریکای لاتین',
+  africa: 'آفریقا',
+  oceania: 'اقیانوسیه',
+};
+
 export class PanelLayoutManager implements AppModule {
   private ctx: AppContext;
   private callbacks: PanelLayoutCallbacks;
   private panelDragCleanupHandlers: Array<() => void> = [];
+  private workbenchCleanupHandlers: Array<() => void> = [];
   private resolvedPanelOrder: string[] = [];
   private bottomSetMemory: Set<string> = new Set();
   private criticalBannerEl: HTMLElement | null = null;
   private aviationCommandBar: AviationCommandBar | null = null;
   private readonly applyTimeRangeFilterDebounced: (() => void) & { cancel(): void };
+  private readonly handleWindowResize = (): void => {
+    this.ensureCorrectZones();
+    this.updateWorkbenchChrome();
+  };
+  private activeSheet: WorkbenchSheet = 'reports';
+  private selectedPanelId: string | null = null;
+  private compareSelection: string[] = [];
+  private focusRestore: WorkbenchPanelRestore | null = null;
+  private compareRestore: WorkbenchPanelRestore[] = [];
+  private countryBriefState: { visible: boolean; maximized: boolean; code: string | null; name: string | null } = {
+    visible: false,
+    maximized: false,
+    code: null,
+    name: null,
+  };
 
   constructor(ctx: AppContext, callbacks: PanelLayoutCallbacks) {
     this.ctx = ctx;
@@ -141,6 +197,10 @@ export class PanelLayoutManager implements AppModule {
     this.applyTimeRangeFilterDebounced.cancel();
     this.panelDragCleanupHandlers.forEach((cleanup) => cleanup());
     this.panelDragCleanupHandlers = [];
+    this.workbenchCleanupHandlers.forEach((cleanup) => cleanup());
+    this.workbenchCleanupHandlers = [];
+    this.closeFocusMode();
+    this.closeCompareMode();
     if (this.criticalBannerEl) {
       this.criticalBannerEl.remove();
       this.criticalBannerEl = null;
@@ -161,7 +221,7 @@ export class PanelLayoutManager implements AppModule {
     this.aviationCommandBar = null;
     this.ctx.panels['airline-intel']?.destroy();
 
-    window.removeEventListener('resize', this.ensureCorrectZones);
+    window.removeEventListener('resize', this.handleWindowResize);
   }
 
   renderLayout(): void {
@@ -328,39 +388,57 @@ export class PanelLayoutManager implements AppModule {
         </button>`
       ).join('')}
       </div>
-      <div class="analysis-nav" style="display:flex;gap:8px;flex-wrap:wrap;padding:8px 14px;border-bottom:1px solid var(--border-color);background:var(--bg-secondary)">
-        ${ANALYSIS_NAV_ACTIONS.map((item) => `<button class="analysis-nav-chip" type="button" data-analysis-action="${item.id}" style="padding:6px 10px;border-radius:999px;border:1px solid var(--border-color);background:var(--bg-tertiary);color:var(--text-primary);font-size:12px;cursor:pointer">${item.label}</button>`).join('')}
-      </div>
-      <div class="main-content">
-        <div class="map-section" id="mapSection">
-          <div class="panel-header">
-            <div class="panel-header-left">
-              <span class="panel-title">${SITE_VARIANT === 'tech' ? t('panels.techMap') : SITE_VARIANT === 'happy' ? 'Good News Map' : t('panels.map')}</span>
-            </div>
-            <span class="header-clock" id="headerClock" translate="no"></span>
-            <div class="map-header-actions">
-              <div class="map-dimension-toggle" id="mapDimensionToggle">
-                <button class="map-dim-btn${loadFromStorage<string>(STORAGE_KEYS.mapMode, 'flat') === 'globe' ? '' : ' active'}" data-mode="flat" title="2D Map">2D</button>
-                <button class="map-dim-btn${loadFromStorage<string>(STORAGE_KEYS.mapMode, 'flat') === 'globe' ? ' active' : ''}" data-mode="globe" title="3D Globe">3D</button>
+      <div class="qadr-workbench-shell" id="qadrWorkbenchShell">
+        ${this.renderCommandRail()}
+        <div class="qadr-workbench-main">
+          ${this.renderWorkbenchTopbar()}
+          <div class="qadr-workbench-stage">
+            <div class="qadr-workbench-canvas">
+              <div class="main-content">
+                <div class="map-section" id="mapSection">
+                  <div class="panel-header">
+                    <div class="panel-header-left">
+                      <span class="panel-title">${SITE_VARIANT === 'tech' ? t('panels.techMap') : SITE_VARIANT === 'happy' ? 'Good News Map' : t('panels.map')}</span>
+                    </div>
+                    <span class="header-clock" id="headerClock" translate="no"></span>
+                    <div class="map-header-actions">
+                      <div class="map-dimension-toggle" id="mapDimensionToggle">
+                        <button class="map-dim-btn${loadFromStorage<string>(STORAGE_KEYS.mapMode, 'flat') === 'globe' ? '' : ' active'}" data-mode="flat" title="2D Map">2D</button>
+                        <button class="map-dim-btn${loadFromStorage<string>(STORAGE_KEYS.mapMode, 'flat') === 'globe' ? ' active' : ''}" data-mode="globe" title="3D Globe">3D</button>
+                      </div>
+                      <button class="map-pin-btn" id="mapFullscreenBtn" title="Fullscreen">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+                      </button>
+                      <button class="map-pin-btn" id="mapPinBtn" title="${t('header.pinMap')}">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M12 17v5M9 10.76a2 2 0 01-1.11 1.79l-1.78.9A2 2 0 005 15.24V16a1 1 0 001 1h12a1 1 0 001-1v-.76a2 2 0 00-1.11-1.79l-1.78-.9A2 2 0 0115 10.76V7a1 1 0 011-1 1 1 0 001-1V4a1 1 0 00-1-1H8a1 1 0 00-1 1v1a1 1 0 001 1 1 1 0 011 1v3.76z"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="map-container" id="mapContainer"></div>
+                  ${SITE_VARIANT === 'happy' ? '<button class="tv-exit-btn" id="tvExitBtn">Exit TV Mode</button>' : ''}
+                  <div class="map-resize-handle" id="mapResizeHandle"></div>
+                </div>
+                <div class="qadr-report-sheet-stack" id="qadrReportSheetStack">
+                  <section class="qadr-sheet active" id="qadrSheetReports" data-sheet="reports" role="tabpanel" aria-labelledby="qadrSheetTabReports">
+                    <div class="panels-grid" id="panelsGrid"></div>
+                  </section>
+                  <section class="qadr-sheet" id="qadrSheetTimeline" data-sheet="timeline" role="tabpanel" aria-labelledby="qadrSheetTabTimeline" hidden>
+                    <div class="map-bottom-grid" id="mapBottomGrid"></div>
+                  </section>
+                  <section class="qadr-sheet" id="qadrSheetNotebook" data-sheet="notebook" role="tabpanel" aria-labelledby="qadrSheetTabNotebook" hidden>
+                    <div class="qadr-workbench-notebook" id="qadrWorkbenchNotebook"></div>
+                  </section>
+                </div>
+                <button class="search-mobile-fab" id="searchMobileFab" aria-label="Search">\u{1F50D}</button>
               </div>
-              <button class="map-pin-btn" id="mapFullscreenBtn" title="Fullscreen">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
-              </button>
-              <button class="map-pin-btn" id="mapPinBtn" title="${t('header.pinMap')}">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M12 17v5M9 10.76a2 2 0 01-1.11 1.79l-1.78.9A2 2 0 005 15.24V16a1 1 0 001 1h12a1 1 0 001-1v-.76a2 2 0 00-1.11-1.79l-1.78-.9A2 2 0 0115 10.76V7a1 1 0 011-1 1 1 0 001-1V4a1 1 0 00-1-1H8a1 1 0 00-1 1v1a1 1 0 001 1 1 1 0 011 1v3.76z"/>
-                </svg>
-              </button>
             </div>
+            ${this.renderEvidenceDrawer()}
           </div>
-          <div class="map-container" id="mapContainer"></div>
-          ${SITE_VARIANT === 'happy' ? '<button class="tv-exit-btn" id="tvExitBtn">Exit TV Mode</button>' : ''}
-          <div class="map-resize-handle" id="mapResizeHandle"></div>
-          <div class="map-bottom-grid" id="mapBottomGrid"></div>
         </div>
-        <div class="panels-grid" id="panelsGrid"></div>
-        <button class="search-mobile-fab" id="searchMobileFab" aria-label="Search">\u{1F50D}</button>
       </div>
+      ${this.renderPanelOverlays()}
       <footer class="site-footer">
         <div class="site-footer-brand">
           <img src="/branding/qadr-logo.svg" alt="" width="28" height="28" class="site-footer-icon" />
@@ -378,10 +456,173 @@ export class PanelLayoutManager implements AppModule {
 
     this.createPanels();
     this.setupAnalysisNav();
+    this.setupWorkbenchShell();
 
     if (this.ctx.isMobile) {
       this.setupMobileMapToggle();
     }
+  }
+
+  private renderCommandRail(): string {
+    return `
+      <aside class="qadr-command-rail" aria-label="فرمان‌های تحلیلی">
+        <div class="qadr-command-rail-header">
+          <span class="qadr-command-rail-kicker">میز تحلیل</span>
+          <button
+            class="qadr-command-rail-palette"
+            type="button"
+            id="workbenchCommandPaletteBtn"
+            aria-keyshortcuts="Control+K Meta+K"
+          >
+            <span>پالت فرمان</span>
+            <kbd>⌘K</kbd>
+          </button>
+        </div>
+        <div class="qadr-command-rail-scroll">
+          <div class="qadr-command-rail-section-label">حالت‌ها</div>
+          <div class="qadr-command-rail-actions qadr-command-rail-mode-grid">
+            ${WORKBENCH_MODES.map((mode) => `
+              <button
+                class="qadr-command-rail-chip qadr-command-rail-mode"
+                type="button"
+                data-workbench-action="set-mode"
+                data-workbench-mode="${mode.id}"
+                data-panel-target="${mode.panelId}"
+                title="${mode.description}"
+              >
+                <span class="qadr-command-rail-chip-kicker">${mode.kicker}</span>
+                <span class="qadr-command-rail-chip-label">${mode.label}</span>
+              </button>
+            `).join('')}
+          </div>
+          <div class="qadr-command-rail-section-label">فرمان‌های میدانی</div>
+          <div class="qadr-command-rail-actions">
+            ${ANALYSIS_NAV_ACTIONS.map((item) => `
+              <button
+                class="analysis-nav-chip qadr-command-rail-chip"
+                type="button"
+                data-analysis-action="${item.id}"
+                data-panel-target="${item.panelId}"
+                title="${item.label}"
+              >
+                <span class="qadr-command-rail-chip-label">${item.label}</span>
+              </button>
+            `).join('')}
+          </div>
+        </div>
+        <div class="qadr-command-rail-footer">
+          <button class="qadr-rail-utility" type="button" data-workbench-action="focus">تمرکز</button>
+          <button class="qadr-rail-utility" type="button" data-workbench-action="compare">مقایسه</button>
+          <button class="qadr-rail-utility" type="button" data-workbench-action="assistant">دستیار</button>
+        </div>
+      </aside>
+    `;
+  }
+
+  private renderWorkbenchTopbar(): string {
+    return `
+      <div class="qadr-workbench-topbar">
+        <div class="qadr-workbench-topbar-main">
+          <div class="qadr-workbench-breadcrumbs" id="qadrWorkbenchBreadcrumbs" aria-label="مسیر تحلیل"></div>
+          <div class="qadr-workbench-meta-grid" aria-label="برد راهبردی">
+            <article class="qadr-workbench-meta-card">
+              <span class="qadr-workbench-meta-label">سناریو</span>
+              <strong id="qadrWorkbenchMetaScenario">کارگاه تحلیلی</strong>
+              <small id="qadrWorkbenchMetaScenarioDetail">بدون گزارش فعال</small>
+            </article>
+            <article class="qadr-workbench-meta-card">
+              <span class="qadr-workbench-meta-label">منطقه</span>
+              <strong id="qadrWorkbenchMetaRegion">جهانی</strong>
+              <small id="qadrWorkbenchMetaRegionDetail">دید نقشه و زوم جاری</small>
+            </article>
+            <article class="qadr-workbench-meta-card">
+              <span class="qadr-workbench-meta-label">افق زمانی</span>
+              <strong id="qadrWorkbenchMetaHorizon">۷ روز اخیر</strong>
+              <small id="qadrWorkbenchMetaHorizonDetail">وضعیت لایه‌ها</small>
+            </article>
+            <article class="qadr-workbench-meta-card">
+              <span class="qadr-workbench-meta-label">Mode</span>
+              <strong id="qadrWorkbenchMetaMode">تحلیل</strong>
+              <small id="qadrWorkbenchMetaModeDetail">مرکز تحلیل و شواهد زنده</small>
+            </article>
+          </div>
+        </div>
+        <div class="qadr-workbench-toolbar">
+          <div class="qadr-workbench-mode-switch" role="tablist" aria-label="حالت‌های کارگاه">
+            ${WORKBENCH_MODES.map((mode) => `
+              <button
+                class="qadr-workbench-mode-btn"
+                type="button"
+                role="tab"
+                data-workbench-action="set-mode"
+                data-workbench-mode="${mode.id}"
+                aria-selected="false"
+              >
+                ${mode.label}
+              </button>
+            `).join('')}
+          </div>
+          <div class="qadr-workbench-tabs" id="qadrWorkbenchSheetTabs" role="tablist" aria-label="sheet tabs">
+            <button class="qadr-workbench-tab active" id="qadrSheetTabReports" type="button" role="tab" aria-selected="true" aria-controls="qadrSheetReports" data-workbench-sheet="reports">پرونده‌ها</button>
+            <button class="qadr-workbench-tab" id="qadrSheetTabTimeline" type="button" role="tab" aria-selected="false" aria-controls="qadrSheetTimeline" data-workbench-sheet="timeline">خط زمان</button>
+            <button class="qadr-workbench-tab" id="qadrSheetTabNotebook" type="button" role="tab" aria-selected="false" aria-controls="qadrSheetNotebook" data-workbench-sheet="notebook">دفتر تحلیل</button>
+          </div>
+          <div class="qadr-workbench-toolbar-actions">
+            <button class="qadr-workbench-action" type="button" id="workbenchSearchBtn" data-workbench-open-search="true">فرمان</button>
+            <button class="qadr-workbench-action" type="button" data-workbench-action="focus">حالت تمرکز</button>
+            <button class="qadr-workbench-action" type="button" data-workbench-action="compare">حالت مقایسه</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  private renderEvidenceDrawer(): string {
+    return `
+      <aside class="qadr-evidence-drawer" id="qadrEvidenceDrawer" aria-label="بازرس شواهد">
+        <div class="qadr-evidence-drawer-header">
+          <div>
+            <div class="qadr-evidence-kicker">Evidence Stack</div>
+            <h2>پنل‌های اطلاعاتی</h2>
+            <p class="qadr-evidence-caption">شواهد، watchpoint و handoffهای لایه چپ</p>
+          </div>
+          <button class="qadr-evidence-collapse" type="button" data-workbench-action="toggle-inspector" aria-expanded="true">◀</button>
+        </div>
+        <div class="qadr-evidence-drawer-body" id="qadrEvidenceDrawerBody"></div>
+      </aside>
+    `;
+  }
+
+  private renderPanelOverlays(): string {
+    return `
+      <div class="qadr-panel-overlay" id="qadrFocusOverlay" hidden>
+        <div class="qadr-panel-overlay-shell" role="dialog" aria-modal="true" aria-labelledby="qadrFocusOverlayTitle">
+          <div class="qadr-panel-overlay-header">
+            <div>
+              <div class="qadr-panel-overlay-kicker">تمرکز</div>
+              <h2 id="qadrFocusOverlayTitle">گزارش فعال</h2>
+            </div>
+            <button class="qadr-panel-overlay-close" type="button" data-workbench-action="close-focus" aria-label="بستن">×</button>
+          </div>
+          <div class="qadr-panel-overlay-body qadr-panel-overlay-body-single" id="qadrFocusOverlayBody"></div>
+        </div>
+      </div>
+      <div class="qadr-panel-overlay qadr-panel-overlay-compare" id="qadrCompareOverlay" hidden>
+        <div class="qadr-panel-overlay-shell" role="dialog" aria-modal="true" aria-labelledby="qadrCompareOverlayTitle">
+          <div class="qadr-panel-overlay-header">
+            <div>
+              <div class="qadr-panel-overlay-kicker">مقایسه</div>
+              <h2 id="qadrCompareOverlayTitle">دو نمای تحلیلی</h2>
+            </div>
+            <button class="qadr-panel-overlay-close" type="button" data-workbench-action="close-compare" aria-label="بستن">×</button>
+          </div>
+          <div class="qadr-panel-overlay-body qadr-panel-overlay-body-compare">
+            <div class="qadr-compare-pane" id="qadrComparePaneA"></div>
+            <div class="qadr-compare-pane" id="qadrComparePaneB"></div>
+          </div>
+        </div>
+      </div>
+    `;
   }
 
   private setupMobileMapToggle(): void {
@@ -408,6 +649,690 @@ export class PanelLayoutManager implements AppModule {
       localStorage.setItem('mobile-map-collapsed', String(isCollapsed));
       if (!isCollapsed) window.dispatchEvent(new Event('resize'));
     });
+  }
+
+  public bindCountryBriefState(): void {
+    this.syncCountryBriefState();
+    this.ctx.countryBriefPage?.onStateChange?.(() => {
+      this.syncCountryBriefState();
+    });
+  }
+
+  private syncCountryBriefState(): void {
+    const page = this.ctx.countryBriefPage;
+    this.countryBriefState = {
+      visible: page?.isVisible?.() ?? false,
+      maximized: page?.getIsMaximized?.() ?? false,
+      code: page?.getCode?.() ?? null,
+      name: page?.getName?.() ?? null,
+    };
+    this.updateWorkbenchChrome();
+  }
+
+  private setupWorkbenchShell(): void {
+    const openSearch = () => {
+      this.ctx.searchModal?.open();
+    };
+    const searchLaunchers = Array.from(this.ctx.container.querySelectorAll<HTMLElement>('[data-workbench-open-search], #workbenchCommandPaletteBtn'));
+    searchLaunchers.forEach((button) => {
+      button.addEventListener('click', openSearch);
+      this.workbenchCleanupHandlers.push(() => button.removeEventListener('click', openSearch));
+    });
+
+    const sheetTabs = Array.from(this.ctx.container.querySelectorAll<HTMLButtonElement>('[data-workbench-sheet]'));
+    sheetTabs.forEach((tab) => {
+      const onClick = () => {
+        const sheet = tab.dataset.workbenchSheet as WorkbenchSheet | undefined;
+        if (sheet) this.setActiveSheet(sheet);
+      };
+      tab.addEventListener('click', onClick);
+      this.workbenchCleanupHandlers.push(() => tab.removeEventListener('click', onClick));
+    });
+
+    const delegatedClick = (event: Event) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+
+      const actionButton = target.closest<HTMLElement>('[data-workbench-action]');
+      if (actionButton?.dataset.workbenchAction) {
+        this.handleWorkbenchAction(actionButton.dataset.workbenchAction, actionButton);
+        return;
+      }
+
+      const breadcrumb = target.closest<HTMLElement>('[data-breadcrumb-action]');
+      if (breadcrumb?.dataset.breadcrumbAction) {
+        const action = breadcrumb.dataset.breadcrumbAction;
+        if (action === 'map') {
+          this.focusPanel('map');
+        } else if (action === 'report') {
+          this.setActiveSheet('notebook');
+          if (this.ctx.countryBriefPage?.maximize && this.countryBriefState.visible) {
+            this.ctx.countryBriefPage.maximize();
+          }
+        } else if (action === 'panel') {
+          const panelId = breadcrumb.dataset.breadcrumbPanel;
+          if (panelId) this.focusPanel(panelId);
+        } else if (action === 'sheet') {
+          const sheet = breadcrumb.dataset.breadcrumbSheet as WorkbenchSheet | undefined;
+          if (sheet) this.setActiveSheet(sheet);
+        }
+        return;
+      }
+
+      const panelEl = target.closest<HTMLElement>('.panel[data-panel]');
+      if (panelEl?.dataset.panel) {
+        this.selectPanelForWorkbench(panelEl.dataset.panel);
+      }
+    };
+    this.ctx.container.addEventListener('click', delegatedClick);
+    this.workbenchCleanupHandlers.push(() => this.ctx.container.removeEventListener('click', delegatedClick));
+
+    const focusInHandler = (event: FocusEvent) => {
+      const target = event.target as HTMLElement | null;
+      const panelEl = target?.closest<HTMLElement>('.panel[data-panel]');
+      if (panelEl?.dataset.panel) {
+        this.selectPanelForWorkbench(panelEl.dataset.panel, { syncSheet: false });
+      }
+    };
+    this.ctx.container.addEventListener('focusin', focusInHandler);
+    this.workbenchCleanupHandlers.push(() => this.ctx.container.removeEventListener('focusin', focusInHandler));
+
+    const overlayBackdropHandler = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.id === 'qadrFocusOverlay') {
+        this.closeFocusMode();
+      } else if (target?.id === 'qadrCompareOverlay') {
+        this.closeCompareMode();
+      }
+    };
+    this.ctx.container.addEventListener('mousedown', overlayBackdropHandler);
+    this.workbenchCleanupHandlers.push(() => this.ctx.container.removeEventListener('mousedown', overlayBackdropHandler));
+
+    const keydownHandler = (event: KeyboardEvent) => {
+      if (this.isTextEntryTarget(event.target)) return;
+      if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === 'f') {
+        event.preventDefault();
+        this.handleWorkbenchAction('focus');
+        return;
+      }
+      if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === 'c') {
+        event.preventDefault();
+        this.handleWorkbenchAction('compare');
+        return;
+      }
+      if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === 'i') {
+        event.preventDefault();
+        this.handleWorkbenchAction('toggle-inspector');
+        return;
+      }
+      if (event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+        const key = event.key.toLowerCase();
+        const mode = key === 'a'
+          ? 'analysis'
+          : key === 's'
+            ? 'scenario'
+            : key === 'w'
+              ? 'war-room'
+              : key === 'f'
+                ? 'foresight'
+                : null;
+        if (mode) {
+          event.preventDefault();
+          this.activateWorkbenchMode(mode);
+          return;
+        }
+      }
+      if (event.altKey && ['1', '2', '3'].includes(event.key)) {
+        event.preventDefault();
+        const sheet = event.key === '1' ? 'reports' : event.key === '2' ? 'timeline' : 'notebook';
+        this.setActiveSheet(sheet);
+        return;
+      }
+      if (event.key === 'Escape') {
+        if (this.closeCompareMode()) return;
+        if (this.closeFocusMode()) return;
+      }
+    };
+    document.addEventListener('keydown', keydownHandler);
+    this.workbenchCleanupHandlers.push(() => document.removeEventListener('keydown', keydownHandler));
+
+    const preferredSelection = ['qadr-assistant', 'qadr-monitoring-hub', 'insights', 'live-news']
+      .find((panelId) => this.ctx.panels[panelId]?.getElement());
+    if (preferredSelection) {
+      this.selectPanelForWorkbench(preferredSelection, { syncSheet: false });
+    }
+    this.updateWorkbenchChrome();
+  }
+
+  private handleWorkbenchAction(action: string, source?: HTMLElement): void {
+    switch (action) {
+      case 'focus':
+        this.toggleFocusMode();
+        break;
+      case 'compare':
+        this.openCompareMode();
+        break;
+      case 'assistant':
+        this.focusPanel('qadr-assistant');
+        break;
+      case 'toggle-inspector':
+        this.toggleInspectorCollapsed();
+        break;
+      case 'toggle-compare-candidate':
+        this.toggleCompareSelection();
+        break;
+      case 'close-focus':
+        this.closeFocusMode();
+        break;
+      case 'close-compare':
+        this.closeCompareMode();
+        break;
+      case 'set-mode': {
+        const mode = source?.dataset.workbenchMode as WorkbenchMode | undefined;
+        if (mode) this.activateWorkbenchMode(mode);
+        break;
+      }
+    }
+  }
+
+  private isTextEntryTarget(target: EventTarget | null): boolean {
+    const element = target as HTMLElement | null;
+    return !!element?.closest('input, textarea, select, [contenteditable="true"]');
+  }
+
+  private setActiveSheet(sheet: WorkbenchSheet): void {
+    this.activeSheet = sheet;
+    this.updateWorkbenchChrome();
+  }
+
+  private getSheetLabel(sheet: WorkbenchSheet): string {
+    switch (sheet) {
+      case 'timeline':
+        return 'خط زمان';
+      case 'notebook':
+        return 'دفتر تحلیل';
+      case 'reports':
+      default:
+        return 'پرونده‌ها';
+    }
+  }
+
+  private resolveSheetForPanel(panelId: string): WorkbenchSheet | null {
+    const panelEl = this.getPanelElement(panelId);
+    if (!panelEl) return null;
+    if (panelEl.closest('#mapBottomGrid')) return 'timeline';
+    if (panelEl.closest('#panelsGrid')) return 'reports';
+    return null;
+  }
+
+  private selectPanelForWorkbench(panelId: string | null, options: { syncSheet?: boolean } = {}): void {
+    const previousSelected = this.selectedPanelId ? this.getPanelElement(this.selectedPanelId) : null;
+    previousSelected?.classList.remove('qadr-workbench-selected');
+
+    if (!panelId || !this.getPanelElement(panelId)) {
+      this.selectedPanelId = null;
+      this.updateWorkbenchChrome();
+      return;
+    }
+
+    this.selectedPanelId = panelId;
+    const nextSelected = this.getPanelElement(panelId);
+    nextSelected?.classList.add('qadr-workbench-selected');
+
+    if (options.syncSheet !== false) {
+      const owningSheet = this.resolveSheetForPanel(panelId);
+      if (owningSheet) {
+        this.activeSheet = owningSheet;
+      }
+    }
+
+    this.updateWorkbenchChrome();
+  }
+
+  private updateWorkbenchChrome(): void {
+    this.updateSheetState();
+    this.updateBreadcrumbs();
+    this.updateTopbarMeta();
+    this.updateInspector();
+    this.updateNotebook();
+    this.updateRailSelection();
+  }
+
+  private updateSheetState(): void {
+    const sheetButtons = Array.from(this.ctx.container.querySelectorAll<HTMLElement>('[data-workbench-sheet]'));
+    sheetButtons.forEach((button) => {
+      const isActive = button.dataset.workbenchSheet === this.activeSheet;
+      button.classList.toggle('active', isActive);
+      button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      button.setAttribute('tabindex', isActive ? '0' : '-1');
+    });
+
+    const sheets = Array.from(this.ctx.container.querySelectorAll<HTMLElement>('.qadr-sheet[data-sheet]'));
+    sheets.forEach((sheet) => {
+      const isActive = sheet.dataset.sheet === this.activeSheet;
+      sheet.classList.toggle('active', isActive);
+      sheet.hidden = !isActive;
+    });
+  }
+
+  private updateBreadcrumbs(): void {
+    const breadcrumbsEl = document.getElementById('qadrWorkbenchBreadcrumbs');
+    if (!breadcrumbsEl) return;
+
+    const parts: string[] = [];
+    parts.push(`
+      <button class="qadr-breadcrumb" type="button" data-breadcrumb-action="map">کارگاه تحلیلی</button>
+    `);
+    parts.push(`
+      <button class="qadr-breadcrumb" type="button" data-breadcrumb-action="sheet" data-breadcrumb-sheet="${this.activeSheet}">${this.getSheetLabel(this.activeSheet)}</button>
+    `);
+
+    const selectedTitle = this.getSelectedPanelTitle();
+    if (selectedTitle && this.selectedPanelId) {
+      parts.push(`
+        <button class="qadr-breadcrumb current" type="button" data-breadcrumb-action="panel" data-breadcrumb-panel="${this.selectedPanelId}">${escapeHtml(selectedTitle)}</button>
+      `);
+    }
+
+    if (this.countryBriefState.visible) {
+      const label = this.countryBriefState.name
+        ? `گزارش ${escapeHtml(this.countryBriefState.name)}`
+        : 'گزارش کشوری';
+      parts.push(`
+        <button class="qadr-breadcrumb current" type="button" data-breadcrumb-action="report">${label}</button>
+      `);
+    }
+
+    breadcrumbsEl.innerHTML = parts.join('<span class="qadr-breadcrumb-sep">/</span>');
+  }
+
+  private updateTopbarMeta(): void {
+    const mode = this.getWorkbenchMode();
+    const modeMeta = WORKBENCH_MODES.find((item) => item.id === mode) ?? WORKBENCH_MODES[0]!;
+    const selectedTitle = this.getSelectedPanelTitle();
+    const mapState = this.ctx.map?.getState();
+    const activeLayers = Object.values(this.ctx.mapLayers).filter(Boolean).length;
+    const scenarioLabel = this.getWorkbenchScenarioLabel();
+    const scenarioDetail = this.countryBriefState.visible
+      ? `گزارش تو در تو: ${this.countryBriefState.name ?? this.countryBriefState.code ?? 'کشور'}`
+      : selectedTitle
+        ? `محور فعلی: ${selectedTitle}`
+        : 'محور فعلی هنوز انتخاب نشده است';
+    const regionLabel = this.getWorkbenchRegionLabel();
+    const regionDetail = mapState
+      ? `${this.localizeMapView(mapState.view)} · زوم ${mapState.zoom.toFixed(1)}`
+      : 'نقشه هنوز آماده نیست';
+    const horizonDetail = `${activeLayers} لایه فعال${this.compareSelection.length ? ` · ${this.compareSelection.length}/2 در صف مقایسه` : ''}`;
+
+    const textMap: Record<string, string> = {
+      qadrWorkbenchMetaScenario: scenarioLabel,
+      qadrWorkbenchMetaScenarioDetail: scenarioDetail,
+      qadrWorkbenchMetaRegion: regionLabel,
+      qadrWorkbenchMetaRegionDetail: regionDetail,
+      qadrWorkbenchMetaHorizon: this.getTimeRangeLabel(),
+      qadrWorkbenchMetaHorizonDetail: horizonDetail,
+      qadrWorkbenchMetaMode: modeMeta.label,
+      qadrWorkbenchMetaModeDetail: modeMeta.description,
+    };
+
+    Object.entries(textMap).forEach(([id, value]) => {
+      const element = document.getElementById(id);
+      if (element) element.textContent = value;
+    });
+
+    const modeButtons = Array.from(this.ctx.container.querySelectorAll<HTMLElement>('.qadr-workbench-mode-btn[data-workbench-mode]'));
+    modeButtons.forEach((button) => {
+      const isActive = button.dataset.workbenchMode === mode;
+      button.classList.toggle('active', isActive);
+      button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      button.setAttribute('tabindex', isActive ? '0' : '-1');
+    });
+  }
+
+  private updateInspector(): void {
+    const body = document.getElementById('qadrEvidenceDrawerBody');
+    const drawer = document.getElementById('qadrEvidenceDrawer');
+    if (!body || !drawer) return;
+
+    const selectedTitle = this.getSelectedPanelTitle();
+    const activeMode = WORKBENCH_MODES.find((item) => item.id === this.getWorkbenchMode()) ?? WORKBENCH_MODES[0]!;
+    const regionLabel = this.getWorkbenchRegionLabel();
+    const activeLayers = Object.entries(this.ctx.mapLayers)
+      .filter(([, enabled]) => enabled)
+      .map(([layer]) => layer)
+      .slice(0, 8);
+    const compareTitles = this.compareSelection
+      .map((panelId) => ({ panelId, title: this.getPanelTitle(panelId) }))
+      .filter((item): item is { panelId: string; title: string } => !!item.title);
+
+    drawer.classList.toggle('has-selection', !!selectedTitle);
+    body.innerHTML = `
+      <section class="qadr-inspector-card">
+        <div class="qadr-inspector-kicker">تمرکز جاری</div>
+        <h3>${selectedTitle ? escapeHtml(selectedTitle) : 'نقشه و جریان‌های تحلیلی'}</h3>
+        <p>
+          ${selectedTitle
+            ? `این پنل در نمای «${this.getSheetLabel(this.activeSheet)}» و حالت «${activeMode.label}» به‌عنوان نقطه کانونی انتخاب شده است.`
+            : 'یک پنل، گزارش یا لایه را انتخاب کنید تا شواهد، مسیر تحلیل، handoff و controlهای سریع اینجا جمع شود.'}
+        </p>
+        <div class="qadr-inspector-actions">
+          <button class="qadr-inline-action" type="button" data-workbench-action="focus">تمرکز</button>
+          <button class="qadr-inline-action" type="button" data-workbench-action="toggle-compare-candidate">${this.selectedPanelId && this.compareSelection.includes(this.selectedPanelId) ? 'حذف از مقایسه' : 'افزودن به مقایسه'}</button>
+          <button class="qadr-inline-action" type="button" data-workbench-action="assistant">باز کردن دستیار</button>
+        </div>
+      </section>
+      <section class="qadr-inspector-grid">
+        <article class="qadr-mini-card">
+          <span class="qadr-mini-card-label">Mode</span>
+          <strong>${escapeHtml(activeMode.label)}</strong>
+        </article>
+        <article class="qadr-mini-card">
+          <span class="qadr-mini-card-label">Region</span>
+          <strong>${escapeHtml(regionLabel)}</strong>
+        </article>
+        <article class="qadr-mini-card">
+          <span class="qadr-mini-card-label">بازه زمانی</span>
+          <strong>${escapeHtml(this.getTimeRangeLabel())}</strong>
+        </article>
+        <article class="qadr-mini-card">
+          <span class="qadr-mini-card-label">لایه‌های فعال</span>
+          <strong>${activeLayers.length}</strong>
+        </article>
+        <article class="qadr-mini-card">
+          <span class="qadr-mini-card-label">صف مقایسه</span>
+          <strong>${compareTitles.length}/2</strong>
+        </article>
+        <article class="qadr-mini-card">
+          <span class="qadr-mini-card-label">گزارش تو در تو</span>
+          <strong>${this.countryBriefState.visible ? (this.countryBriefState.maximized ? 'باز و متمرکز' : 'باز') : 'غیرفعال'}</strong>
+        </article>
+      </section>
+      <section class="qadr-inspector-card">
+        <div class="qadr-inspector-kicker">شواهد نقشه</div>
+        <ul class="qadr-bullet-list">
+          ${activeLayers.length
+            ? activeLayers.map((layer) => `<li>${escapeHtml(this.localizeLayerName(layer as keyof MapLayers))}</li>`).join('')
+            : '<li>در حال حاضر لایه فعالی برای مرور سریع انتخاب نشده است.</li>'}
+        </ul>
+      </section>
+      <section class="qadr-inspector-card">
+        <div class="qadr-inspector-kicker">مقایسه و drill-down</div>
+        <ul class="qadr-bullet-list">
+          ${compareTitles.length
+            ? compareTitles.map((item) => `<li>${escapeHtml(item.title)}</li>`).join('')
+            : '<li>دو پنل یا گزارش را انتخاب کنید تا compare mode فعال شود.</li>'}
+          ${this.countryBriefState.visible
+            ? `<li>گزارش فعال: ${escapeHtml(this.countryBriefState.name ?? this.countryBriefState.code ?? 'کشور')}</li>`
+            : '<li>در حال حاضر گزارش nested فعال نیست.</li>'}
+        </ul>
+      </section>
+    `;
+  }
+
+  private updateNotebook(): void {
+    const notebook = document.getElementById('qadrWorkbenchNotebook');
+    if (!notebook) return;
+
+    const selectedTitle = this.getSelectedPanelTitle();
+    const compareTitles = this.compareSelection
+      .map((panelId) => this.getPanelTitle(panelId))
+      .filter((title): title is string => !!title);
+    const reportLabel = this.countryBriefState.visible
+      ? (this.countryBriefState.name ?? this.countryBriefState.code ?? 'گزارش کشوری')
+      : 'بدون گزارش باز';
+
+    notebook.innerHTML = `
+      <article class="qadr-notebook-card">
+        <span class="qadr-notebook-kicker">یادداشت تحلیلی</span>
+        <h3>${selectedTitle ? escapeHtml(selectedTitle) : 'نمای انتخاب نشده'}</h3>
+        <p>این شیت برای جمع‌کردن تحلیل‌های nested، خلاصه‌های context و handoff بین پنل‌ها، نقشه و گزارش‌های کشوری طراحی شده است.</p>
+      </article>
+      <article class="qadr-notebook-card">
+        <span class="qadr-notebook-kicker">زمینه فعال</span>
+        <ul class="qadr-bullet-list">
+          <li>شیت جاری: ${this.getSheetLabel(this.activeSheet)}</li>
+          <li>بازه زمانی: ${escapeHtml(this.getTimeRangeLabel())}</li>
+          <li>گزارش باز: ${escapeHtml(reportLabel)}</li>
+        </ul>
+      </article>
+      <article class="qadr-notebook-card">
+        <span class="qadr-notebook-kicker">صف مقایسه</span>
+        <ul class="qadr-bullet-list">
+          ${compareTitles.length
+            ? compareTitles.map((title) => `<li>${escapeHtml(title)}</li>`).join('')
+            : '<li>هنوز موردی برای compare mode انتخاب نشده است.</li>'}
+        </ul>
+      </article>
+      <article class="qadr-notebook-card">
+        <span class="qadr-notebook-kicker">اقدام بعدی</span>
+        <div class="qadr-inspector-actions">
+          <button class="qadr-inline-action" type="button" data-workbench-action="focus">تمرکز روی نمای فعال</button>
+          <button class="qadr-inline-action" type="button" data-workbench-action="compare">باز کردن compare mode</button>
+          <button class="qadr-inline-action" type="button" data-workbench-action="assistant">ارسال به دستیار</button>
+        </div>
+      </article>
+    `;
+  }
+
+  private updateRailSelection(): void {
+    const actionButtons = Array.from(this.ctx.container.querySelectorAll<HTMLElement>('[data-analysis-action]'));
+    actionButtons.forEach((button) => {
+      const isActive = button.dataset.panelTarget === this.selectedPanelId;
+      button.classList.toggle('active', isActive);
+    });
+
+    const activeMode = this.getWorkbenchMode();
+    const modeButtons = Array.from(this.ctx.container.querySelectorAll<HTMLElement>('[data-workbench-mode]'));
+    modeButtons.forEach((button) => {
+      button.classList.toggle('active', button.dataset.workbenchMode === activeMode);
+    });
+  }
+
+  private getPanelElement(panelId: string): HTMLElement | null {
+    return this.ctx.panels[panelId]?.getElement() ?? this.ctx.container.querySelector<HTMLElement>(`[data-panel="${CSS.escape(panelId)}"]`);
+  }
+
+  private getPanelTitle(panelId: string): string | null {
+    const panelEl = this.getPanelElement(panelId);
+    return panelEl?.querySelector<HTMLElement>('.panel-title')?.textContent?.trim() ?? null;
+  }
+
+  private getSelectedPanelTitle(): string | null {
+    return this.selectedPanelId ? this.getPanelTitle(this.selectedPanelId) : null;
+  }
+
+  private getWorkbenchMode(): WorkbenchMode {
+    const panelId = this.selectedPanelId;
+    if (panelId === 'strategic-foresight') return 'foresight';
+    if (panelId === 'war-room') return 'war-room';
+    if (panelId === 'scenario-planner' || panelId === 'black-swan-watch') return 'scenario';
+    if (this.countryBriefState.visible) return 'scenario';
+    return 'analysis';
+  }
+
+  private getWorkbenchScenarioLabel(): string {
+    if (this.countryBriefState.visible) {
+      return this.countryBriefState.name
+        ? `گزارش ${this.countryBriefState.name}`
+        : 'گزارش کشوری';
+    }
+    if (this.selectedPanelId === 'war-room') return 'نبرد سناریوها';
+    if (this.selectedPanelId === 'strategic-foresight') return 'سنتز پیش‌نگر';
+    if (this.selectedPanelId === 'scenario-planner') return 'گراف و timeline';
+    return this.getSelectedPanelTitle() ?? 'کارگاه تحلیلی';
+  }
+
+  private getWorkbenchRegionLabel(): string {
+    if (this.countryBriefState.name) return this.countryBriefState.name;
+    return this.localizeMapView(this.ctx.map?.getState().view);
+  }
+
+  private localizeMapView(view?: string | null): string {
+    if (!view) return 'جهانی';
+    return MAP_VIEW_LABELS[view] ?? view;
+  }
+
+  private localizeLayerName(layer: keyof MapLayers): string {
+    const key = `components.deckgl.layers.${layer}`;
+    const localized = t(key);
+    return localized === key ? layer.replace(/([A-Z])/g, ' $1') : localized;
+  }
+
+  private activateWorkbenchMode(mode: WorkbenchMode): void {
+    const target = WORKBENCH_MODES.find((item) => item.id === mode);
+    if (!target) return;
+    this.setActiveSheet('reports');
+    this.focusPanel(target.panelId);
+  }
+
+  private toggleInspectorCollapsed(): void {
+    const drawer = document.getElementById('qadrEvidenceDrawer');
+    const button = this.ctx.container.querySelector<HTMLElement>('[data-workbench-action="toggle-inspector"]');
+    if (!drawer || !button) return;
+    const collapsed = drawer.classList.toggle('collapsed');
+    button.textContent = collapsed ? '▶' : '◀';
+    button.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+  }
+
+  private toggleCompareSelection(panelId = this.selectedPanelId): void {
+    if (!panelId) return;
+    const existingIndex = this.compareSelection.indexOf(panelId);
+    if (existingIndex !== -1) {
+      this.compareSelection.splice(existingIndex, 1);
+    } else {
+      this.compareSelection = [...this.compareSelection.slice(-1), panelId];
+    }
+    this.updateWorkbenchChrome();
+  }
+
+  private toggleFocusMode(): void {
+    if (this.closeFocusMode()) return;
+    if (!this.selectedPanelId) {
+      if (this.countryBriefState.visible) {
+        if (this.countryBriefState.maximized) {
+          this.ctx.countryBriefPage?.minimize?.();
+        } else {
+          this.ctx.countryBriefPage?.maximize?.();
+        }
+        this.syncCountryBriefState();
+      }
+      return;
+    }
+
+    const panelEl = this.getPanelElement(this.selectedPanelId);
+    const overlay = document.getElementById('qadrFocusOverlay');
+    const body = document.getElementById('qadrFocusOverlayBody');
+    const title = document.getElementById('qadrFocusOverlayTitle');
+    if (!panelEl || !overlay || !body || !title) return;
+
+    this.closeCompareMode();
+    this.focusRestore = this.capturePanelRestore(panelEl, this.selectedPanelId);
+    body.replaceChildren(panelEl);
+    title.textContent = this.getPanelTitle(this.selectedPanelId) ?? 'گزارش فعال';
+    overlay.hidden = false;
+    overlay.classList.add('active');
+    document.body.classList.add('qadr-focus-open');
+    this.updateWorkbenchChrome();
+  }
+
+  private closeFocusMode(): boolean {
+    const overlay = document.getElementById('qadrFocusOverlay');
+    const restore = this.focusRestore;
+    if (!overlay || !restore) return false;
+    this.restorePanelLocation(restore);
+    overlay.hidden = true;
+    overlay.classList.remove('active');
+    this.focusRestore = null;
+    document.body.classList.remove('qadr-focus-open');
+    this.updateWorkbenchChrome();
+    return true;
+  }
+
+  private openCompareMode(): void {
+    if (this.closeCompareMode()) return;
+    if (this.selectedPanelId && !this.compareSelection.includes(this.selectedPanelId)) {
+      this.compareSelection = [...this.compareSelection.slice(-1), this.selectedPanelId];
+    }
+    const uniquePanels = Array.from(new Set(this.compareSelection)).filter((panelId) => !!this.getPanelElement(panelId)).slice(0, 2);
+    if (uniquePanels.length < 2) {
+      this.compareSelection = uniquePanels;
+      this.updateWorkbenchChrome();
+      return;
+    }
+
+    const overlay = document.getElementById('qadrCompareOverlay');
+    const paneA = document.getElementById('qadrComparePaneA');
+    const paneB = document.getElementById('qadrComparePaneB');
+    const title = document.getElementById('qadrCompareOverlayTitle');
+    if (!overlay || !paneA || !paneB || !title) return;
+
+    this.closeFocusMode();
+    this.compareRestore = uniquePanels
+      .map((panelId) => {
+        const panelEl = this.getPanelElement(panelId);
+        if (!panelEl) return null;
+        return this.capturePanelRestore(panelEl, panelId);
+      })
+      .filter((restore): restore is WorkbenchPanelRestore => !!restore);
+
+    const [panelA, panelB] = uniquePanels.map((panelId) => this.getPanelElement(panelId));
+    if (!panelA || !panelB || this.compareRestore.length !== 2) return;
+
+    paneA.replaceChildren(panelA);
+    paneB.replaceChildren(panelB);
+    title.textContent = `${this.getPanelTitle(uniquePanels[0]!) ?? 'گزارش اول'} در برابر ${this.getPanelTitle(uniquePanels[1]!) ?? 'گزارش دوم'}`;
+    overlay.hidden = false;
+    overlay.classList.add('active');
+    document.body.classList.add('qadr-compare-open');
+    this.compareSelection = uniquePanels;
+    this.updateWorkbenchChrome();
+  }
+
+  private closeCompareMode(): boolean {
+    const overlay = document.getElementById('qadrCompareOverlay');
+    if (!overlay || this.compareRestore.length === 0) return false;
+    this.compareRestore.forEach((restore) => this.restorePanelLocation(restore));
+    this.compareRestore = [];
+    overlay.hidden = true;
+    overlay.classList.remove('active');
+    document.body.classList.remove('qadr-compare-open');
+    this.updateWorkbenchChrome();
+    return true;
+  }
+
+  private capturePanelRestore(panelEl: HTMLElement, panelId: string): WorkbenchPanelRestore | null {
+    const parent = panelEl.parentElement as HTMLElement | null;
+    if (!parent?.id) return null;
+    const nextSibling = panelEl.nextElementSibling as HTMLElement | null;
+    return {
+      panelId,
+      parentId: parent.id,
+      nextSiblingPanelId: nextSibling?.dataset.panel ?? null,
+    };
+  }
+
+  private restorePanelLocation(restore: WorkbenchPanelRestore): void {
+    const panelEl = this.getPanelElement(restore.panelId);
+    const parent = document.getElementById(restore.parentId);
+    if (!panelEl || !parent) return;
+
+    if (restore.nextSiblingPanelId) {
+      const nextSibling = parent.querySelector<HTMLElement>(`[data-panel="${CSS.escape(restore.nextSiblingPanelId)}"]`);
+      if (nextSibling) {
+        parent.insertBefore(panelEl, nextSibling);
+        return;
+      }
+    }
+
+    if (parent.id === 'panelsGrid') {
+      const addPanelBlock = parent.querySelector('.add-panel-block');
+      if (addPanelBlock) {
+        parent.insertBefore(panelEl, addPanelBlock);
+        return;
+      }
+    }
+
+    this.insertByOrder(parent, panelEl, restore.panelId);
   }
 
   renderCriticalBanner(postures: TheaterPostureSummary[]): void {
@@ -495,7 +1420,11 @@ export class PanelLayoutManager implements AppModule {
       }
       const panel = this.ctx.panels[key];
       panel?.toggle(config.enabled);
+      if (!config.enabled && this.selectedPanelId === key) {
+        this.selectedPanelId = null;
+      }
     });
+    this.updateWorkbenchChrome();
   }
 
   private shouldCreatePanel(key: string): boolean {
@@ -541,7 +1470,7 @@ export class PanelLayoutManager implements AppModule {
     this.createPanel('heatmap', () => new HeatmapPanel());
     this.createPanel('markets', () => new MarketPanel());
     const stockAnalysisPanel = this.createPanel('stock-analysis', () => new StockAnalysisPanel());
-    if (stockAnalysisPanel && !getSecretState('WORLDMONITOR_API_KEY').present) {
+    if (stockAnalysisPanel && !getSecretState('QADR110_API_KEY').present) {
       stockAnalysisPanel.showLocked([
         'AI stock briefs with technical + news synthesis',
         'Trend scoring from MA, MACD, RSI, and volume structure',
@@ -549,7 +1478,7 @@ export class PanelLayoutManager implements AppModule {
       ]);
     }
     const stockBacktestPanel = this.createPanel('stock-backtest', () => new StockBacktestPanel());
-    if (stockBacktestPanel && !getSecretState('WORLDMONITOR_API_KEY').present) {
+    if (stockBacktestPanel && !getSecretState('QADR110_API_KEY').present) {
       stockBacktestPanel.showLocked([
         'Historical replay of premium stock-analysis signals',
         'Win-rate, accuracy, and simulated-return metrics',
@@ -738,7 +1667,7 @@ export class PanelLayoutManager implements AppModule {
       }),
     );
 
-    const _wmKeyPresent = getSecretState('WORLDMONITOR_API_KEY').present;
+    const _wmKeyPresent = getSecretState('QADR110_API_KEY').present;
     const _lockPanels = this.ctx.isDesktopApp && !_wmKeyPresent;
 
     this.lazyPanel('daily-market-brief', () =>
@@ -778,9 +1707,14 @@ export class PanelLayoutManager implements AppModule {
       this.ctx.panels['narrative-analysis'] = new NarrativeAnalysisPanel();
     }
 
+    this.createPanel('cognitive-warfare', () => new CognitiveWarfarePanel());
+
     this.createPanel('qadr-assistant', () => new QadrAssistantPanel());
     this.createPanel('geo-analysis-workbench', () => new MapAnalysisPanel());
-    this.createPanel('world-monitoring-hub', () => new WorldMonitoringHubPanel());
+    this.createPanel('qadr-monitoring-hub', () => new QadrMonitoringHubPanel());
+    this.createPanel('strategic-foresight', () => new StrategicForesightPanel());
+    this.createPanel('war-room', () => new WarRoomPanel());
+    this.createPanel('black-swan-watch', () => new BlackSwanPanel());
     this.createPanel('premium-benchmark', () => new PremiumBenchmarkPanel());
     this.createPanel('release-notes', () => new ReleaseNotesPanel());
     this.createPanel('ops-audit', () => new OpsAuditPanel());
@@ -1014,7 +1948,7 @@ export class PanelLayoutManager implements AppModule {
       });
     }
 
-    window.addEventListener('resize', () => this.ensureCorrectZones());
+    window.addEventListener('resize', this.handleWindowResize);
 
     this.ctx.map.onTimeRangeChanged((range) => {
       this.ctx.currentTimeRange = range;
@@ -1023,6 +1957,7 @@ export class PanelLayoutManager implements AppModule {
 
     this.applyPanelSettings();
     this.applyInitialUrlState();
+    this.updateWorkbenchChrome();
 
     if (import.meta.env.DEV) {
       const configured = new Set(Object.keys(DEFAULT_PANELS).filter(k => k !== 'map'));
@@ -1048,10 +1983,7 @@ export class PanelLayoutManager implements AppModule {
     if (!action) return;
 
     buttons.forEach((button) => {
-      const isActive = button === activeButton;
-      button.style.background = isActive ? 'rgba(86, 157, 255, 0.18)' : 'var(--bg-tertiary)';
-      button.style.borderColor = isActive ? 'rgba(86, 157, 255, 0.55)' : 'var(--border-color)';
-      button.style.color = 'var(--text-primary)';
+      button.classList.toggle('active', button === activeButton);
     });
 
     if (action.layers?.length) {
@@ -1118,8 +2050,14 @@ export class PanelLayoutManager implements AppModule {
       window.setTimeout(() => this.focusPanelElement(panelId, remainingAttempts - 1), 140);
       return;
     }
+    const owningSheet = this.resolveSheetForPanel(panelId);
+    if (owningSheet) {
+      this.setActiveSheet(owningSheet);
+    }
+    this.selectPanelForWorkbench(panelId, { syncSheet: false });
     el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     el.classList.add('panel-flash-outline');
+    el.focus({ preventScroll: true });
     window.setTimeout(() => el.classList.remove('panel-flash-outline'), 1200);
   }
 
@@ -1152,11 +2090,11 @@ export class PanelLayoutManager implements AppModule {
 
   private getTimeRangeLabel(): string {
     const labels: Record<string, string> = {
-      '1h': 'the last hour', '6h': 'the last 6 hours',
-      '24h': 'the last 24 hours', '48h': 'the last 48 hours',
-      '7d': 'the last 7 days', 'all': 'all time',
+      '1h': 'یک ساعت اخیر', '6h': '۶ ساعت اخیر',
+      '24h': '۲۴ ساعت اخیر', '48h': '۴۸ ساعت اخیر',
+      '7d': '۷ روز اخیر', 'all': 'کل بازه',
     };
-    return labels[this.ctx.currentTimeRange] ?? 'the last 7 days';
+    return labels[this.ctx.currentTimeRange] ?? '۷ روز اخیر';
   }
 
   private applyInitialUrlState(): void {
@@ -1373,6 +2311,7 @@ export class PanelLayoutManager implements AppModule {
         }
       });
     }
+    this.updateWorkbenchChrome();
   }
 
   private attachRelatedAssetHandlers(panel: NewsPanel): void {
@@ -1441,12 +2380,14 @@ export class PanelLayoutManager implements AppModule {
       const bottomGrid = document.getElementById('mapBottomGrid');
       if (bottomGrid && this.getEffectiveUltraWide() && this.bottomSetMemory.has(key)) {
         this.insertByOrder(bottomGrid, el, key);
+        this.updateWorkbenchChrome();
         return;
       }
 
       const grid = document.getElementById('panelsGrid');
       if (!grid) return;
       this.insertByOrder(grid, el, key);
+      this.updateWorkbenchChrome();
     }).catch((err) => {
       console.error(`[panel] failed to lazy-load "${key}"`, err);
     });
@@ -1454,6 +2395,8 @@ export class PanelLayoutManager implements AppModule {
 
   private makeDraggable(el: HTMLElement, key: string): void {
     el.dataset.panel = key;
+    el.tabIndex = 0;
+    el.setAttribute('role', 'group');
     let isDragging = false;
     let dragStarted = false;
     let startX = 0;

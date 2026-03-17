@@ -2,6 +2,8 @@ import { CHROME_UA } from './constants';
 import { getAiProviderOrder, getProviderModel } from '../../src/platform/ai/policy';
 import type { AiGatewayProvider } from '../../src/platform/ai/contracts';
 
+export type LlmRoutingHint = 'balanced' | 'fast' | 'reasoning' | 'structured' | 'escalation';
+
 export interface ProviderCredentials {
   apiUrl: string;
   model: string;
@@ -18,14 +20,51 @@ function isSidecar(): boolean {
     (process.env?.LOCAL_API_MODE || '').includes('sidecar');
 }
 
-export function getProviderCredentials(provider: AiGatewayProvider): ProviderCredentials | null {
+function resolveProviderModel(provider: AiGatewayProvider, hint: LlmRoutingHint): string {
+  if (provider === 'custom') {
+    if (hint === 'fast') return process.env.LLM_FAST_MODEL || process.env.LLM_MODEL || 'custom-openai-compatible';
+    if (hint === 'reasoning') return process.env.LLM_REASONING_MODEL || process.env.LLM_MODEL || 'custom-openai-compatible';
+    if (hint === 'structured') return process.env.LLM_STRUCTURED_MODEL || process.env.LLM_MODEL || 'custom-openai-compatible';
+    if (hint === 'escalation') return process.env.LLM_ESCALATION_MODEL || process.env.LLM_MODEL || 'custom-openai-compatible';
+    return process.env.LLM_MODEL || 'custom-openai-compatible';
+  }
+
+  if (provider === 'openrouter') {
+    if (hint === 'escalation') return process.env.OPENROUTER_ESCALATION_MODEL || process.env.OPENROUTER_MODEL || getProviderModel('openrouter');
+    if (hint === 'structured') return process.env.OPENROUTER_STRUCTURED_MODEL || process.env.OPENROUTER_MODEL || getProviderModel('openrouter');
+    return process.env.OPENROUTER_MODEL || getProviderModel('openrouter');
+  }
+
+  if (provider === 'ollama') {
+    if (hint === 'fast') return process.env.OLLAMA_FAST_MODEL || process.env.OLLAMA_MODEL || getProviderModel('ollama');
+    if (hint === 'reasoning' || hint === 'escalation') return process.env.OLLAMA_REASONING_MODEL || process.env.OLLAMA_MODEL || getProviderModel('ollama');
+    if (hint === 'structured') return process.env.OLLAMA_STRUCTURED_MODEL || process.env.OLLAMA_MODEL || getProviderModel('ollama');
+    return process.env.OLLAMA_MODEL || getProviderModel('ollama');
+  }
+
+  if (provider === 'vllm') {
+    if (hint === 'fast') return process.env.VLLM_FAST_MODEL || process.env.VLLM_MODEL || getProviderModel('vllm');
+    if (hint === 'reasoning' || hint === 'escalation') return process.env.VLLM_REASONING_MODEL || process.env.VLLM_MODEL || getProviderModel('vllm');
+    if (hint === 'structured') return process.env.VLLM_STRUCTURED_MODEL || process.env.VLLM_MODEL || getProviderModel('vllm');
+    return process.env.VLLM_MODEL || getProviderModel('vllm');
+  }
+
+  if (provider === 'groq') {
+    if (hint === 'structured') return process.env.GROQ_STRUCTURED_MODEL || process.env.GROQ_MODEL || getProviderModel('groq');
+    return process.env.GROQ_MODEL || getProviderModel('groq');
+  }
+
+  return getProviderModel(provider);
+}
+
+export function getProviderCredentials(provider: AiGatewayProvider, hint: LlmRoutingHint = 'balanced'): ProviderCredentials | null {
   if (provider === 'custom') {
     const apiUrl = process.env.LLM_API_URL;
     const apiKey = process.env.LLM_API_KEY;
     if (!apiUrl || !apiKey) return null;
     return {
       apiUrl,
-      model: process.env.LLM_MODEL || 'custom-openai-compatible',
+      model: resolveProviderModel('custom', hint),
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
@@ -38,7 +77,7 @@ export function getProviderCredentials(provider: AiGatewayProvider): ProviderCre
     if (!apiKey) return null;
     return {
       apiUrl: process.env.OPENROUTER_API_URL || 'https://openrouter.ai/api/v1/chat/completions',
-      model: process.env.OPENROUTER_MODEL || getProviderModel('openrouter'),
+      model: resolveProviderModel('openrouter', hint),
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
@@ -70,7 +109,7 @@ export function getProviderCredentials(provider: AiGatewayProvider): ProviderCre
 
     return {
       apiUrl: new URL('/v1/chat/completions', baseUrl).toString(),
-      model: process.env.OLLAMA_MODEL || getProviderModel('ollama'),
+      model: resolveProviderModel('ollama', hint),
       headers,
       extraBody: { think: false },
     };
@@ -84,7 +123,7 @@ export function getProviderCredentials(provider: AiGatewayProvider): ProviderCre
     if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
     return {
       apiUrl: new URL('/v1/chat/completions', baseUrl).toString(),
-      model: process.env.VLLM_MODEL || getProviderModel('vllm'),
+      model: resolveProviderModel('vllm', hint),
       headers,
     };
   }
@@ -94,7 +133,7 @@ export function getProviderCredentials(provider: AiGatewayProvider): ProviderCre
     if (!apiKey) return null;
     return {
       apiUrl: process.env.GROQ_API_URL || 'https://api.groq.com/openai/v1/chat/completions',
-      model: process.env.GROQ_MODEL || getProviderModel('groq'),
+      model: resolveProviderModel('groq', hint),
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
@@ -131,12 +170,29 @@ const PROVIDER_CHAIN = [
   ...getAiProviderOrder('strategic-default').filter((provider) => provider !== 'browser' && provider !== 'openrouter'),
 ] as const;
 
+const ROUTING_HINT_CHAINS: Record<LlmRoutingHint, AiGatewayProvider[]> = {
+  balanced: [...PROVIDER_CHAIN],
+  fast: ['ollama', 'custom', 'browser', 'vllm', 'openrouter', 'groq'],
+  reasoning: ['vllm', 'custom', 'ollama', 'openrouter', 'groq', 'browser'],
+  structured: ['vllm', 'custom', 'ollama', 'openrouter', 'groq'],
+  escalation: ['openrouter', 'custom', 'vllm', 'ollama', 'groq', 'browser'],
+};
+
+function dedupeProviders(providers: AiGatewayProvider[]): AiGatewayProvider[] {
+  return providers.filter((provider, index) => providers.indexOf(provider) === index);
+}
+
+export function buildProviderChain(hint: LlmRoutingHint = 'balanced'): AiGatewayProvider[] {
+  return dedupeProviders(ROUTING_HINT_CHAINS[hint] ?? ROUTING_HINT_CHAINS.balanced);
+}
+
 export interface LlmCallOptions {
   messages: Array<{ role: string; content: string }>;
   temperature?: number;
   maxTokens?: number;
   timeoutMs?: number;
   provider?: AiGatewayProvider;
+  providerChain?: AiGatewayProvider[];
   retries?: number;
   retryDelayMs?: number;
   stream?: boolean;
@@ -144,6 +200,7 @@ export interface LlmCallOptions {
   extraBodyByProvider?: Partial<Record<AiGatewayProvider, Record<string, unknown>>>;
   stripThinkingTags?: boolean;
   validate?: (content: string) => boolean;
+  routingHint?: LlmRoutingHint;
 }
 
 export interface LlmCallResult {
@@ -212,6 +269,7 @@ export async function callLlm(opts: LlmCallOptions): Promise<LlmCallResult | nul
     maxTokens = 1500,
     timeoutMs = 25_000,
     provider: forcedProvider,
+    providerChain,
     retries = 1,
     retryDelayMs = 400,
     stream = false,
@@ -219,12 +277,15 @@ export async function callLlm(opts: LlmCallOptions): Promise<LlmCallResult | nul
     extraBodyByProvider,
     stripThinkingTags: shouldStrip = true,
     validate,
+    routingHint = 'balanced',
   } = opts;
 
-  const providers = forcedProvider ? [forcedProvider] : [...PROVIDER_CHAIN];
+  const providers = forcedProvider
+    ? [forcedProvider]
+    : [...(providerChain?.length ? dedupeProviders(providerChain) : buildProviderChain(routingHint))];
 
   for (const providerName of providers) {
-    const creds = getProviderCredentials(providerName);
+    const creds = getProviderCredentials(providerName, routingHint);
     if (!creds) {
       if (forcedProvider) return null;
       continue;

@@ -1,25 +1,27 @@
+import { QADR_FONT_FAMILY_KEY, readBrandStorageItem } from '@/utils/qadr-branding';
+
 export type FontFamily = 'mono' | 'system';
 
-const STORAGE_KEY = 'wm-font-family';
-const EVENT_NAME = 'wm-font-changed';
+const STORAGE_KEY = QADR_FONT_FAMILY_KEY;
+const EVENT_NAME = 'qadr110-font-changed';
 
 const ALLOWED: FontFamily[] = ['mono', 'system'];
 
 const SYSTEM_FONT_STACK =
-  "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
+  "'Vazirmatn', 'IRANSansX', 'Tahoma', 'Segoe UI', system-ui, sans-serif";
 
 export function getFontFamily(): FontFamily {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = readBrandStorageItem(STORAGE_KEY);
     if (raw && ALLOWED.includes(raw as FontFamily)) return raw as FontFamily;
   } catch {
     // ignore
   }
-  return 'mono';
+  return 'system';
 }
 
 export function setFontFamily(font: FontFamily): void {
-  const safe = ALLOWED.includes(font) ? font : 'mono';
+  const safe = ALLOWED.includes(font) ? font : 'system';
   try {
     localStorage.setItem(STORAGE_KEY, safe);
   } catch {

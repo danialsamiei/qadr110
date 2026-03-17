@@ -5421,7 +5421,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "world-monitor"
+name = "qadr110"
 version = "2.6.1"
 dependencies = [
  "getrandom 0.2.17",

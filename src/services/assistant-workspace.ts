@@ -6,8 +6,10 @@ import type {
 } from '@/platform/ai/assistant-contracts';
 import type { AiTaskClass } from '@/platform/ai/contracts';
 import type { KnowledgeDocument } from '@/platform/retrieval/contracts';
+import { createAssistantSessionContext, normalizeAssistantSessionContext } from '@/services/ai-orchestrator/session';
 
 const STORAGE_KEY = 'qadr110-assistant-workspace';
+export const ASSISTANT_WORKSPACE_EVENT = 'qadr110:assistant-workspace-changed';
 
 export interface AssistantWorkspaceState {
   activeThreadId: string | null;
@@ -36,6 +38,11 @@ function createId(prefix: string): string {
 
 function persist(state: AssistantWorkspaceState): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent<AssistantWorkspaceState>(ASSISTANT_WORKSPACE_EVENT, {
+      detail: state,
+    }));
+  }
 }
 
 export function loadAssistantWorkspaceState(): AssistantWorkspaceState {
@@ -46,7 +53,12 @@ export function loadAssistantWorkspaceState(): AssistantWorkspaceState {
     return {
       ...DEFAULT_STATE,
       ...parsed,
-      threads: Array.isArray(parsed.threads) ? parsed.threads : [],
+      threads: Array.isArray(parsed.threads)
+        ? parsed.threads.map((thread) => ({
+          ...thread,
+          sessionContext: normalizeAssistantSessionContext(thread.sessionContext, thread.id),
+        }))
+        : [],
       workflows: Array.isArray(parsed.workflows) ? parsed.workflows : [],
       memoryNotes: Array.isArray(parsed.memoryNotes) ? parsed.memoryNotes : [],
       knowledgeDocuments: Array.isArray(parsed.knowledgeDocuments) ? parsed.knowledgeDocuments : [],
@@ -75,21 +87,26 @@ export function createAssistantThread(
     updatedAt: now,
     messages: [],
     pinnedEvidenceIds: [],
+    sessionContext: createAssistantSessionContext(),
   };
 }
 
 export function upsertAssistantThread(state: AssistantWorkspaceState, thread: AssistantConversationThread): AssistantWorkspaceState {
+  const normalizedThread = {
+    ...thread,
+    sessionContext: normalizeAssistantSessionContext(thread.sessionContext, thread.id),
+  };
   const nextThreads = [...state.threads];
-  const index = nextThreads.findIndex((candidate) => candidate.id === thread.id);
+  const index = nextThreads.findIndex((candidate) => candidate.id === normalizedThread.id);
   if (index >= 0) {
-    nextThreads[index] = thread;
+    nextThreads[index] = normalizedThread;
   } else {
-    nextThreads.unshift(thread);
+    nextThreads.unshift(normalizedThread);
   }
   const nextState = {
     ...state,
     threads: nextThreads.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)),
-    activeThreadId: thread.id,
+    activeThreadId: normalizedThread.id,
   };
   persist(nextState);
   return nextState;
@@ -184,4 +201,18 @@ export function setAssistantCompactMode(state: AssistantWorkspaceState, compactM
   const nextState = { ...state, compactMode };
   persist(nextState);
   return nextState;
+}
+
+export function subscribeAssistantWorkspaceChange(
+  listener: (state: AssistantWorkspaceState) => void,
+): () => void {
+  if (typeof window === 'undefined') {
+    return () => {};
+  }
+  const handler = (event: Event) => {
+    const detail = (event as CustomEvent<AssistantWorkspaceState>).detail;
+    listener(detail ?? loadAssistantWorkspaceState());
+  };
+  window.addEventListener(ASSISTANT_WORKSPACE_EVENT, handler as EventListener);
+  return () => window.removeEventListener(ASSISTANT_WORKSPACE_EVENT, handler as EventListener);
 }

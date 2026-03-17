@@ -11,8 +11,8 @@ const MAX_VISIBLE_FINDINGS = 10;
 const SORT_TIME_TOLERANCE_MS = 60000;
 const REFRESH_INTERVAL_MS = 180000;
 const ALERT_HOURS = 6;
-const STORAGE_KEY = 'worldmonitor-intel-findings';
-const POPUP_STORAGE_KEY = 'wm-alert-popup-enabled';
+const STORAGE_KEY = 'qadr110-intel-findings';
+const POPUP_STORAGE_KEY = 'qadr110-alert-popup-enabled';
 
 type FindingSource = 'signal' | 'alert';
 

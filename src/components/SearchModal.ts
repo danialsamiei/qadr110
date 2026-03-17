@@ -3,6 +3,7 @@ import { t } from '@/services/i18n';
 import { trackSearchUsed } from '@/services/analytics';
 import { getAllCommands, type Command } from '@/config/commands';
 import { isMobileDevice } from '@/utils';
+import { readBrandStorageItem } from '@/utils/qadr-branding';
 
 interface CommandResult {
   command: Command;
@@ -67,7 +68,7 @@ interface SearchableSource {
   items: { id: string; title: string; subtitle?: string; data: unknown }[];
 }
 
-const RECENT_SEARCHES_KEY = 'worldmonitor_recent_searches';
+const RECENT_SEARCHES_KEY = 'qadr110_recent_searches';
 const MAX_RECENT = 8;
 const MAX_RESULTS = 24;
 const MAX_COMMANDS = 5;
@@ -706,7 +707,7 @@ export class SearchModal {
 
   private loadRecentSearches(): void {
     try {
-      const stored = localStorage.getItem(RECENT_SEARCHES_KEY);
+      const stored = readBrandStorageItem(RECENT_SEARCHES_KEY);
       this.recentSearches = stored ? JSON.parse(stored) : [];
     } catch {
       this.recentSearches = [];

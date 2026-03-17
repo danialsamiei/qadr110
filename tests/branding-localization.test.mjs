@@ -27,7 +27,7 @@ test('branding uses QADR110 on offline and desktop shell surfaces', () => {
 });
 
 test('analysis hub and persian strategic panel use i18n keys (no hardcoded prose blocks)', () => {
-  const hub = read('src/components/WorldMonitoringHubPanel.ts');
+  const hub = read('src/components/QadrMonitoringHubPanel.ts');
   const strategic = read('src/components/PersianStrategicPanel.ts');
 
   assert.match(hub, /t\('components\.analysisHub\./);

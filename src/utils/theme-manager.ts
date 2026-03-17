@@ -1,9 +1,10 @@
 import { invalidateColorCache } from './theme-colors';
+import { QADR_THEME_KEY, readBrandStorageItem } from './qadr-branding';
 
 export type Theme = 'dark' | 'light';
 export type ThemePreference = 'auto' | 'dark' | 'light';
 
-const STORAGE_KEY = 'worldmonitor-theme';
+const STORAGE_KEY = QADR_THEME_KEY;
 const DEFAULT_THEME: Theme = 'dark';
 
 /**
@@ -12,7 +13,7 @@ const DEFAULT_THEME: Theme = 'dark';
  */
 export function getStoredTheme(): Theme {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = readBrandStorageItem(STORAGE_KEY);
     if (stored === 'dark' || stored === 'light') return stored;
   } catch {
     // localStorage unavailable (e.g., sandboxed iframe, private browsing)
@@ -22,7 +23,7 @@ export function getStoredTheme(): Theme {
 
 export function getThemePreference(): ThemePreference {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = readBrandStorageItem(STORAGE_KEY);
     if (stored === 'auto' || stored === 'dark' || stored === 'light') return stored;
   } catch { /* noop */ }
   return 'auto';
@@ -100,7 +101,7 @@ export function applyStoredTheme(): void {
 
   // Check raw localStorage to distinguish "no preference" from "explicitly chose dark"
   let raw: string | null = null;
-  try { raw = localStorage.getItem(STORAGE_KEY); } catch { /* noop */ }
+  try { raw = readBrandStorageItem(STORAGE_KEY); } catch { /* noop */ }
   const hasExplicitPreference = raw === 'dark' || raw === 'light' || raw === 'auto';
 
   let effective: Theme;

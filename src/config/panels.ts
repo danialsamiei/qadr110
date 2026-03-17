@@ -24,6 +24,7 @@ const FULL_PANELS: Record<string, PanelConfig> = {
   intel: { name: 'Intel Feed', enabled: true, priority: 1 },
   'gdelt-intel': { name: 'Live Intelligence', enabled: true, priority: 1, ...(_desktop && { premium: 'enhanced' as const }) },
   'narrative-analysis': { name: 'Narrative Analysis', enabled: true, priority: 1 },
+  'cognitive-warfare': { name: 'دفاع و کشف جنگ شناختی', enabled: true, priority: 1 },
   cascade: { name: 'Infrastructure Cascade', enabled: true, priority: 1 },
   politics: { name: 'World News', enabled: true, priority: 1 },
   us: { name: 'United States', enabled: true, priority: 1 },
@@ -69,7 +70,10 @@ const FULL_PANELS: Record<string, PanelConfig> = {
   'persian-analysis': { name: 'تحلیل راهبردی فارسی', enabled: true, priority: 1 },
   'qadr-assistant': { name: 'چت‌بات راهنمای QADR110', enabled: true, priority: 1 },
   'geo-analysis-workbench': { name: 'کارگاه ژئو-تحلیل', enabled: true, priority: 1 },
-  'world-monitoring-hub': { name: 'مرکز تحلیل', enabled: true, priority: 1 },
+  'qadr-monitoring-hub': { name: 'مرکز تحلیل', enabled: true, priority: 1 },
+  'strategic-foresight': { name: 'کارگاه پیش‌نگری راهبردی', enabled: true, priority: 1 },
+  'war-room': { name: 'اتاق چندعاملی', enabled: true, priority: 1 },
+  'black-swan-watch': { name: 'رصد قوی سیاه', enabled: true, priority: 1 },
   'premium-benchmark': { name: 'مقایسه با سامانه‌های پریمیوم', enabled: true, priority: 1 },
   'release-notes': { name: 'Change Log / یادداشت انتشار', enabled: true, priority: 1 },
   'ops-audit': { name: 'پایش و ممیزی', enabled: true, priority: 1 },
@@ -244,9 +248,13 @@ const TECH_PANELS: Record<string, PanelConfig> = {
   'maritime-traffic': { name: 'Maritime Traffic', enabled: true, priority: 2 },
   'world-clock': { name: 'World Clock', enabled: true, priority: 2 },
   'persian-analysis': { name: 'تحلیل راهبردی فارسی', enabled: true, priority: 1 },
+  'cognitive-warfare': { name: 'دفاع و کشف جنگ شناختی', enabled: true, priority: 1 },
   'qadr-assistant': { name: 'چت‌بات راهنمای QADR110', enabled: true, priority: 1 },
   'geo-analysis-workbench': { name: 'کارگاه ژئو-تحلیل', enabled: true, priority: 1 },
-  'world-monitoring-hub': { name: 'مرکز تحلیل', enabled: true, priority: 1 },
+  'qadr-monitoring-hub': { name: 'مرکز تحلیل', enabled: true, priority: 1 },
+  'strategic-foresight': { name: 'کارگاه پیش‌نگری راهبردی', enabled: true, priority: 1 },
+  'war-room': { name: 'اتاق چندعاملی', enabled: true, priority: 1 },
+  'black-swan-watch': { name: 'رصد قوی سیاه', enabled: true, priority: 1 },
   'premium-benchmark': { name: 'مقایسه با سامانه‌های پریمیوم', enabled: true, priority: 1 },
   'release-notes': { name: 'Change Log / یادداشت انتشار', enabled: true, priority: 1 },
   'darkweb-defensive': { name: 'رصد دفاعی DarkWeb/DarkNet', enabled: true, priority: 1 },
@@ -422,9 +430,13 @@ const FINANCE_PANELS: Record<string, PanelConfig> = {
   'maritime-traffic': { name: 'Maritime Traffic', enabled: true, priority: 2 },
   'world-clock': { name: 'World Clock', enabled: true, priority: 2 },
   'persian-analysis': { name: 'تحلیل راهبردی فارسی', enabled: true, priority: 1 },
+  'cognitive-warfare': { name: 'دفاع و کشف جنگ شناختی', enabled: true, priority: 1 },
   'qadr-assistant': { name: 'چت‌بات راهنمای QADR110', enabled: true, priority: 1 },
   'geo-analysis-workbench': { name: 'کارگاه ژئو-تحلیل', enabled: true, priority: 1 },
-  'world-monitoring-hub': { name: 'مرکز تحلیل', enabled: true, priority: 1 },
+  'qadr-monitoring-hub': { name: 'مرکز تحلیل', enabled: true, priority: 1 },
+  'strategic-foresight': { name: 'کارگاه پیش‌نگری راهبردی', enabled: true, priority: 1 },
+  'war-room': { name: 'اتاق چندعاملی', enabled: true, priority: 1 },
+  'black-swan-watch': { name: 'رصد قوی سیاه', enabled: true, priority: 1 },
   'premium-benchmark': { name: 'مقایسه با سامانه‌های پریمیوم', enabled: true, priority: 1 },
   'release-notes': { name: 'Change Log / یادداشت انتشار', enabled: true, priority: 1 },
   'darkweb-defensive': { name: 'رصد دفاعی DarkWeb/DarkNet', enabled: true, priority: 1 },
@@ -728,7 +740,10 @@ const COMMODITY_PANELS: Record<string, PanelConfig> = {
   'persian-analysis': { name: 'تحلیل راهبردی فارسی', enabled: true, priority: 1 },
   'qadr-assistant': { name: 'چت‌بات راهنمای QADR110', enabled: true, priority: 1 },
   'geo-analysis-workbench': { name: 'کارگاه ژئو-تحلیل', enabled: true, priority: 1 },
-  'world-monitoring-hub': { name: 'مرکز تحلیل', enabled: true, priority: 1 },
+  'qadr-monitoring-hub': { name: 'مرکز تحلیل', enabled: true, priority: 1 },
+  'strategic-foresight': { name: 'کارگاه پیش‌نگری راهبردی', enabled: true, priority: 1 },
+  'war-room': { name: 'اتاق چندعاملی', enabled: true, priority: 1 },
+  'black-swan-watch': { name: 'رصد قوی سیاه', enabled: true, priority: 1 },
   'premium-benchmark': { name: 'مقایسه با سامانه‌های پریمیوم', enabled: true, priority: 1 },
   'release-notes': { name: 'Change Log / یادداشت انتشار', enabled: true, priority: 1 },
   'darkweb-defensive': { name: 'رصد دفاعی DarkWeb/DarkNet', enabled: true, priority: 1 },
@@ -926,7 +941,7 @@ export const PANEL_CATEGORY_MAP: Record<string, { labelKey: string; panelKeys: s
   // Full (geopolitical) variant
   intelligence: {
     labelKey: 'header.panelCatIntelligence',
-    panelKeys: ['cii', 'nrc-resilience', 'nrc-analytics', 'csrc-cognitive', 'strategic-risk', 'intel', 'gdelt-intel', 'narrative-analysis', 'cascade', 'telegram-intel'],
+    panelKeys: ['cii', 'nrc-resilience', 'nrc-analytics', 'csrc-cognitive', 'strategic-risk', 'intel', 'gdelt-intel', 'narrative-analysis', 'cognitive-warfare', 'cascade', 'telegram-intel'],
     variants: ['full'],
   },
   regionalNews: {
@@ -963,7 +978,7 @@ export const PANEL_CATEGORY_MAP: Record<string, { labelKey: string; panelKeys: s
   },
   securityPolicy: {
     labelKey: 'header.panelCatSecurityPolicy',
-    panelKeys: ['security', 'policy', 'regulation'],
+    panelKeys: ['security', 'policy', 'regulation', 'cognitive-warfare'],
     variants: ['tech'],
   },
   techMarkets: {
@@ -995,7 +1010,7 @@ export const PANEL_CATEGORY_MAP: Record<string, { labelKey: string; panelKeys: s
   },
   centralBanksEcon: {
     labelKey: 'header.panelCatCentralBanks',
-    panelKeys: ['centralbanks', 'economic', 'scenario-planner', 'trade-policy', 'supply-chain', 'economic-news'],
+    panelKeys: ['centralbanks', 'economic', 'scenario-planner', 'trade-policy', 'supply-chain', 'economic-news', 'cognitive-warfare'],
     variants: ['finance'],
   },
   dealsInstitutional: {
@@ -1022,7 +1037,7 @@ export const PANEL_CATEGORY_MAP: Record<string, { labelKey: string; panelKeys: s
   },
   commodityEcon: {
     labelKey: 'header.panelCatCommodityEcon',
-    panelKeys: ['trade-policy', 'economic', 'scenario-planner', 'gulf-economies', 'gcc-investments', 'finance', 'polymarket', 'airline-intel', 'world-clock', 'monitors'],
+    panelKeys: ['trade-policy', 'economic', 'scenario-planner', 'gulf-economies', 'gcc-investments', 'finance', 'polymarket', 'airline-intel', 'world-clock', 'monitors', 'cognitive-warfare'],
     variants: ['commodity'],
   },
 
@@ -1054,8 +1069,8 @@ export const MONITOR_COLORS = [
 ];
 
 export const STORAGE_KEYS = {
-  panels: 'worldmonitor-panels',
-  monitors: 'worldmonitor-monitors',
-  mapLayers: 'worldmonitor-layers',
-  disabledFeeds: 'worldmonitor-disabled-feeds',
+  panels: 'qadr110-panels',
+  monitors: 'qadr110-monitors',
+  mapLayers: 'qadr110-layers',
+  disabledFeeds: 'qadr110-disabled-feeds',
 } as const;

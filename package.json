@@ -1,5 +1,5 @@
 {
-  "name": "world-monitor",
+  "name": "qadr110",
   "private": true,
   "version": "2.6.1",
   "license": "AGPL-3.0-only",
@@ -90,6 +90,10 @@
     "@deck.gl/mapbox": "^9.2.6",
     "@protomaps/basemaps": "^5.7.1",
     "@sentry/browser": "^10.39.0",
+    "@tauri-apps/plugin-opener": "^2.5.3",
+    "@tauri-apps/plugin-store": "^2.4.2",
+    "@tauri-apps/plugin-updater": "^2.10.0",
+    "@tauri-apps/plugin-window-state": "^2.4.1",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.36.1",
     "@vercel/analytics": "^2.0.0",

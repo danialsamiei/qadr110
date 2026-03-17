@@ -2,10 +2,11 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Tech Monitor",
   "mainBinaryName": "tech-monitor",
-  "identifier": "app.worldmonitor.tech.desktop",
+  "identifier": "dev.alefba.qadr110.tech.desktop",
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "Tech Monitor"
       }
     ]

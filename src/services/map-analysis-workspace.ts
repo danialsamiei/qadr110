@@ -16,7 +16,7 @@ import { MILITARY_BASES, NUCLEAR_FACILITIES, UNDERSEA_CABLES } from '@/config/ge
 import { PIPELINES } from '@/config/pipelines';
 import { AnalysisJobQueue } from '@/platform/operations/analysis-job-queue';
 import { isDemoModeEnabled } from '@/platform/operations/demo-mode';
-import { createPointMapContext } from '@/platform/operations/map-context';
+import { buildMapContextCacheKey, createPointMapContext } from '@/platform/operations/map-context';
 import {
   GEO_ANALYSIS_PANEL_ID,
   dispatchGeoAnalysisAssistantHandoff,
@@ -261,6 +261,59 @@ function buildTrendPreview(signals: GeoNearbySignal[]): GeoTrendPoint[] {
       return Number.isFinite(ts) && now - ts <= window.ms;
     }).length,
   }));
+}
+
+function buildSignalClusters(signals: GeoNearbySignal[]): Array<{ kind: string; count: number; topLabels: string[] }> {
+  const clusters = new Map<string, { count: number; topLabels: string[] }>();
+  signals.forEach((signal) => {
+    const entry = clusters.get(signal.kind) ?? { count: 0, topLabels: [] };
+    entry.count += 1;
+    if (entry.topLabels.length < 3 && !entry.topLabels.includes(signal.label)) {
+      entry.topLabels.push(signal.label);
+    }
+    clusters.set(signal.kind, entry);
+  });
+
+  return Array.from(clusters.entries())
+    .map(([kind, entry]) => ({
+      kind,
+      count: entry.count,
+      topLabels: entry.topLabels,
+    }))
+    .sort((left, right) => right.count - left.count)
+    .slice(0, 5);
+}
+
+function buildGeopoliticalContext(snapshot: Pick<
+  GeoContextSnapshot,
+  'country' | 'activeLayers' | 'nearbySignals' | 'nearbyInfrastructure' | 'sourceDensity' | 'dataFreshness' | 'trendPreview'
+>): string[] {
+  const bullets: string[] = [];
+  if (snapshot.country?.name) {
+    bullets.push(`تمرکز جغرافیایی روی ${snapshot.country.name} است و تحلیل باید spilloverهای پیرامونی را هم بسنجد.`);
+  }
+  if (snapshot.nearbySignals.length > 0) {
+    const securitySignals = snapshot.nearbySignals.filter((signal) =>
+      ['پرواز نظامی', 'شناور', 'اعتراض', 'قطعی', 'سایبری'].includes(signal.kind)
+    ).length;
+    if (securitySignals > 0) {
+      bullets.push(`${securitySignals} سیگنال امنیتی/اختلالی نزدیک ثبت شده و می‌تواند ارزیابی ریسک کوتاه‌مدت را جابه‌جا کند.`);
+    }
+  }
+  if (snapshot.nearbyInfrastructure.length > 0) {
+    bullets.push(`گلوگاه‌های نزدیک شامل ${snapshot.nearbyInfrastructure.slice(0, 3).map((asset) => asset.name).join('، ')} هستند.`);
+  }
+  if (snapshot.activeLayers.some((layer) => ['polymarket', 'gdelt', 'roadTraffic', 'ais', 'military'].includes(layer))) {
+    bullets.push(`لایه‌های فعال، هم‌زمان ابعاد OSINT، ترافیک/لجستیک و روندهای منطقه‌ای را پوشش می‌دهند.`);
+  }
+  if (snapshot.sourceDensity.evidenceDensity === 'low' || snapshot.dataFreshness.overallStatus !== 'sufficient') {
+    bullets.push('پوشش داده محدود است و هر inference باید با احتیاط و راستی‌آزمایی تکمیلی خوانده شود.');
+  }
+  const hottestWindow = snapshot.trendPreview.reduce((best, point) => point.value > best.value ? point : best, snapshot.trendPreview[0] ?? { label: '۲۴س', value: 0 });
+  if (hottestWindow.value > 0) {
+    bullets.push(`بیشترین تراکم زمانی سیگنال‌ها در پنجره ${hottestWindow.label} دیده می‌شود.`);
+  }
+  return bullets.slice(0, 5);
 }
 
 function collectNearbySignals(input: GeoContextSnapshotInput): GeoNearbySignal[] {
@@ -748,6 +801,7 @@ export function buildGeoContextSnapshot(input: GeoContextSnapshotInput): GeoCont
   const freshness = normalizeFreshness(input.freshnessSummary);
   const selectedEntities = buildSelectedEntities(input.countryName, nearbySignals, nearbyInfrastructure);
   const evidenceDensity = inferEvidenceDensity(nearbySignals.length, nearbyInfrastructure.length, freshness);
+  const sourceClusters = buildSignalClusters(nearbySignals);
   const snapshotBase: GeoContextSnapshot = {
     context: createPointMapContext(
       createId('map-context'),
@@ -774,6 +828,7 @@ export function buildGeoContextSnapshot(input: GeoContextSnapshotInput): GeoCont
           ...freshness,
           evidenceDensity,
         },
+        sourceClusters,
       },
     ),
     generatedAt: new Date().toISOString(),
@@ -802,6 +857,7 @@ export function buildGeoContextSnapshot(input: GeoContextSnapshotInput): GeoCont
   };
 
   snapshotBase.context.selection = inferMapSelection(snapshotBase);
+  const geopoliticalContext = buildGeopoliticalContext(snapshotBase);
   snapshotBase.promptContext = [
     snapshotBase.country?.name ? `کشور/نقطه تمرکز: ${snapshotBase.country.name}` : `مختصات: ${input.lat.toFixed(4)}, ${input.lon.toFixed(4)}`,
     input.adminRegion ? `ناحیه/استان: ${input.adminRegion}` : '',
@@ -814,7 +870,11 @@ export function buildGeoContextSnapshot(input: GeoContextSnapshotInput): GeoCont
       ? `زیرساخت‌های نزدیک: ${snapshotBase.nearbyInfrastructure.slice(0, 4).map((asset) => `${asset.name} (${asset.type})`).join('، ')}`
       : '',
     `پوشش داده: ${snapshotBase.dataFreshness.coveragePercent}% با وضعیت ${snapshotBase.dataFreshness.overallStatus}.`,
+    geopoliticalContext.length > 0 ? `کانتکست ژئوپلیتیک: ${geopoliticalContext.join(' | ')}` : '',
   ].filter(Boolean).join('\n');
+  snapshotBase.context.geopoliticalContext = geopoliticalContext;
+  snapshotBase.context.contextSummary = snapshotBase.promptContext;
+  snapshotBase.context.cacheKey = buildMapContextCacheKey(snapshotBase.context);
 
   return snapshotBase;
 }
@@ -948,6 +1008,27 @@ export class MapAnalysisWorkspaceStore {
       mode: descriptor.mode,
       run: async (signal) => {
         const { runPersianAssistant } = await import('@/services/intelligence-assistant');
+        const {
+          appendAssistantIntent,
+          appendAssistantMapInteraction,
+          createAssistantSessionContext,
+        } = await import('@/services/ai-orchestrator/session');
+        let sessionContext = createAssistantSessionContext(descriptor.id);
+        sessionContext = appendAssistantIntent(sessionContext, {
+          query: descriptor.query,
+          taskClass: descriptor.taskClass,
+          domainMode: descriptor.domainMode,
+          messages: [
+            {
+              role: 'user',
+              content: descriptor.query,
+              createdAt: descriptor.createdAt,
+            },
+          ],
+          mapContext: descriptor.mapContext,
+          createdAt: descriptor.createdAt,
+        });
+        sessionContext = appendAssistantMapInteraction(sessionContext, descriptor.mapContext, descriptor.createdAt);
         return runPersianAssistant({
           conversationId: descriptor.id,
           domainMode: descriptor.domainMode,
@@ -966,6 +1047,7 @@ export class MapAnalysisWorkspaceStore {
           memoryNotes: [],
           knowledgeDocuments: [],
           mapContext: descriptor.mapContext,
+          sessionContext,
           signal,
         });
       },

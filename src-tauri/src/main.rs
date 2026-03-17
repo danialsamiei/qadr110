@@ -19,7 +19,10 @@ use tauri::menu::{AboutMetadata, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{AppHandle, Manager, RunEvent, Webview, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 
 const DEFAULT_LOCAL_API_PORT: u16 = 46123;
-const KEYRING_SERVICE: &str = "world-monitor";
+const KEYRING_SERVICE: &str = "qadr110";
+const LEGACY_KEYRING_SERVICE: &str = "world-monitor";
+const QADR_LICENSE_SECRET_KEY: &str = "QADR110_API_KEY";
+const LEGACY_LICENSE_SECRET_KEY: &str = "WORLDMONITOR_API_KEY";
 const LOCAL_API_LOG_FILE: &str = "local-api.log";
 const DESKTOP_LOG_FILE: &str = "desktop.log";
 const MENU_FILE_SETTINGS_ID: &str = "file.settings";
@@ -52,11 +55,77 @@ const SUPPORTED_SECRET_KEYS: [&str; 28] = [
     "UCDP_ACCESS_TOKEN",
     "OLLAMA_API_URL",
     "OLLAMA_MODEL",
-    "WORLDMONITOR_API_KEY",
+    "QADR110_API_KEY",
     "WTO_API_KEY",
     "AVIATIONSTACK_API",
     "ICAO_API_KEY",
 ];
+
+fn canonical_secret_key(key: &str) -> Option<String> {
+    let canonical = if key == LEGACY_LICENSE_SECRET_KEY {
+        QADR_LICENSE_SECRET_KEY
+    } else {
+        key
+    };
+
+    if SUPPORTED_SECRET_KEYS.contains(&canonical) {
+        Some(canonical.to_string())
+    } else {
+        None
+    }
+}
+
+fn legacy_supported_secret_keys() -> Vec<&'static str> {
+    let mut keys = SUPPORTED_SECRET_KEYS.to_vec();
+    keys.push(LEGACY_LICENSE_SECRET_KEY);
+    keys
+}
+
+fn sanitize_secret_entries(entries: impl IntoIterator<Item = (String, String)>) -> HashMap<String, String> {
+    let mut sanitized = HashMap::new();
+    for (key, value) in entries {
+        let Some(canonical_key) = canonical_secret_key(&key) else {
+            continue;
+        };
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        sanitized.insert(canonical_key, trimmed.to_string());
+    }
+    sanitized
+}
+
+fn load_vault_for_service(service: &str) -> HashMap<String, String> {
+    if let Ok(entry) = Entry::new(service, "secrets-vault") {
+        if let Ok(json) = entry.get_password() {
+            if let Ok(map) = serde_json::from_str::<HashMap<String, String>>(&json) {
+                return sanitize_secret_entries(map);
+            }
+        }
+    }
+    HashMap::new()
+}
+
+fn load_individual_secrets(service: &str, keys: &[&str]) -> HashMap<String, String> {
+    let mut entries = Vec::new();
+    for key in keys {
+        if let Ok(entry) = Entry::new(service, key) {
+            if let Ok(value) = entry.get_password() {
+                entries.push(((*key).to_string(), value));
+            }
+        }
+    }
+    sanitize_secret_entries(entries)
+}
+
+fn delete_individual_secrets(service: &str, keys: &[&str]) {
+    for key in keys {
+        if let Ok(entry) = Entry::new(service, key) {
+            let _ = entry.delete_credential();
+        }
+    }
+}
 
 struct LocalApiState {
     child: Mutex<Option<Child>>,
@@ -99,51 +168,32 @@ struct PersistentCache {
 
 impl SecretsCache {
     fn load_from_keychain() -> Self {
-        // Try consolidated vault first — single keychain prompt
-        if let Ok(entry) = Entry::new(KEYRING_SERVICE, "secrets-vault") {
-            if let Ok(json) = entry.get_password() {
-                if let Ok(map) = serde_json::from_str::<HashMap<String, String>>(&json) {
-                    let secrets: HashMap<String, String> = map
-                        .into_iter()
-                        .filter(|(k, v)| {
-                            SUPPORTED_SECRET_KEYS.contains(&k.as_str()) && !v.trim().is_empty()
-                        })
-                        .map(|(k, v)| (k, v.trim().to_string()))
-                        .collect();
-                    return SecretsCache {
-                        secrets: Mutex::new(secrets),
-                    };
-                }
-            }
+        let current_vault = load_vault_for_service(KEYRING_SERVICE);
+        if !current_vault.is_empty() {
+            return SecretsCache {
+                secrets: Mutex::new(current_vault),
+            };
         }
 
-        // Migration: read individual keys (old format), consolidate into vault.
-        // This triggers one keychain prompt per key — happens only once.
-        let mut secrets = HashMap::new();
-        for key in SUPPORTED_SECRET_KEYS.iter() {
-            if let Ok(entry) = Entry::new(KEYRING_SERVICE, key) {
-                if let Ok(value) = entry.get_password() {
-                    let trimmed = value.trim().to_string();
-                    if !trimmed.is_empty() {
-                        secrets.insert((*key).to_string(), trimmed);
-                    }
-                }
-            }
+        let legacy_vault = load_vault_for_service(LEGACY_KEYRING_SERVICE);
+        if !legacy_vault.is_empty() {
+            let _ = save_vault(&legacy_vault);
+            return SecretsCache {
+                secrets: Mutex::new(legacy_vault),
+            };
         }
 
-        // Write consolidated vault and clean up individual entries
+        let mut secrets = load_individual_secrets(KEYRING_SERVICE, &SUPPORTED_SECRET_KEYS);
+        if secrets.is_empty() {
+            let legacy_keys = legacy_supported_secret_keys();
+            secrets = load_individual_secrets(LEGACY_KEYRING_SERVICE, &legacy_keys);
+        }
+
         if !secrets.is_empty() {
-            if let Ok(json) = serde_json::to_string(&secrets) {
-                if let Ok(vault_entry) = Entry::new(KEYRING_SERVICE, "secrets-vault") {
-                    if vault_entry.set_password(&json).is_ok() {
-                        for key in SUPPORTED_SECRET_KEYS.iter() {
-                            if let Ok(entry) = Entry::new(KEYRING_SERVICE, key) {
-                                let _ = entry.delete_credential();
-                            }
-                        }
-                    }
-                }
-            }
+            let _ = save_vault(&secrets);
+            delete_individual_secrets(KEYRING_SERVICE, &SUPPORTED_SECRET_KEYS);
+            let legacy_keys = legacy_supported_secret_keys();
+            delete_individual_secrets(LEGACY_KEYRING_SERVICE, &legacy_keys);
         }
 
         SecretsCache {
@@ -517,21 +567,6 @@ fn open_path_in_shell(path: &Path) -> Result<(), String> {
     open_in_shell(&path.to_string_lossy())
 }
 
-#[tauri::command]
-fn open_url(webview: Webview, url: String) -> Result<(), String> {
-    require_trusted_window(webview.label())?;
-    let parsed = Url::parse(&url).map_err(|_| "Invalid URL".to_string())?;
-
-    match parsed.scheme() {
-        "https" => open_in_shell(parsed.as_str()),
-        "http" => match parsed.host_str() {
-            Some("localhost") | Some("127.0.0.1") => open_in_shell(parsed.as_str()),
-            _ => Err("Only https:// URLs are allowed (http:// only for localhost)".to_string()),
-        },
-        _ => Err("Only https:// URLs are allowed (http:// only for localhost)".to_string()),
-    }
-}
-
 fn open_logs_folder_impl(app: &AppHandle) -> Result<PathBuf, String> {
     let dir = logs_dir_path(app)?;
     open_path_in_shell(&dir)?;
@@ -817,7 +852,7 @@ fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
             }
         }
         MENU_HELP_GITHUB_ID => {
-            let _ = open_in_shell("https://github.com/koala73/worldmonitor");
+            let _ = open_in_shell("https://github.com/danialsamiei/qadr110");
         }
         #[cfg(feature = "devtools")]
         MENU_HELP_DEVTOOLS_ID => {
@@ -1348,6 +1383,9 @@ fn main() {
     }
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_store::Builder::default().build())
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_window_state::Builder::default().build())
         .menu(build_app_menu)
         .on_menu_event(handle_menu_event)
         .manage(LocalApiState::default())
@@ -1370,11 +1408,15 @@ fn main() {
             close_settings_window,
             open_live_channels_window_command,
             close_live_channels_window,
-            open_url,
             open_youtube_login,
             fetch_polymarket
         ])
         .setup(|app| {
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            app.handle()
+                .plugin(tauri_plugin_updater::Builder::new().build())
+                .map_err(|e| -> Box<dyn std::error::Error> { Box::new(e) })?;
+
             // Load persistent cache into memory (avoids 14MB file I/O on every IPC call)
             let cache_path = cache_file_path(&app.handle()).unwrap_or_default();
             app.manage(PersistentCache::load(&cache_path));
@@ -1391,7 +1433,7 @@ fn main() {
             Ok(())
         })
         .build(tauri::generate_context!())
-        .expect("error while running world-monitor tauri application")
+        .expect("error while running qadr110 tauri application")
         .run(|app, event| {
             match &event {
                 // macOS: hide window on close instead of quitting (standard behavior)

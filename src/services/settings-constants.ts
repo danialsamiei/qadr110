@@ -47,7 +47,7 @@ export const PLAINTEXT_KEYS = new Set<RuntimeSecretKey>([
   'PYTHON_SIDECAR_URL',
 ]);
 
-export const MASKED_SENTINEL = '__WM_MASKED__';
+export const MASKED_SENTINEL = '__QADR110_MASKED__';
 
 export const HUMAN_LABELS: Record<RuntimeSecretKey, string> = {
   GROQ_API_KEY: 'Groq API Key',
@@ -73,7 +73,7 @@ export const HUMAN_LABELS: Record<RuntimeSecretKey, string> = {
   UCDP_ACCESS_TOKEN: 'UCDP Access Token',
   OLLAMA_API_URL: 'Ollama Server URL',
   OLLAMA_MODEL: 'Ollama Model',
-  WORLDMONITOR_API_KEY: 'QADR110 License Key',
+  QADR110_API_KEY: 'QADR110 License Key',
   WTO_API_KEY: 'WTO API Key',
   AVIATIONSTACK_API: 'AviationStack API Key',
   ICAO_API_KEY: 'ICAO NOTAM API Key',

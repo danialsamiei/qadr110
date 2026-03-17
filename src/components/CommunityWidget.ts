@@ -1,7 +1,7 @@
 import { t } from '@/services/i18n';
 import { getDismissed, setDismissed } from '@/utils/cross-domain-storage';
 
-const DISMISSED_KEY = 'wm-community-dismissed';
+const DISMISSED_KEY = 'qadr110-community-dismissed';
 const SOCIAL_KHABAR_URL = 'https://t.me/+m0xPLuBPakthMjI0';
 
 export function mountCommunityWidget(): void {

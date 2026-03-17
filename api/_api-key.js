@@ -6,13 +6,21 @@ const DESKTOP_ORIGIN_PATTERNS = [
 ];
 
 const BROWSER_ORIGIN_PATTERNS = [
-  /^https:\/\/(.*\.)?worldmonitor\.app$/,
-  /^https:\/\/worldmonitor-[a-z0-9-]+-elie-[a-z0-9]+\.vercel\.app$/,
+  /^https:\/\/(.*\.)?qadr\.alefba\.dev$/,
+  /^https:\/\/qadr110-[a-z0-9-]+\.vercel\.app$/,
+  /^https:\/\/qadr-[a-z0-9-]+\.vercel\.app$/,
   ...(process.env.NODE_ENV === 'production' ? [] : [
     /^https?:\/\/localhost(:\d+)?$/,
     /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
   ]),
 ];
+
+function getValidKeys() {
+  return (process.env.QADR110_VALID_KEYS || process.env.WORLDMONITOR_VALID_KEYS || '')
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
 
 function isDesktopOrigin(origin) {
   return Boolean(origin) && DESKTOP_ORIGIN_PATTERNS.some(p => p.test(origin));
@@ -33,7 +41,7 @@ function extractOriginFromReferer(referer) {
 
 export function validateApiKey(req, options = {}) {
   const forceKey = options.forceKey === true;
-  const key = req.headers.get('X-WorldMonitor-Key');
+  const key = req.headers.get('X-QADR110-Key') || req.headers.get('X-WorldMonitor-Key');
   // Same-origin browser requests don't send Origin (per CORS spec).
   // Fall back to Referer to identify trusted same-origin callers.
   const origin = req.headers.get('Origin') || extractOriginFromReferer(req.headers.get('Referer')) || '';
@@ -41,18 +49,18 @@ export function validateApiKey(req, options = {}) {
   // Desktop app — always require API key
   if (isDesktopOrigin(origin)) {
     if (!key) return { valid: false, required: true, error: 'API key required for desktop access' };
-    const validKeys = (process.env.WORLDMONITOR_VALID_KEYS || '').split(',').filter(Boolean);
+    const validKeys = getValidKeys();
     if (!validKeys.includes(key)) return { valid: false, required: true, error: 'Invalid API key' };
     return { valid: true, required: true };
   }
 
-  // Trusted browser origin (worldmonitor.app, Vercel previews, localhost dev) — no key needed
+  // Trusted browser origin (qadr.alefba.dev, Vercel previews, localhost dev) — no key needed
   if (isTrustedBrowserOrigin(origin)) {
     if (forceKey && !key) {
       return { valid: false, required: true, error: 'API key required' };
     }
     if (key) {
-      const validKeys = (process.env.WORLDMONITOR_VALID_KEYS || '').split(',').filter(Boolean);
+      const validKeys = getValidKeys();
       if (!validKeys.includes(key)) return { valid: false, required: true, error: 'Invalid API key' };
     }
     return { valid: true, required: forceKey };
@@ -60,7 +68,7 @@ export function validateApiKey(req, options = {}) {
 
   // Explicit key provided from unknown origin — validate it
   if (key) {
-    const validKeys = (process.env.WORLDMONITOR_VALID_KEYS || '').split(',').filter(Boolean);
+    const validKeys = getValidKeys();
     if (!validKeys.includes(key)) return { valid: false, required: true, error: 'Invalid API key' };
     return { valid: true, required: true };
   }

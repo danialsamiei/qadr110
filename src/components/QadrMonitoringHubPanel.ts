@@ -77,7 +77,7 @@ function getHubSections(): HubSection[] {
         t('components.analysisHub.sections.reports.chips.2'),
       ],
       panelTargets: [
-        { panelId: 'world-monitoring-hub', label: t('components.analysisHub.links.analysisHub') },
+        { panelId: 'qadr-monitoring-hub', label: t('components.analysisHub.links.analysisHub') },
         { panelId: 'persian-analysis', label: t('components.analysisHub.links.persianAnalysis') },
       ],
     },
@@ -98,9 +98,9 @@ function getHubSections(): HubSection[] {
   ];
 }
 
-export class WorldMonitoringHubPanel extends Panel {
+export class QadrMonitoringHubPanel extends Panel {
   constructor() {
-    super({ id: 'world-monitoring-hub', title: t('panels.analysisHub'), className: 'panel-wide' });
+    super({ id: 'qadr-monitoring-hub', title: t('panels.analysisHub'), className: 'panel-wide' });
     this.renderHub();
     this.bindInteractions();
   }

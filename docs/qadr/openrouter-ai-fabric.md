@@ -27,6 +27,8 @@
   - ingestion, chunking, query normalization و adapterهای Weaviate/Chroma/browser-vector
 - `server/worldmonitor/intelligence/v1/assistant.ts`
   - orchestration backend برای دستیار فارسی
+- `docs/qadr/local-first-ai-orchestrator.md`
+  - جزئیات graph جدید local-first، session memory و ابزارهای grounding
 - `src/components/QadrAssistantPanel.ts`
   - workbench فارسی با thread, workflow, evidence, memory, export و map context
 

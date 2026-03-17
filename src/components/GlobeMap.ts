@@ -45,6 +45,7 @@ import type { GpsJamHex } from '@/services/gps-interference';
 import type { SatellitePosition } from '@/services/satellites';
 import type { ImageryScene } from '@/generated/server/worldmonitor/imagery/v1/service_server';
 import { isAllowedPreviewUrl } from '@/utils/imagery-preview';
+import type { MapPointClickPayload, MapProjectedPoint } from './map-interactions';
 
 const SAT_COUNTRY_COLORS: Record<string, string> = { CN: '#ff2020', RU: '#ff8800', US: '#4488ff', EU: '#44cc44', KR: '#aa66ff', IN: '#ff66aa', TR: '#ff4466', OTHER: '#ccccff' };
 const SAT_TYPE_EMOJI: Record<string, string> = { sar: '\u{1F4E1}', optical: '\u{1F4F7}', military: '\u{1F396}', sigint: '\u{1F4FB}' };
@@ -464,6 +465,30 @@ export class GlobeMap {
 
   // Callbacks
   private onLayerChangeCb: ((layer: keyof MapLayers, enabled: boolean, source: 'user' | 'programmatic') => void) | null = null;
+  private onCountryClickCb: ((country: CountryClickPayload) => void) | null = null;
+  private onMapClickCb?: (payload: MapPointClickPayload) => void;
+  private readonly handleClick = (e: MouseEvent): void => {
+    if ((!this.onMapClickCb && !this.onCountryClickCb) || !this.globe) return;
+    const rect = this.container.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const coords = this.globe.toGlobeCoords(x, y);
+    if (!coords) return;
+    const hit = getCountryAtCoordinates(coords.lat, coords.lng);
+    this.onMapClickCb?.({
+      lat: coords.lat,
+      lon: coords.lng,
+      screenX: e.clientX,
+      screenY: e.clientY,
+      zoom: this.getState().zoom,
+      view: this.currentView,
+      bbox: this.getBbox(),
+      ...(hit ? { countryCode: hit.code, countryName: hit.name } : {}),
+    });
+    if (hit && this.onCountryClickCb) {
+      this.onCountryClickCb({ lat: coords.lat, lon: coords.lng, code: hit.code, name: hit.name });
+    }
+  };
   private onMapContextMenuCb?: (payload: { lat: number; lon: number; screenX: number; screenY: number }) => void;
   private readonly handleContextMenu = (e: MouseEvent): void => {
     e.preventDefault();
@@ -634,6 +659,7 @@ export class GlobeMap {
       });
     }
 
+    this.container.addEventListener('click', this.handleClick);
     this.container.addEventListener('contextmenu', this.handleContextMenu);
 
     // Wire HTML marker layer
@@ -1373,7 +1399,7 @@ export class GlobeMap {
 
   private createLayerToggles(): void {
     const layerDefs = getLayersForVariant((SITE_VARIANT || 'full') as MapVariant, 'globe');
-    const _wmKey = getSecretState('WORLDMONITOR_API_KEY').present;
+    const _wmKey = getSecretState('QADR110_API_KEY').present;
     const layers = layerDefs.map(def => ({
       key: def.key,
       label: resolveLayerLabel(def, t),
@@ -1986,6 +2012,17 @@ export class GlobeMap {
     return pov ? { lat: pov.lat, lon: pov.lng } : null;
   }
 
+  public getBbox(): string | null {
+    const center = this.getCenter();
+    if (!center) return null;
+    const radius = 8;
+    const south = Math.max(-90, center.lat - radius);
+    const north = Math.min(90, center.lat + radius);
+    const west = Math.max(-180, center.lon - radius);
+    const east = Math.min(180, center.lon + radius);
+    return `${west.toFixed(4)},${south.toFixed(4)},${east.toFixed(4)},${north.toFixed(4)}`;
+  }
+
   // ─── Resize ────────────────────────────────────────────────────────────────
 
   public resize(): void {
@@ -2020,8 +2057,12 @@ export class GlobeMap {
     this.onHotspotClickCb = cb;
   }
 
-  public setOnCountryClick(_cb: (c: CountryClickPayload) => void): void {
-    // Globe country click not yet implemented — no-op
+  public setOnCountryClick(cb: (c: CountryClickPayload) => void): void {
+    this.onCountryClickCb = cb;
+  }
+
+  public setOnMapClick(cb: (payload: MapPointClickPayload) => void): void {
+    this.onMapClickCb = cb;
   }
 
   public setOnMapContextMenu(cb: (payload: { lat: number; lon: number; screenX: number; screenY: number }) => void): void {
@@ -2583,6 +2624,8 @@ export class GlobeMap {
   public setOnCountry(_cb: any): void {}
   public getHotspotLevel(_id: string) { return 'low'; }
 
+  public project(_lat: number, _lon: number): MapProjectedPoint | null { return null; }
+
   private async applyEnhancedVisuals(): Promise<void> {
     if (!this.globe || this.destroyed) return;
     try {
@@ -2792,6 +2835,7 @@ export class GlobeMap {
   // ─── Destroy ──────────────────────────────────────────────────────────────
 
   public destroy(): void {
+    this.container.removeEventListener('click', this.handleClick);
     this.container.removeEventListener('contextmenu', this.handleContextMenu);
     this.unsubscribeGlobeQuality?.();
     this.unsubscribeGlobeQuality = null;

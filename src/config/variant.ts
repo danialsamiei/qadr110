@@ -1,3 +1,5 @@
+import { QADR_VARIANT_KEY, readBrandStorageItem } from '@/utils/qadr-branding';
+
 export const SITE_VARIANT: string = (() => {
   const envVariant = typeof import.meta !== 'undefined' && import.meta.env?.VITE_VARIANT
     ? String(import.meta.env.VITE_VARIANT)
@@ -6,7 +8,7 @@ export const SITE_VARIANT: string = (() => {
 
   const isTauri = '__TAURI_INTERNALS__' in window || '__TAURI__' in window;
   if (isTauri) {
-    const stored = localStorage.getItem('worldmonitor-variant');
+    const stored = readBrandStorageItem(QADR_VARIANT_KEY);
     if (stored === 'tech' || stored === 'full' || stored === 'finance' || stored === 'happy' || stored === 'commodity') return stored;
     return envVariant;
   }
@@ -18,7 +20,7 @@ export const SITE_VARIANT: string = (() => {
   if (h.startsWith('commodity.')) return 'commodity';
 
   if (h === 'localhost' || h === '127.0.0.1') {
-    const stored = localStorage.getItem('worldmonitor-variant');
+    const stored = readBrandStorageItem(QADR_VARIANT_KEY);
     if (stored === 'tech' || stored === 'full' || stored === 'finance' || stored === 'happy' || stored === 'commodity') return stored;
     return envVariant;
   }

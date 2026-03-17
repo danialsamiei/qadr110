@@ -52,7 +52,7 @@ export class CountryDeepDivePanel implements CountryBriefPanel {
   private currentName: string | null = null;
   private isMaximizedState = false;
   private onCloseCallback?: () => void;
-  private onStateChangeCallback?: (state: { visible: boolean; maximized: boolean }) => void;
+  private onStateChangeCallbacks: Array<(state: { visible: boolean; maximized: boolean }) => void> = [];
   private onShareStory?: (code: string, name: string) => void;
   private onExportImage?: (code: string, name: string) => void;
   private onOpenResilience?: (code: string, name: string) => void;
@@ -204,7 +204,7 @@ export class CountryDeepDivePanel implements CountryBriefPanel {
     this.currentCode = null;
     this.currentName = null;
     this.onCloseCallback?.();
-    this.onStateChangeCallback?.({ visible: false, maximized: false });
+    this.onStateChangeCallbacks.forEach((callback) => callback({ visible: false, maximized: false }));
   }
 
   public onClose(cb: () => void): void {
@@ -212,7 +212,7 @@ export class CountryDeepDivePanel implements CountryBriefPanel {
   }
 
   public onStateChange(cb: (state: { visible: boolean; maximized: boolean }) => void): void {
-    this.onStateChangeCallback = cb;
+    this.onStateChangeCallbacks.push(cb);
   }
 
   public maximize(): void {
@@ -220,7 +220,7 @@ export class CountryDeepDivePanel implements CountryBriefPanel {
     this.isMaximizedState = true;
     this.panel.classList.add('maximized');
     if (this.maximizeButton) this.maximizeButton.textContent = '\u229F';
-    this.onStateChangeCallback?.({ visible: true, maximized: true });
+    this.onStateChangeCallbacks.forEach((callback) => callback({ visible: true, maximized: true }));
   }
 
   public minimize(): void {
@@ -228,7 +228,7 @@ export class CountryDeepDivePanel implements CountryBriefPanel {
     this.isMaximizedState = false;
     this.panel.classList.remove('maximized');
     if (this.maximizeButton) this.maximizeButton.textContent = '\u26F6';
-    this.onStateChangeCallback?.({ visible: true, maximized: false });
+    this.onStateChangeCallbacks.forEach((callback) => callback({ visible: true, maximized: false }));
   }
 
   public getIsMaximized(): boolean {
@@ -910,7 +910,7 @@ export class CountryDeepDivePanel implements CountryBriefPanel {
     this.panel.setAttribute('aria-hidden', 'false');
     document.addEventListener('keydown', this.handleGlobalKeydown);
     requestAnimationFrame(() => this.closeButton.focus());
-    this.onStateChangeCallback?.({ visible: true, maximized: this.isMaximizedState });
+    this.onStateChangeCallbacks.forEach((callback) => callback({ visible: true, maximized: this.isMaximizedState }));
   }
 
   private close(): void {

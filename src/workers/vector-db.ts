@@ -1,6 +1,7 @@
 import { hashString } from '@/utils/hash';
 
-const DB_NAME = 'worldmonitor_vector_store';
+const DB_NAME = 'qadr110_vector_store';
+const LEGACY_DB_NAME = 'worldmonitor_vector_store';
 const DB_VERSION = 1;
 const STORE_NAME = 'embeddings';
 const MAX_VECTORS = 5000;
@@ -29,11 +30,74 @@ export interface VectorSearchResult {
 
 let db: IDBDatabase | null = null;
 let queue: Promise<unknown> = Promise.resolve();
+let migrationPromise: Promise<void> | null = null;
 
 function enqueue<T>(fn: () => Promise<T>): Promise<T> {
   const task = queue.then(fn, () => fn());
   queue = task.then(() => {}, () => {});
   return task;
+}
+
+async function listDatabaseNames(): Promise<string[]> {
+  const factory = indexedDB as IDBFactory & { databases?: () => Promise<Array<{ name?: string }>> };
+  if (typeof factory.databases !== 'function') return [];
+  const entries = await factory.databases();
+  return entries.map((entry) => entry.name ?? '').filter(Boolean);
+}
+
+function openNamedDb(name: string): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(name, DB_VERSION);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+    request.onupgradeneeded = (event) => {
+      const database = (event.target as IDBOpenDBRequest).result;
+      if (!database.objectStoreNames.contains(STORE_NAME)) {
+        const store = database.createObjectStore(STORE_NAME, { keyPath: 'id' });
+        store.createIndex('by_ingestedAt', 'ingestedAt');
+      }
+    };
+  });
+}
+
+async function migrateLegacyDbIfNeeded(targetDb: IDBDatabase): Promise<void> {
+  if (migrationPromise) return migrationPromise;
+
+  migrationPromise = (async () => {
+    const names = await listDatabaseNames();
+    if (!names.includes(LEGACY_DB_NAME)) return;
+
+    const existingCount = await new Promise<number>((resolve, reject) => {
+      const tx = targetDb.transaction(STORE_NAME, 'readonly');
+      const req = tx.objectStore(STORE_NAME).count();
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    if (existingCount > 0) return;
+
+    const legacyDb = await openNamedDb(LEGACY_DB_NAME);
+    try {
+      const records = await new Promise<StoredVector[]>((resolve, reject) => {
+        const tx = legacyDb.transaction(STORE_NAME, 'readonly');
+        const req = tx.objectStore(STORE_NAME).getAll();
+        req.onsuccess = () => resolve((req.result ?? []) as StoredVector[]);
+        req.onerror = () => reject(req.error);
+      });
+      if (records.length === 0) return;
+
+      await new Promise<void>((resolve, reject) => {
+        const tx = targetDb.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        records.forEach((record) => store.put(record));
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    } finally {
+      legacyDb.close();
+    }
+  })();
+
+  return migrationPromise;
 }
 
 function openDB(): Promise<IDBDatabase> {
@@ -45,7 +109,11 @@ function openDB(): Promise<IDBDatabase> {
     request.onsuccess = () => {
       db = request.result;
       db.onclose = () => { db = null; };
-      resolve(db);
+      void migrateLegacyDbIfNeeded(db)
+        .catch((error) => {
+          console.warn('[vector-db] Legacy IndexedDB migration failed', error);
+        })
+        .finally(() => resolve(db!));
     };
     request.onupgradeneeded = (event) => {
       const database = (event.target as IDBOpenDBRequest).result;

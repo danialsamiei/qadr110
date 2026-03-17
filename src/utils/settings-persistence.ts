@@ -1,3 +1,5 @@
+import { normalizeBrandStorageKey, QADR_VARIANT_KEY, readBrandStorageItem } from './qadr-branding';
+
 export interface ExportedSettings {
   version: number;
   timestamp: string;
@@ -14,6 +16,26 @@ export interface ImportResult {
 const MAX_IMPORT_SIZE_BYTES = 5 * 1024 * 1024;
 
 const SETTINGS_KEY_PREFIXES = [
+  'qadr110-panels',
+  'qadr110-monitors',
+  'qadr110-layers',
+  'qadr110-disabled-feeds',
+  'qadr110-live-channels',
+  'qadr110-map-mode',
+  'qadr110-variant',
+  'qadr110-theme',
+  'qadr110-panel-spans',
+  'qadr110-panel-col-spans',
+  'qadr110-runtime-feature-toggles',
+  'qadr110-breaking-alerts-v1',
+  'qadr110-globe-render-scale',
+  'qadr110-live-streams-always-on',
+  'qadr110-font-family',
+  'qadr110-map-theme:',
+  'qadr110-ai-flow-',
+  'qadr110-market-watchlist-v1',
+  'qadr110-world-clock-cities',
+  'qadr110-trending-config-v1',
   'worldmonitor-panels',
   'worldmonitor-monitors',
   'worldmonitor-layers',
@@ -23,13 +45,20 @@ const SETTINGS_KEY_PREFIXES = [
   'worldmonitor-variant',
   'worldmonitor-theme',
   'worldmonitor-panel-spans',
+  'worldmonitor-panel-col-spans',
   'worldmonitor-panel-order',
   'worldmonitor-runtime-feature-toggles',
   'wm-breaking-alerts-v1',
   'wm-globe-render-scale',
+  'wm-globe-texture',
+  'wm-globe-visual-preset',
   'wm-live-streams-always-on',
   'wm-font-family',
   'wm-map-theme:',
+  'wm-ai-flow-',
+  'wm-market-watchlist-v1',
+  'worldmonitor-world-clock-cities',
+  'worldmonitor-trending-config-v1',
   'map-height',
   'map-pinned',
   'mobile-map-collapsed',
@@ -53,7 +82,7 @@ export function exportSettings(): void {
   const exportData: ExportedSettings = {
     version: 1,
     timestamp: new Date().toISOString(),
-    variant: localStorage.getItem('worldmonitor-variant') || 'full',
+    variant: readBrandStorageItem(QADR_VARIANT_KEY) || 'full',
     data,
   };
 
@@ -62,7 +91,7 @@ export function exportSettings(): void {
   const a = document.createElement('a');
   a.href = url;
   const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-  a.download = `worldmonitor-settings-${ts}.json`;
+  a.download = `qadr110-settings-${ts}.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -94,7 +123,7 @@ export function importSettings(file: File): Promise<ImportResult> {
         let keysImported = 0;
         for (const [key, value] of Object.entries(parsed.data)) {
           if (isSettingsKey(key) && typeof value === 'string') {
-            localStorage.setItem(key, value);
+            localStorage.setItem(normalizeBrandStorageKey(key), value);
             keysImported++;
           }
         }

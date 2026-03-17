@@ -58,6 +58,7 @@ import { getCountryScore } from '@/services/country-instability';
 import { getAlertsNearLocation } from '@/services/geo-convergence';
 import { getCountryAtCoordinates, getCountryBbox } from '@/services/country-geometry';
 import type { CountryClickPayload } from './DeckGLMap';
+import type { MapPointClickPayload, MapProjectedPoint } from './map-interactions';
 import { t } from '@/services/i18n';
 
 export type TimeRange = '1h' | '6h' | '24h' | '48h' | '7d' | 'all';
@@ -153,6 +154,7 @@ export class MapComponent {
   private layerZoomOverrides: Partial<Record<keyof MapLayers, boolean>> = {};
   private onStateChange?: (state: MapState) => void;
   private onCountryClick?: (country: CountryClickPayload) => void;
+  private onMapClick?: (payload: MapPointClickPayload) => void;
   private onMapContextMenu?: (payload: { lat: number; lon: number; screenX: number; screenY: number }) => void;
   private highlightedAssets: Record<AssetType, Set<string>> = {
     pipeline: new Set(),
@@ -889,7 +891,7 @@ export class MapComponent {
     });
 
     this.container.addEventListener('click', (e) => {
-      if (!this.onCountryClick) return;
+      if (!this.onCountryClick && !this.onMapClick) return;
       if (performance.now() - lastDragEndTime < 300) return;
       const containerRect = this.container.getBoundingClientRect();
       const zoom = this.state.zoom;
@@ -907,8 +909,17 @@ export class MapComponent {
       if (!coords) return;
       const [lon, lat] = coords;
       const hit = getCountryAtCoordinates(lat, lon);
+      this.onMapClick?.({
+        lat,
+        lon,
+        screenX: e.clientX,
+        screenY: e.clientY,
+        zoom: this.state.zoom,
+        view: this.state.view,
+        ...(hit ? { countryCode: hit.code, countryName: hit.name } : {}),
+      });
       if (hit) {
-        this.onCountryClick({ lat, lon, code: hit.code, name: hit.name });
+        this.onCountryClick?.({ lat, lon, code: hit.code, name: hit.name });
       }
     });
 
@@ -3580,6 +3591,10 @@ export class MapComponent {
     this.onCountryClick = cb;
   }
 
+  public setOnMapClick(cb: (payload: MapPointClickPayload) => void): void {
+    this.onMapClick = cb;
+  }
+
   public setOnMapContextMenu(cb: (payload: { lat: number; lon: number; screenX: number; screenY: number }) => void): void {
     this.onMapContextMenu = cb;
   }
@@ -3611,6 +3626,23 @@ export class MapComponent {
 
   public getState(): MapState {
     return { ...this.state };
+  }
+
+  public project(lat: number, lon: number): MapProjectedPoint | null {
+    const width = this.container.clientWidth;
+    const height = this.container.clientHeight;
+    const projection = this.getProjection(width, height);
+    const pos = projection([lon, lat]);
+    if (!pos) return null;
+    const zoom = this.state.zoom;
+    const centerOffsetX = (width / 2) * (1 - zoom);
+    const centerOffsetY = (height / 2) * (1 - zoom);
+    const tx = centerOffsetX + this.state.pan.x * zoom;
+    const ty = centerOffsetY + this.state.pan.y * zoom;
+    return {
+      x: pos[0] * zoom + tx,
+      y: pos[1] * zoom + ty,
+    };
   }
 
   public getCenter(): { lat: number; lon: number } | null {

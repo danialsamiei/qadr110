@@ -1,4 +1,5 @@
 import { isDesktopRuntime } from '../services/runtime';
+import { openExternalUrl } from '../services/desktop-opener';
 import { invokeTauri } from '../services/tauri-bridge';
 import { t } from '../services/i18n';
 import { h, replaceChildren, safeHtml } from '../utils/dom-utils';
@@ -17,7 +18,7 @@ export interface PanelOptions {
   closable?: boolean;
 }
 
-const PANEL_SPANS_KEY = 'worldmonitor-panel-spans';
+const PANEL_SPANS_KEY = 'qadr110-panel-spans';
 
 function loadPanelSpans(): Record<string, number> {
   try {
@@ -34,7 +35,7 @@ function savePanelSpan(panelId: string, span: number): void {
   localStorage.setItem(PANEL_SPANS_KEY, JSON.stringify(spans));
 }
 
-const PANEL_COL_SPANS_KEY = 'worldmonitor-panel-col-spans';
+const PANEL_COL_SPANS_KEY = 'qadr110-panel-col-spans';
 const ROW_RESIZE_STEP_PX = 80;
 const COL_RESIZE_STEP_PX = 80;
 const PANELS_GRID_MIN_TRACK_PX = 280;
@@ -249,7 +250,7 @@ export class Panel {
       headerLeft.appendChild(this.newBadgeEl);
     }
 
-    if (isDesktopRuntime() && options.premium === 'enhanced' && !getSecretState('WORLDMONITOR_API_KEY').present) {
+    if (isDesktopRuntime() && options.premium === 'enhanced' && !getSecretState('QADR110_API_KEY').present) {
       const proBadge = h('span', { className: 'panel-pro-badge' }, t('premium.pro'));
       headerLeft.appendChild(proBadge);
     }
@@ -771,7 +772,7 @@ export class Panel {
 
     const ctaBtn = h('button', { type: 'button', className: 'panel-locked-cta' }, t('premium.joinWaitlist'));
     if (isDesktopRuntime()) {
-      ctaBtn.addEventListener('click', () => void invokeTauri<void>('open_url', { url: 'https://qadr.alefba.dev/pro' }).catch(() => window.open('https://qadr.alefba.dev/pro', '_blank')));
+      ctaBtn.addEventListener('click', () => void openExternalUrl('https://qadr.alefba.dev/pro'));
     } else {
       ctaBtn.addEventListener('click', () => window.open('https://qadr.alefba.dev/pro', '_blank'));
     }

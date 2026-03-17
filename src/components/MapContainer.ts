@@ -44,6 +44,7 @@ import type { SatellitePosition } from '@/services/satellites';
 import type { IranEvent } from '@/services/conflict';
 import type { ImageryScene } from '@/generated/server/worldmonitor/imagery/v1/service_server';
 import type { ConvergenceSignal, NormalizedGeoSignal } from '@/services/spatial-convergence';
+import type { MapPointClickPayload, MapProjectedPoint } from './map-interactions';
 
 export type TimeRange = '1h' | '6h' | '24h' | '48h' | '7d' | 'all';
 export type MapView = 'global' | 'america' | 'mena' | 'eu' | 'asia' | 'latam' | 'africa' | 'oceania';
@@ -55,6 +56,8 @@ export interface MapContainerState {
   layers: MapLayers;
   timeRange: TimeRange;
 }
+
+export type { MapPointClickPayload, MapProjectedPoint } from './map-interactions';
 
 interface TechEventMarker {
   id: string;
@@ -91,13 +94,30 @@ export class MapContainer {
   private resizeObserver: ResizeObserver | null = null;
 
   // ─── Callback cache (survives map mode switches) ───────────────────────────
-  private cachedOnStateChanged: ((state: MapContainerState) => void) | null = null;
-  private cachedOnLayerChange: ((layer: keyof MapLayers, enabled: boolean, source: 'user' | 'programmatic') => void) | null = null;
-  private cachedOnTimeRangeChanged: ((range: TimeRange) => void) | null = null;
+  private readonly stateChangeListeners = new Set<(state: MapContainerState) => void>();
+  private readonly layerChangeListeners = new Set<(layer: keyof MapLayers, enabled: boolean, source: 'user' | 'programmatic') => void>();
+  private readonly timeRangeChangeListeners = new Set<(range: TimeRange) => void>();
+  private readonly mapClickListeners = new Set<(payload: MapPointClickPayload) => void>();
   private cachedOnCountryClicked: ((country: CountryClickPayload) => void) | null = null;
   private cachedOnHotspotClicked: ((hotspot: Hotspot) => void) | null = null;
   private cachedOnAircraftPositionsUpdate: ((positions: PositionSample[]) => void) | null = null;
   private cachedOnMapContextMenu: ((payload: { lat: number; lon: number; screenX: number; screenY: number }) => void) | null = null;
+  private readonly emitMapClick = (payload: MapPointClickPayload): void => {
+    this.mapClickListeners.forEach((listener) => listener(payload));
+  };
+  private readonly emitStateChanged = (state: MapContainerState): void => {
+    this.stateChangeListeners.forEach((listener) => listener(state));
+  };
+  private readonly emitLayerChange = (
+    layer: keyof MapLayers,
+    enabled: boolean,
+    source: 'user' | 'programmatic',
+  ): void => {
+    this.layerChangeListeners.forEach((listener) => listener(layer, enabled, source));
+  };
+  private readonly emitTimeRangeChanged = (range: TimeRange): void => {
+    this.timeRangeChangeListeners.forEach((listener) => listener(range));
+  };
 
   // ─── Data cache (survives map mode switches) ───────────────────────────────
   private cachedEarthquakes: Earthquake[] | null = null;
@@ -260,13 +280,14 @@ export class MapContainer {
 
   private rehydrateActiveMap(): void {
     // 1. Re-wire callbacks (through own public methods for adapter safety)
-    if (this.cachedOnStateChanged) this.onStateChanged(this.cachedOnStateChanged);
-    if (this.cachedOnLayerChange) this.setOnLayerChange(this.cachedOnLayerChange);
-    if (this.cachedOnTimeRangeChanged) this.onTimeRangeChanged(this.cachedOnTimeRangeChanged);
+    this.attachStateChangeBridge();
+    this.attachLayerChangeBridge();
+    this.attachTimeRangeChangeBridge();
     if (this.cachedOnCountryClicked) this.onCountryClicked(this.cachedOnCountryClicked);
     if (this.cachedOnHotspotClicked) this.onHotspotClicked(this.cachedOnHotspotClicked);
     if (this.cachedOnAircraftPositionsUpdate) this.setOnAircraftPositionsUpdate(this.cachedOnAircraftPositionsUpdate);
     if (this.cachedOnMapContextMenu) this.onMapContextMenu(this.cachedOnMapContextMenu);
+    this.attachMapClickBridge();
 
     // 2. Re-push all cached data
     if (this.cachedEarthquakes) this.setEarthquakes(this.cachedEarthquakes);
@@ -712,15 +733,13 @@ export class MapContainer {
   }
 
   public onTimeRangeChanged(callback: (range: TimeRange) => void): void {
-    this.cachedOnTimeRangeChanged = callback;
-    if (this.useGlobe) { this.globeMap?.onTimeRangeChanged(callback); return; }
-    if (this.useDeckGL) { this.deckGLMap?.setOnTimeRangeChange(callback); } else { this.svgMap?.onTimeRangeChanged(callback); }
+    this.timeRangeChangeListeners.add(callback);
+    this.attachTimeRangeChangeBridge();
   }
 
   public setOnLayerChange(callback: (layer: keyof MapLayers, enabled: boolean, source: 'user' | 'programmatic') => void): void {
-    this.cachedOnLayerChange = callback;
-    if (this.useGlobe) { this.globeMap?.setOnLayerChange(callback); return; }
-    if (this.useDeckGL) { this.deckGLMap?.setOnLayerChange(callback); } else { this.svgMap?.setOnLayerChange(callback); }
+    this.layerChangeListeners.add(callback);
+    this.attachLayerChangeBridge();
   }
 
   public setOnAircraftPositionsUpdate(callback: (positions: PositionSample[]) => void): void {
@@ -728,6 +747,11 @@ export class MapContainer {
     if (this.useDeckGL) {
       this.deckGLMap?.setOnAircraftPositionsUpdate(callback);
     }
+  }
+
+  public onMapClicked(callback: (payload: MapPointClickPayload) => void): void {
+    this.mapClickListeners.add(callback);
+    this.attachMapClickBridge();
   }
 
   public getBbox(): string | null {
@@ -746,15 +770,38 @@ export class MapContainer {
   }
 
   public onStateChanged(callback: (state: MapContainerState) => void): void {
-    this.cachedOnStateChanged = callback;
-    if (this.useGlobe) { this.globeMap?.onStateChanged(callback); return; }
+    this.stateChangeListeners.add(callback);
+    this.attachStateChangeBridge();
+  }
+
+  private attachStateChangeBridge(): void {
+    if (this.useGlobe) { this.globeMap?.onStateChanged(this.emitStateChanged); return; }
     if (this.useDeckGL) {
       this.deckGLMap?.setOnStateChange((state) => {
-        callback({ ...state, view: state.view as MapView });
+        this.emitStateChanged({ ...state, view: state.view as MapView });
       });
     } else {
-      this.svgMap?.onStateChanged(callback);
+      this.svgMap?.onStateChanged(this.emitStateChanged);
     }
+  }
+
+  private attachLayerChangeBridge(): void {
+    if (this.useGlobe) { this.globeMap?.setOnLayerChange(this.emitLayerChange); return; }
+    if (this.useDeckGL) { this.deckGLMap?.setOnLayerChange(this.emitLayerChange); } else { this.svgMap?.setOnLayerChange(this.emitLayerChange); }
+  }
+
+  private attachMapClickBridge(): void {
+    if (this.useGlobe) { this.globeMap?.setOnMapClick(this.emitMapClick); return; }
+    if (this.useDeckGL) {
+      this.deckGLMap?.setOnMapClick(this.emitMapClick);
+    } else {
+      this.svgMap?.setOnMapClick(this.emitMapClick);
+    }
+  }
+
+  private attachTimeRangeChangeBridge(): void {
+    if (this.useGlobe) { this.globeMap?.onTimeRangeChanged(this.emitTimeRangeChanged); return; }
+    if (this.useDeckGL) { this.deckGLMap?.setOnTimeRangeChange(this.emitTimeRangeChanged); } else { this.svgMap?.onTimeRangeChanged(this.emitTimeRangeChanged); }
   }
 
   public getHotspotLevels(): Record<string, string> {
@@ -898,6 +945,12 @@ export class MapContainer {
     }
   }
 
+  public project(lat: number, lon: number): MapProjectedPoint | null {
+    if (this.useGlobe) return this.globeMap?.project(lat, lon) ?? null;
+    if (this.useDeckGL) return this.deckGLMap?.project(lat, lon) ?? null;
+    return this.svgMap?.project(lat, lon) ?? null;
+  }
+
   public onCountryClicked(callback: (country: CountryClickPayload) => void): void {
     this.cachedOnCountryClicked = callback;
     if (this.useGlobe) { this.globeMap?.setOnCountryClick(callback); return; }
@@ -955,9 +1008,10 @@ export class MapContainer {
   }
 
   private clearCache(): void {
-    this.cachedOnStateChanged = null;
-    this.cachedOnLayerChange = null;
-    this.cachedOnTimeRangeChanged = null;
+    this.stateChangeListeners.clear();
+    this.layerChangeListeners.clear();
+    this.timeRangeChangeListeners.clear();
+    this.mapClickListeners.clear();
     this.cachedOnCountryClicked = null;
     this.cachedOnHotspotClicked = null;
     this.cachedOnAircraftPositionsUpdate = null;

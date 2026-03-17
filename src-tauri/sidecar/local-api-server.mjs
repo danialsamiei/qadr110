@@ -141,7 +141,7 @@ const ALLOWED_ENV_KEYS = new Set([
   'OTX_API_KEY', 'ABUSEIPDB_API_KEY', 'WINGBITS_API_KEY', 'WS_RELAY_URL',
   'VITE_OPENSKY_RELAY_URL', 'OPENSKY_CLIENT_ID', 'OPENSKY_CLIENT_SECRET',
   'AISSTREAM_API_KEY', 'VITE_WS_RELAY_URL', 'FINNHUB_API_KEY', 'NASA_FIRMS_API_KEY',
-  'OLLAMA_API_URL', 'OLLAMA_MODEL', 'WORLDMONITOR_API_KEY', 'WTO_API_KEY',
+  'OLLAMA_API_URL', 'OLLAMA_MODEL', 'QADR110_API_KEY', 'WTO_API_KEY',
   'AVIATIONSTACK_API', 'ICAO_API_KEY', 'UCDP_ACCESS_TOKEN',
 ]);
 
@@ -413,7 +413,7 @@ async function proxyToCloud(requestUrl, req, remoteBase) {
   headers.delete('If-Modified-Since');
   // Identify sidecar as trusted origin so the cloud API key validator
   // doesn't reject the request (no origin + no key = 401).
-  headers.set('Origin', 'https://worldmonitor.app');
+  headers.set('Origin', 'https://qadr.alefba.dev');
   return fetch(target, {
     method: req.method,
     headers,
@@ -520,7 +520,7 @@ async function importHandler(modulePath) {
 
 function resolveConfig(options = {}) {
   const port = Number(options.port ?? process.env.LOCAL_API_PORT ?? 46123);
-  const remoteBase = String(options.remoteBase ?? process.env.LOCAL_API_REMOTE_BASE ?? 'https://api.worldmonitor.app').replace(/\/$/, '');
+  const remoteBase = String(options.remoteBase ?? process.env.LOCAL_API_REMOTE_BASE ?? 'https://api.qadr.alefba.dev').replace(/\/$/, '');
   const resourceDir = String(options.resourceDir ?? process.env.LOCAL_API_RESOURCE_DIR ?? process.cwd());
   const apiDir = options.apiDir
     ? String(options.apiDir)
@@ -594,10 +594,10 @@ const SIDECAR_ALLOWED_ORIGINS = [
   /^https?:\/\/localhost(:\d+)?$/,
   /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
   /^https?:\/\/tauri\.localhost(:\d+)?$/,
-  // Only allow exact domain or single-level subdomains (e.g. preview-xyz.worldmonitor.app).
+  // Only allow exact domain or single-level subdomains under qadr.alefba.dev.
   // The previous (.*\.)? pattern was overly broad. Anchored to prevent spoofing
-  // via domains like worldmonitorEVIL.vercel.app.
-  /^https:\/\/([a-z0-9-]+\.)?worldmonitor\.app$/,
+  // via lookalike domains.
+  /^https:\/\/([a-z0-9-]+\.)?qadr\.alefba\.dev$/,
 ];
 
 function getSidecarCorsOrigin(req) {

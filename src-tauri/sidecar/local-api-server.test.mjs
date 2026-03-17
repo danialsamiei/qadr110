@@ -116,7 +116,7 @@ async function setupRemoteServer() {
 }
 
 async function setupApiDir(files) {
-  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'wm-sidecar-test-'));
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'qadr-sidecar-test-'));
   const apiDir = path.join(tempRoot, 'api');
   await mkdir(apiDir, { recursive: true });
 
@@ -137,7 +137,7 @@ async function setupApiDir(files) {
 }
 
 async function setupResourceDirWithUpApi(files) {
-  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'wm-sidecar-resource-test-'));
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'qadr-sidecar-resource-test-'));
   const apiDir = path.join(tempRoot, '_up_', 'api');
   await mkdir(apiDir, { recursive: true });
 
@@ -521,8 +521,8 @@ test('replaces browser origin with trusted cloud origin when proxying to cloud f
     assert.equal(body.source, 'remote');
     // The sidecar strips browser-specific origin headers before fallback,
     // then sets the trusted cloud origin expected by the hosted API.
-    assert.equal(body.origin, 'https://worldmonitor.app');
-    assert.equal(remote.origins[0], 'https://worldmonitor.app');
+    assert.equal(body.origin, 'https://qadr.alefba.dev');
+    assert.equal(remote.origins[0], 'https://qadr.alefba.dev');
   } finally {
     await app.close();
     await localApi.cleanup();

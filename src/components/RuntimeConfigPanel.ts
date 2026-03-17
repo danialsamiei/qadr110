@@ -15,7 +15,7 @@ import {
   type RuntimeFeatureId,
   type RuntimeSecretKey,
 } from '@/services/runtime-config';
-import { invokeTauri } from '@/services/tauri-bridge';
+import { openExternalUrl } from '@/services/desktop-opener';
 import { escapeHtml } from '@/utils/sanitize';
 import { isDesktopRuntime } from '@/services/runtime';
 import { t } from '@/services/i18n';
@@ -332,7 +332,7 @@ export class RuntimeConfigPanel extends Panel {
         const url = link.dataset.signupUrl;
         if (!url) return;
         if (isDesktopRuntime()) {
-          void invokeTauri<void>('open_url', { url }).catch(() => window.open(url, '_blank'));
+          void openExternalUrl(url);
         } else {
           window.open(url, '_blank');
         }
@@ -345,7 +345,7 @@ export class RuntimeConfigPanel extends Panel {
       this.content.querySelector<HTMLButtonElement>('[data-early-access]')?.addEventListener('click', () => {
         const url = 'https://qadr.alefba.dev/pro';
         if (isDesktopRuntime()) {
-          void invokeTauri<void>('open_url', { url }).catch(() => window.open(url, '_blank'));
+          void openExternalUrl(url);
         } else {
           window.open(url, '_blank');
         }

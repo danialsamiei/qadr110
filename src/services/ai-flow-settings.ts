@@ -6,14 +6,14 @@
  *       settings hub once the UI is extended with additional sections.
  */
 
-const STORAGE_KEY_BROWSER_MODEL = 'wm-ai-flow-browser-model';
-const STORAGE_KEY_CLOUD_LLM = 'wm-ai-flow-cloud-llm';
-const STORAGE_KEY_MAP_NEWS_FLASH = 'wm-map-news-flash';
-const STORAGE_KEY_HEADLINE_MEMORY = 'wm-headline-memory';
-const STORAGE_KEY_BADGE_ANIMATION = 'wm-badge-animation';
-const STORAGE_KEY_STREAM_QUALITY = 'wm-stream-quality';
-const EVENT_NAME = 'ai-flow-changed';
-const STREAM_QUALITY_EVENT = 'stream-quality-changed';
+const STORAGE_KEY_BROWSER_MODEL = 'qadr110-ai-flow-browser-model';
+const STORAGE_KEY_CLOUD_LLM = 'qadr110-ai-flow-cloud-llm';
+const STORAGE_KEY_MAP_NEWS_FLASH = 'qadr110-map-news-flash';
+const STORAGE_KEY_HEADLINE_MEMORY = 'qadr110-headline-memory';
+const STORAGE_KEY_BADGE_ANIMATION = 'qadr110-badge-animation';
+const STORAGE_KEY_STREAM_QUALITY = 'qadr110-stream-quality';
+const EVENT_NAME = 'qadr110-ai-flow-changed';
+const STREAM_QUALITY_EVENT = 'qadr110-stream-quality-changed';
 
 export interface AiFlowSettings {
   browserModel: boolean;

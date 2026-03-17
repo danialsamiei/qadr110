@@ -1,5 +1,5 @@
 [package]
-name = "world-monitor"
+name = "qadr110"
 version = "2.6.1"
 description = "QADR110 desktop application"
 authors = ["QADR110"]
@@ -15,6 +15,12 @@ serde_json = "1"
 keyring = { version = "3", features = ["apple-native", "windows-native", "linux-native-sync-persistent", "crypto-rust"] }
 reqwest = { version = "0.12", default-features = false, features = ["native-tls", "json"] }
 getrandom = "0.2"
+tauri-plugin-opener = "2"
+tauri-plugin-store = "2"
+tauri-plugin-window-state = "2"
+
+[target."cfg(not(any(target_os = \"android\", target_os = \"ios\")))".dependencies]
+tauri-plugin-updater = "2"
 
 [profile.release]
 lto = "fat"

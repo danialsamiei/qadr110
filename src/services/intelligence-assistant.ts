@@ -16,9 +16,12 @@ import {
   type AssistantMessage,
   type AssistantRunRequest,
   type AssistantRunResponse,
+  type AssistantSessionContext,
   type AssistantStructuredOutput,
 } from '@/platform/ai/assistant-contracts';
+import { buildAssistantSessionContextFromRequest } from '@/services/ai-orchestrator/session';
 import { BrowserVectorKnowledgeAdapter } from '@/platform/retrieval/browser-vector';
+import { buildMapAwareContextPackets, buildMapAwarePromptInjection, resolveMapAwareCommandQuery } from '@/services/map-aware-ai-utils';
 import {
   getBuiltinKnowledgeDocuments,
   type KnowledgeDocument,
@@ -82,6 +85,16 @@ function retrievalHitToContextPacket(hit: KnowledgeRetrievalHit): AssistantConte
     tags: [...hit.tags],
     provenance: hit.provenance,
   };
+}
+
+function dedupeContextPackets(packets: AssistantContextPacket[]): AssistantContextPacket[] {
+  const seen = new Set<string>();
+  return packets.filter((packet) => {
+    const key = `${packet.id}|${packet.sourceUrl || ''}|${packet.title}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 async function prepareLocalContextPackets(
@@ -366,30 +379,42 @@ export async function runPersianAssistant(request: {
   memoryNotes: AssistantMemoryNote[];
   knowledgeDocuments?: KnowledgeDocument[];
   mapContext?: AssistantRunRequest['mapContext'];
+  sessionContext?: AssistantSessionContext;
   workflowId?: string;
   signal?: AbortSignal;
 }): Promise<AssistantRunResponse> {
+  const effectiveQuery = resolveMapAwareCommandQuery(request.query, request.mapContext ?? null);
   const allKnowledgeDocs = [
     ...getBuiltinKnowledgeDocuments(),
     ...(request.knowledgeDocuments ?? []),
     ...request.memoryNotes.map(createUserDocumentFromMemory),
   ];
-  const localContextPackets = await prepareLocalContextPackets(request.query, allKnowledgeDocs);
+  const localContextPackets = await prepareLocalContextPackets(effectiveQuery, allKnowledgeDocs);
+  const mapAwarePackets = buildMapAwareContextPackets(request.mapContext ?? null);
+  const enrichedPromptText = [
+    request.promptText?.trim() || '',
+    buildMapAwarePromptInjection(request.mapContext ?? null),
+  ].filter(Boolean).join('\n\n');
 
-  const payload: AssistantRunRequest = {
+  const payloadBase: AssistantRunRequest = {
     conversationId: request.conversationId,
     locale: request.locale ?? 'fa-IR',
     domainMode: request.domainMode,
     taskClass: request.taskClass,
-    query: request.query,
+    query: effectiveQuery,
     promptId: request.promptId,
-    promptText: request.promptText,
+    promptText: enrichedPromptText || request.promptText,
     messages: request.messages,
     mapContext: request.mapContext ?? null,
     pinnedEvidence: request.pinnedEvidence,
-    localContextPackets,
+    localContextPackets: dedupeContextPackets([...mapAwarePackets, ...localContextPackets]).slice(0, 10),
     memoryNotes: request.memoryNotes,
+    sessionContext: request.sessionContext,
     workflowId: request.workflowId,
+  };
+  const payload: AssistantRunRequest = {
+    ...payloadBase,
+    sessionContext: buildAssistantSessionContextFromRequest(payloadBase),
   };
 
   if (isDemoModeEnabled()) {
@@ -471,8 +496,16 @@ export function serializeAssistantMessageToMarkdown(message: AssistantMessage): 
     return message.content;
   }
 
-  const scenarios = structured.scenarios.map((scenario) =>
-    `### ${scenario.title}\n- احتمال: ${scenario.probability}\n- بازه زمانی: ${scenario.timeframe}\n- توضیح: ${scenario.description}\n- علائم راهنما: ${scenario.indicators.join(' | ')}`).join('\n\n');
+  const scenarios = structured.scenarios.map((scenario) => [
+    `### ${scenario.title}`,
+    `- احتمال: ${scenario.probability}`,
+    scenario.impact_level ? `- سطح اثر: ${scenario.impact_level}` : '',
+    `- بازه زمانی: ${scenario.time_horizon || scenario.timeframe}`,
+    `- توضیح: ${scenario.description}`,
+    `- علائم راهنما: ${(scenario.indicators_to_watch ?? scenario.indicators).join(' | ')}`,
+    scenario.drivers?.length ? `- محرک‌ها: ${scenario.drivers.join(' | ')}` : '',
+    scenario.mitigation_options?.length ? `- کاهش اثر: ${scenario.mitigation_options.join(' | ')}` : '',
+  ].filter(Boolean).join('\n')).join('\n\n');
   const evidence = (message.evidenceCards ?? []).length > 0
     ? `## ضمیمه شواهد\n${(message.evidenceCards ?? []).map((card) =>
       `### ${card.title}\n- خلاصه: ${card.summary}\n- منبع: ${card.source.title}\n- زمان: ${card.timeContext}\n- امتیاز: ${Math.round(card.score * 100)}%`).join('\n\n')}`
@@ -543,8 +576,11 @@ export function serializeAssistantMessageToHtml(thread: AssistantConversationThr
             <h3>${scenario.title}</h3>
             <p>${scenario.description}</p>
             <p><strong>احتمال:</strong> ${scenario.probability}</p>
-            <p><strong>بازه زمانی:</strong> ${scenario.timeframe}</p>
-            <ul>${scenario.indicators.map((indicator) => `<li>${indicator}</li>`).join('')}</ul>
+            ${scenario.impact_level ? `<p><strong>سطح اثر:</strong> ${scenario.impact_level}</p>` : ''}
+            <p><strong>بازه زمانی:</strong> ${scenario.time_horizon || scenario.timeframe}</p>
+            <ul>${(scenario.indicators_to_watch ?? scenario.indicators).map((indicator) => `<li>${indicator}</li>`).join('')}</ul>
+            ${scenario.drivers?.length ? `<p><strong>محرک‌ها:</strong> ${scenario.drivers.join(' | ')}</p>` : ''}
+            ${scenario.mitigation_options?.length ? `<p><strong>کاهش اثر:</strong> ${scenario.mitigation_options.join(' | ')}</p>` : ''}
           </article>
         `).join('')}
       </section>

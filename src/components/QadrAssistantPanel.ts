@@ -3,18 +3,21 @@ import { replaceChildren } from '@/utils/dom-utils';
 import { escapeHtml } from '@/utils/sanitize';
 import {
   ANALYSIS_EVENT_TYPES,
+  dispatchMapAwareAiInsightUpdated,
   dispatchOpenResilienceDashboard,
   AnalysisJobQueue,
   GEO_ANALYSIS_EVENT_TYPES,
   isDemoModeEnabled,
   type GeoAnalysisAssistantHandoffDetail,
   MAP_CONTEXT_EVENT,
+  PROMPT_INTELLIGENCE_EVENT_TYPES,
   composePromptEntry,
   DEFAULT_PROMPT_CATALOG,
   DEFAULT_ASSISTANT_DOMAIN_MODE,
   describeMapContextForPrompt,
   getPromptEntriesForMode,
   type MapContextEnvelope,
+  type PromptSuggestionRunDetail,
 } from '@/platform';
 import {
   ASSISTANT_DOMAIN_MODE_OPTIONS,
@@ -25,8 +28,28 @@ import {
 } from '@/platform/ai/assistant-contracts';
 import type { AiTaskClass } from '@/platform/ai/contracts';
 import { createWorkflowFromContext, createAssistantMemoryNote, createAssistantThread, loadAssistantWorkspaceState, removeAssistantThread, saveAssistantWorkspaceState, setActiveAssistantThread, setAssistantCompactMode, upsertAssistantMemoryNote, upsertAssistantThread, upsertAssistantWorkflow, upsertKnowledgeDocument, type AssistantWorkspaceState } from '@/services/assistant-workspace';
+import {
+  appendAssistantIntent,
+  appendAssistantMapInteraction,
+  appendReusableInsight,
+  normalizeAssistantSessionContext,
+} from '@/services/ai-orchestrator/session';
 import { describeAssistantRoute, exportAssistantThread, runPersianAssistant } from '@/services/intelligence-assistant';
 import type { KnowledgeDocument } from '@/platform/retrieval';
+import {
+  buildAssistantTransparencySummary,
+  collectFollowUpSuggestions,
+  defaultTaskForWorkbenchMode,
+  deriveAssistantWorkbenchMode,
+  localizeWorkbenchMode,
+  renderAssistantConversationPreview,
+  renderAssistantRichText,
+  renderAssistantStructuredMessage,
+  selectAssistantMessage,
+  type AssistantInspectorTab,
+  type AssistantSheetTab,
+  type AssistantWorkbenchMode,
+} from './qadr-assistant-ui';
 
 const TASK_OPTIONS: Array<{ id: AiTaskClass; label: string }> = [
   { id: 'assistant', label: 'چت راهبردی' },
@@ -78,52 +101,6 @@ function renderConfidenceBand(message: AssistantMessage): string {
   return `<span class="qadr-ai-confidence">${escapeHtml(message.confidenceBand)}</span>`;
 }
 
-function renderStructuredMessage(message: AssistantMessage): string {
-  const structured = message.structured;
-  if (!structured) {
-    return `<p>${escapeHtml(message.content)}</p>`;
-  }
-
-  const sectionHtml = [structured.observedFacts, structured.analyticalInference, structured.uncertainties, structured.recommendations, structured.resilienceNarrative]
-    .map((section) => `
-      <section class="qadr-ai-section">
-        <h4>${escapeHtml(section.title)}</h4>
-        <p>${escapeHtml(section.narrative)}</p>
-        <ul>${section.bullets.map((bullet) => `<li>${escapeHtml(bullet)}</li>`).join('')}</ul>
-        <div class="qadr-ai-section-meta">سطح اطمینان: ${escapeHtml(section.confidence.band)} (${Math.round(section.confidence.score * 100)}%)</div>
-      </section>
-    `).join('');
-
-  const scenariosHtml = structured.scenarios.length > 0 ? `
-    <section class="qadr-ai-section">
-      <h4>سناریوها</h4>
-      <div class="qadr-ai-scenarios">
-        ${structured.scenarios.map((scenario) => `
-          <article class="qadr-ai-scenario-card">
-            <strong>${escapeHtml(scenario.title)}</strong>
-            <div>${escapeHtml(scenario.description)}</div>
-            <div class="qadr-ai-scenario-meta">احتمال: ${escapeHtml(scenario.probability)} | بازه زمانی: ${escapeHtml(scenario.timeframe)}</div>
-            <ul>${scenario.indicators.map((indicator) => `<li>${escapeHtml(indicator)}</li>`).join('')}</ul>
-          </article>
-        `).join('')}
-      </div>
-    </section>
-  ` : '';
-
-  const followUps = structured.followUpSuggestions.length > 0 ? `
-    <div class="qadr-ai-followups">
-      ${structured.followUpSuggestions.map((item) => `<button type="button" class="qadr-ai-followup-btn" data-followup="${escapeHtml(item)}">${escapeHtml(item)}</button>`).join('')}
-    </div>
-  ` : '';
-
-  return `
-    <div class="qadr-ai-executive-summary">${escapeHtml(structured.executiveSummary)}</div>
-    ${sectionHtml}
-    ${scenariosHtml}
-    ${followUps}
-  `;
-}
-
 export class QadrAssistantPanel extends Panel {
   private state: AssistantWorkspaceState;
   private draftQuery = '';
@@ -132,10 +109,15 @@ export class QadrAssistantPanel extends Panel {
   private statusLine = 'آماده برای تحلیل فارسی مبتنی بر OpenRouter';
   private activeJobId: string | null = null;
   private lastMapContext: MapContextEnvelope | null = null;
+  private activeInspectorTab: AssistantInspectorTab = 'suggestions';
+  private activeSheetTab: AssistantSheetTab = 'report';
+  private selectedMessageId: string | null = null;
+  private showReasoning = false;
   private readonly analysisQueue: AnalysisJobQueue;
   private readonly mapContextHandler: EventListener;
   private readonly analysisEventHandler: EventListener;
   private readonly geoAnalysisHandoffHandler: EventListener;
+  private readonly promptSuggestionHandler: EventListener;
 
   constructor() {
     super({ id: 'qadr-assistant', title: 'کارگاه هوشمند QADR110', className: 'panel-wide' });
@@ -146,9 +128,20 @@ export class QadrAssistantPanel extends Panel {
       const initial = createAssistantThread(DEFAULT_ASSISTANT_DOMAIN_MODE, 'assistant', 'گفت‌وگوی اولیه');
       this.state = upsertAssistantThread(this.state, initial);
     }
+    this.selectedMessageId = latestAssistantMessage(this.activeThread)?.id ?? null;
 
     this.mapContextHandler = ((event: CustomEvent<MapContextEnvelope>) => {
       this.lastMapContext = event.detail;
+      const thread = this.activeThread;
+      if (thread) {
+        thread.sessionContext = appendAssistantMapInteraction(
+          normalizeAssistantSessionContext(thread.sessionContext, thread.id),
+          event.detail,
+          event.detail.createdAt,
+        );
+        thread.updatedAt = new Date().toISOString();
+        this.state = upsertAssistantThread(this.state, thread);
+      }
       this.statusLine = `کانتکست نقشه دریافت شد: ${describeMapContextForPrompt(event.detail).slice(0, 96)}`;
       this.render();
     }) as EventListener;
@@ -187,9 +180,46 @@ export class QadrAssistantPanel extends Panel {
       }
       this.lastMapContext = detail.mapContext;
       this.draftQuery = detail.query;
+      nextThread.sessionContext = appendAssistantMapInteraction(
+        normalizeAssistantSessionContext(nextThread.sessionContext, nextThread.id),
+        detail.mapContext,
+        detail.mapContext.createdAt,
+      );
       this.state = upsertAssistantThread(this.state, nextThread);
+      this.selectedMessageId = nextThread.messages[0]?.id ?? null;
+      this.activeSheetTab = nextThread.messages.length > 0 ? 'evidence' : 'report';
       this.statusLine = `handoff از کارگاه ژئو-تحلیل دریافت شد: ${detail.title}`;
       this.render();
+    }) as EventListener;
+
+    this.promptSuggestionHandler = ((event: CustomEvent<PromptSuggestionRunDetail>) => {
+      const detail = event.detail;
+      const active = this.activeThread;
+      const shouldCreateThread = !active || active.messages.length > 0;
+      const nextThread = shouldCreateThread
+        ? createAssistantThread(detail.suggestion.domainMode, detail.suggestion.taskClass, detail.suggestion.label.slice(0, 48))
+        : { ...active };
+
+      nextThread.domainMode = detail.suggestion.domainMode;
+      nextThread.taskClass = detail.suggestion.taskClass;
+      nextThread.updatedAt = new Date().toISOString();
+
+      this.lastMapContext = detail.mapContext ?? this.lastMapContext;
+      nextThread.sessionContext = appendAssistantMapInteraction(
+        normalizeAssistantSessionContext(nextThread.sessionContext, nextThread.id),
+        this.lastMapContext,
+        this.lastMapContext?.createdAt || nextThread.updatedAt,
+      );
+
+      this.state = upsertAssistantThread(this.state, nextThread);
+      this.selectedMessageId = latestAssistantMessage(nextThread)?.id ?? null;
+      this.draftQuery = detail.suggestion.query;
+      this.statusLine = `پیشنهاد هوشمند آماده شد: ${detail.suggestion.label}`;
+      this.render();
+
+      if (detail.autoSubmit) {
+        void this.submitCurrentQuery(detail.suggestion.id, detail.suggestion.promptText);
+      }
     }) as EventListener;
 
     document.addEventListener(MAP_CONTEXT_EVENT, this.mapContextHandler);
@@ -198,6 +228,7 @@ export class QadrAssistantPanel extends Panel {
     document.addEventListener(ANALYSIS_EVENT_TYPES.failed, this.analysisEventHandler);
     document.addEventListener(ANALYSIS_EVENT_TYPES.minimized, this.analysisEventHandler);
     document.addEventListener(GEO_ANALYSIS_EVENT_TYPES.assistantHandoff, this.geoAnalysisHandoffHandler);
+    document.addEventListener(PROMPT_INTELLIGENCE_EVENT_TYPES.run, this.promptSuggestionHandler);
 
     if (isDemoModeEnabled()) {
       this.statusLine = 'دمو فعال است: پاسخ‌های AI به‌صورت fixture و بدون نیاز به کلیدهای بیرونی تولید می‌شوند.';
@@ -249,6 +280,7 @@ export class QadrAssistantPanel extends Panel {
     document.removeEventListener(ANALYSIS_EVENT_TYPES.failed, this.analysisEventHandler);
     document.removeEventListener(ANALYSIS_EVENT_TYPES.minimized, this.analysisEventHandler);
     document.removeEventListener(GEO_ANALYSIS_EVENT_TYPES.assistantHandoff, this.geoAnalysisHandoffHandler);
+    document.removeEventListener(PROMPT_INTELLIGENCE_EVENT_TYPES.run, this.promptSuggestionHandler);
     super.destroy();
   }
 
@@ -268,11 +300,333 @@ export class QadrAssistantPanel extends Panel {
     return undefined;
   }
 
+  private setWorkbenchMode(mode: AssistantWorkbenchMode): void {
+    const thread = this.activeThread;
+    if (!thread) return;
+    thread.taskClass = defaultTaskForWorkbenchMode(mode);
+    if (mode === 'foresight') {
+      thread.domainMode = 'strategic-foresight';
+    } else if (thread.domainMode === 'strategic-foresight') {
+      thread.domainMode = mode === 'quick'
+        ? 'security-brief'
+        : mode === 'deep'
+          ? 'predictive-analysis'
+          : 'scenario-planning';
+    }
+    thread.updatedAt = new Date().toISOString();
+    this.state = upsertAssistantThread(this.state, thread);
+    this.statusLine = `حالت دستیار روی «${localizeWorkbenchMode(mode)}» قرار گرفت.`;
+    this.render();
+  }
+
+  private renderModeSwitch(activeMode: AssistantWorkbenchMode): string {
+    return `
+      <div class="qadr-ai-mode-switch" role="tablist" aria-label="حالت‌های اجرا">
+        ${(['quick', 'deep', 'agent', 'foresight'] as AssistantWorkbenchMode[]).map((mode) => `
+          <button
+            type="button"
+            class="qadr-ai-mode-btn ${mode === activeMode ? 'active' : ''}"
+            data-ai-mode="${mode}"
+          >${escapeHtml(localizeWorkbenchMode(mode))}</button>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  private renderPromptLibrary(
+    currentMode: AssistantDomainMode,
+    currentTask: AiTaskClass,
+    promptEntries: ReturnType<typeof getPromptEntriesForMode>,
+    pinned: AssistantEvidenceCard[],
+  ): string {
+    return promptEntries.map((entry) => {
+      const composed = composePromptEntry(entry, {
+        query: this.draftQuery,
+        domainMode: currentMode,
+        taskClass: currentTask,
+        mapContext: this.lastMapContext,
+        pinnedEvidence: pinned,
+        memoryNotes: this.state.memoryNotes,
+      });
+
+      return `
+        <article class="qadr-ai-prompt-card qadr-ai-inspector-card">
+          <h4>${escapeHtml(entry.title)}</h4>
+          <p>${escapeHtml(entry.summary)}</p>
+          <div class="qadr-ai-prompt-actions">
+            ${entry.actions.map((action) => `
+              <button
+                type="button"
+                class="qadr-ai-btn"
+                data-prompt-action="${escapeHtml(action.id)}"
+                data-prompt-id="${escapeHtml(entry.id)}"
+                data-prompt-value="${encodeURIComponent(composed)}"
+              >${escapeHtml(action.label)}</button>
+            `).join('')}
+          </div>
+        </article>
+      `;
+    }).join('');
+  }
+
+  private renderConversationMessage(message: AssistantMessage, selectedMessage: AssistantMessage | null): string {
+    const isSelected = selectedMessage?.id === message.id;
+    const transparency = buildAssistantTransparencySummary(message);
+    const bodyHtml = message.role === 'assistant'
+      ? renderAssistantConversationPreview(message)
+      : `<div class="qadr-ai-richtext">${renderAssistantRichText(message.content)}</div>`;
+    const modelBadge = message.provider
+      ? `<span class="qadr-ai-pill subtle">${escapeHtml(message.provider)}${message.model ? ` / ${escapeHtml(message.model)}` : ''}</span>`
+      : '';
+    const routeBadge = transparency ? `<span class="qadr-ai-pill subtle">${escapeHtml(transparency.routeLabel)}</span>` : '';
+    const toolBadge = transparency && transparency.toolPlan.length > 0
+      ? `<span class="qadr-ai-pill subtle">ابزارها: ${transparency.toolPlan.length}</span>`
+      : '';
+    const warningBadge = transparency && transparency.warnings.length > 0
+      ? `<span class="qadr-ai-pill warn">${transparency.warnings.length} هشدار</span>`
+      : '';
+    const actions = message.role === 'assistant' ? `
+      <div class="qadr-ai-message-actions">
+        <button type="button" class="qadr-ai-btn" data-select-message="${escapeHtml(message.id)}" data-open-sheet="report">برگه گزارش</button>
+        <button type="button" class="qadr-ai-btn" data-select-message="${escapeHtml(message.id)}" data-open-sheet="evidence">شواهد</button>
+        <button type="button" class="qadr-ai-btn" data-select-message="${escapeHtml(message.id)}" data-select-inspector="tools">شفافیت</button>
+      </div>
+    ` : '';
+
+    return `
+      <article class="qadr-ai-message ${message.role} ${isSelected ? 'selected' : ''}" data-message-id="${escapeHtml(message.id)}">
+        <header>
+          <div class="qadr-ai-message-heading">
+            <strong>${message.role === 'user' ? 'تحلیلگر' : 'QADR110'}</strong>
+        ${message.role === 'assistant' ? `<span class="qadr-ai-pill">${escapeHtml(localizeWorkbenchMode(deriveAssistantWorkbenchMode(message.taskClass, message.domainMode)))}</span>` : ''}
+          </div>
+          <div class="qadr-ai-message-meta">
+            <span>${escapeHtml(message.createdAt)}</span>
+            ${modelBadge}
+            ${routeBadge}
+            ${toolBadge}
+            ${warningBadge}
+            ${renderConfidenceBand(message)}
+          </div>
+        </header>
+        ${actions}
+        <div class="qadr-ai-message-body">
+          ${bodyHtml}
+        </div>
+      </article>
+    `;
+  }
+
+  private renderSheetContent(
+    thread: AssistantConversationThread | null,
+    selectedMessage: AssistantMessage | null,
+    pinned: AssistantEvidenceCard[],
+  ): string {
+    if (!selectedMessage) {
+      return '<div class="qadr-ai-empty-box">هنوز گزارشی برای drill-down انتخاب نشده است.</div>';
+    }
+
+    if (this.activeSheetTab === 'evidence') {
+      const selectedEvidence = selectedMessage.evidenceCards ?? [];
+      return `
+        <div class="qadr-ai-sheet-section">
+          <div class="qadr-ai-sheet-grid">
+            ${selectedEvidence.length > 0 ? selectedEvidence.map((item) => `
+              <article class="qadr-ai-evidence-card">
+                <strong>${escapeHtml(item.title)}</strong>
+                <p>${escapeHtml(item.summary)}</p>
+                <small>${escapeHtml(item.source.title)} | ${Math.round(item.score * 100)}% | ${escapeHtml(item.timeContext)}</small>
+                <button type="button" class="qadr-ai-icon-btn" data-toggle-pin="${escapeHtml(item.id)}">${thread?.pinnedEvidenceIds.includes(item.id) ? 'برداشتن پین' : 'پین'}</button>
+              </article>
+            `).join('') : '<div class="qadr-ai-empty-box">در این پاسخ کارت شاهدی ثبت نشده است.</div>'}
+          </div>
+          ${pinned.length > 0 ? `
+            <div class="qadr-ai-sheet-subtitle">شواهد پین‌شده</div>
+            <div class="qadr-ai-sheet-grid">
+              ${pinned.map((item) => `
+                <article class="qadr-ai-evidence-card pinned">
+                  <strong>${escapeHtml(item.title)}</strong>
+                  <p>${escapeHtml(item.summary)}</p>
+                  <small>${escapeHtml(item.source.title)} | ${Math.round(item.score * 100)}%</small>
+                </article>
+              `).join('')}
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    if (this.activeSheetTab === 'context') {
+      const intentCount = thread?.sessionContext?.intentHistory.length ?? 0;
+      const mapCount = thread?.sessionContext?.mapInteractions.length ?? 0;
+      const insightCount = thread?.sessionContext?.reusableInsights.length ?? 0;
+      return `
+        <div class="qadr-ai-context-grid">
+          <article class="qadr-ai-sheet-card">
+            <strong>کانتکست نقشه</strong>
+            <p>${this.lastMapContext ? escapeHtml(describeMapContextForPrompt(this.lastMapContext)) : 'فعلاً انتخابی از نقشه ثبت نشده است.'}</p>
+          </article>
+          <article class="qadr-ai-sheet-card">
+            <strong>حافظه جلسه</strong>
+            <ul>
+              <li>Intentها: ${intentCount}</li>
+              <li>تعاملات نقشه: ${mapCount}</li>
+              <li>Insightهای reuse شده: ${insightCount}</li>
+            </ul>
+          </article>
+          <article class="qadr-ai-sheet-card">
+            <strong>یادداشت‌ها</strong>
+            ${this.state.memoryNotes.length > 0 ? `<ul>${this.state.memoryNotes.slice(0, 4).map((note) => `<li>${escapeHtml(note.title)}</li>`).join('')}</ul>` : '<p>یادداشتی ذخیره نشده است.</p>'}
+          </article>
+          <article class="qadr-ai-sheet-card">
+            <strong>اسناد بارگذاری‌شده</strong>
+            ${this.state.knowledgeDocuments.length > 0 ? `<ul>${this.state.knowledgeDocuments.slice(0, 4).map((document) => `<li>${escapeHtml(document.title)}</li>`).join('')}</ul>` : '<p>هنوز گزارشی ingest نشده است.</p>'}
+          </article>
+        </div>
+      `;
+    }
+
+    const transparency = buildAssistantTransparencySummary(selectedMessage);
+    return `
+      <div class="qadr-ai-report-meta">
+        <span class="qadr-ai-pill">${escapeHtml(transparency?.providerLabel ?? 'نامشخص')}</span>
+        <span class="qadr-ai-pill">${escapeHtml(transparency?.modelLabel ?? 'نامشخص')}</span>
+        <span class="qadr-ai-pill subtle">${escapeHtml(transparency?.policyLabel ?? 'بدون policy')}</span>
+        <span class="qadr-ai-pill subtle">${escapeHtml(transparency?.cacheLabel ?? 'بدون cache')}</span>
+        <span class="qadr-ai-pill subtle">${escapeHtml(transparency?.durationLabel ?? 'نامشخص')}</span>
+      </div>
+      <div class="qadr-ai-report-body">
+        ${renderAssistantStructuredMessage(selectedMessage)}
+      </div>
+    `;
+  }
+
+  private renderInspectorContent(
+    currentMode: AssistantDomainMode,
+    currentTask: AiTaskClass,
+    promptEntries: ReturnType<typeof getPromptEntriesForMode>,
+    selectedMessage: AssistantMessage | null,
+    evidence: AssistantEvidenceCard[],
+    pinned: AssistantEvidenceCard[],
+  ): string {
+    const liveSuggestions = collectFollowUpSuggestions(selectedMessage, pinned.length > 0 ? pinned : evidence);
+    const transparency = buildAssistantTransparencySummary(selectedMessage);
+
+    if (this.activeInspectorTab === 'tools') {
+      if (!transparency) {
+        return '<div class="qadr-ai-empty-box">برای این بخش هنوز trace یا اطلاعات مدل ثبت نشده است.</div>';
+      }
+      return `
+        <div class="qadr-ai-inspector-stack">
+          <article class="qadr-ai-inspector-card">
+            <strong>مدل و مسیر</strong>
+            <div class="qadr-ai-kv-list">
+              <span>Provider</span><strong>${escapeHtml(transparency.providerLabel)}</strong>
+              <span>Model</span><strong>${escapeHtml(transparency.modelLabel)}</strong>
+              <span>Policy</span><strong>${escapeHtml(transparency.policyLabel)}</strong>
+              <span>Route</span><strong>${escapeHtml(transparency.routeLabel)}</strong>
+              <span>Duration</span><strong>${escapeHtml(transparency.durationLabel)}</strong>
+            </div>
+          </article>
+          <article class="qadr-ai-inspector-card">
+            <strong>ابزارهای استفاده‌شده</strong>
+            ${transparency.toolPlan.length > 0 ? `<div class="qadr-ai-chip-row">${transparency.toolPlan.map((tool) => `<span class="qadr-ai-pill subtle">${escapeHtml(tool)}</span>`).join('')}</div>` : '<p>در این پاسخ ابزار صریحی ثبت نشده است.</p>'}
+          </article>
+          <article class="qadr-ai-inspector-card">
+            <strong>ترتیب providerها</strong>
+            ${transparency.providerOrder.length > 0 ? `<p>${escapeHtml(transparency.providerOrder.join(' → '))}</p>` : '<p>ترتیب provider ثبت نشده است.</p>'}
+            ${transparency.openRouterOrder.length > 0 ? `<small>${escapeHtml(`OpenRouter: ${transparency.openRouterOrder.join(' → ')}`)}</small>` : ''}
+          </article>
+        </div>
+      `;
+    }
+
+    if (this.activeInspectorTab === 'reasoning') {
+      if (!this.showReasoning) {
+        return `
+          <div class="qadr-ai-empty-box">
+            نمایش reasoning steps خاموش است.
+            <div class="qadr-ai-followups">
+              <button type="button" class="qadr-ai-btn" data-action="toggle-reasoning">نمایش reasoning</button>
+            </div>
+          </div>
+        `;
+      }
+      if (!transparency || transparency.nodes.length === 0) {
+        return '<div class="qadr-ai-empty-box">برای این پاسخ گره‌های orchestrator ثبت نشده است.</div>';
+      }
+      return `
+        <div class="qadr-ai-inspector-stack">
+          <article class="qadr-ai-inspector-card">
+            <strong>مراحل استدلال</strong>
+            <ol class="qadr-ai-reasoning-list">
+              ${transparency.nodes.map((node) => `<li>${escapeHtml(node)}</li>`).join('')}
+            </ol>
+          </article>
+          <article class="qadr-ai-inspector-card">
+            <strong>هشدارها و guardrailها</strong>
+            ${transparency.warnings.length > 0 ? `<ul>${transparency.warnings.map((warning) => `<li>${escapeHtml(warning)}</li>`).join('')}</ul>` : '<p>هشدار ثبت نشده است.</p>'}
+            <small>${escapeHtml(transparency.sessionReuseLabel)}</small>
+          </article>
+        </div>
+      `;
+    }
+
+    if (this.activeInspectorTab === 'evidence') {
+      return `
+        <div class="qadr-ai-inspector-stack">
+          <article class="qadr-ai-inspector-card">
+            <strong>شواهد پین‌شده</strong>
+            ${pinned.length > 0 ? pinned.map((item) => `
+              <article class="qadr-ai-evidence-card pinned">
+                <strong>${escapeHtml(item.title)}</strong>
+                <p>${escapeHtml(item.summary)}</p>
+                <small>${escapeHtml(item.source.title)} | ${Math.round(item.score * 100)}%</small>
+              </article>
+            `).join('') : '<div class="qadr-ai-empty-box">شاهد پین‌شده وجود ندارد.</div>'}
+          </article>
+          <article class="qadr-ai-inspector-card">
+            <strong>Evidenceهای اخیر</strong>
+            ${evidence.length > 0 ? evidence.slice(0, 6).map((item) => `
+              <article class="qadr-ai-evidence-card">
+                <strong>${escapeHtml(item.title)}</strong>
+                <p>${escapeHtml(item.summary)}</p>
+                <small>${escapeHtml(item.source.title)} | ${Math.round(item.score * 100)}% | ${escapeHtml(item.timeContext)}</small>
+              </article>
+            `).join('') : '<div class="qadr-ai-empty-box">هنوز کارت شاهدی ثبت نشده است.</div>'}
+          </article>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="qadr-ai-inspector-stack">
+        ${liveSuggestions.length > 0 ? `
+          <article class="qadr-ai-inspector-card">
+            <strong>پیشنهادهای زنده</strong>
+            <p>این پیشنهادها از context پاسخ فعلی، شواهد پین‌شده و تاریخچه جلسه ساخته شده‌اند.</p>
+            <div class="qadr-ai-followups">
+              ${liveSuggestions.map((item) => `<button type="button" class="qadr-ai-followup-btn" data-followup="${escapeHtml(item)}">${escapeHtml(item)}</button>`).join('')}
+            </div>
+          </article>
+        ` : ''}
+        <article class="qadr-ai-inspector-card">
+          <strong>کتابخانه پرامپت</strong>
+          <p>پرامپت‌ها بر اساس mode فعلی، حافظه workspace و کانتکست نقشه compose می‌شوند.</p>
+        </article>
+        ${this.renderPromptLibrary(currentMode, currentTask, promptEntries, pinned)}
+      </div>
+    `;
+  }
+
   private render(): void {
     const thread = this.activeThread;
     const currentMode = thread?.domainMode ?? DEFAULT_ASSISTANT_DOMAIN_MODE;
     const currentTask = thread?.taskClass ?? 'assistant';
     const promptEntries = getPromptEntriesForMode(currentMode, currentTask);
+    const activeMode = deriveAssistantWorkbenchMode(currentTask, currentMode);
+    const selectedMessage = selectAssistantMessage(thread, this.selectedMessageId);
+    this.selectedMessageId = selectedMessage?.id ?? null;
     const latestAssistant = latestAssistantMessage(thread);
     const evidence = allEvidenceCards(thread);
     const pinned = pinnedEvidenceCards(thread);
@@ -317,17 +671,23 @@ export class QadrAssistantPanel extends Panel {
 
         <section class="qadr-ai-main">
           <header class="qadr-ai-toolbar">
-            <div class="qadr-ai-toolbar-group">
-              <label>حوزه تحلیل</label>
-              <select data-role="mode-select">
-                ${ASSISTANT_DOMAIN_MODE_OPTIONS.map((option) => `<option value="${escapeHtml(option.id)}" ${option.id === currentMode ? 'selected' : ''}>${escapeHtml(option.label)}</option>`).join('')}
-              </select>
-            </div>
-            <div class="qadr-ai-toolbar-group">
-              <label>نوع اجرا</label>
-              <select data-role="task-select">
-                ${TASK_OPTIONS.map((option) => `<option value="${escapeHtml(option.id)}" ${option.id === currentTask ? 'selected' : ''}>${escapeHtml(option.label)}</option>`).join('')}
-              </select>
+            <div class="qadr-ai-toolbar-primary">
+              <div class="qadr-ai-toolbar-group">
+                <label>حوزه تحلیل</label>
+                <select data-role="mode-select">
+                  ${ASSISTANT_DOMAIN_MODE_OPTIONS.map((option) => `<option value="${escapeHtml(option.id)}" ${option.id === currentMode ? 'selected' : ''}>${escapeHtml(option.label)}</option>`).join('')}
+                </select>
+              </div>
+              <div class="qadr-ai-toolbar-group">
+                <label>نوع اجرا</label>
+                <select data-role="task-select">
+                  ${TASK_OPTIONS.map((option) => `<option value="${escapeHtml(option.id)}" ${option.id === currentTask ? 'selected' : ''}>${escapeHtml(option.label)}</option>`).join('')}
+                </select>
+              </div>
+              <div class="qadr-ai-toolbar-group qadr-ai-toolbar-group-wide">
+                <label>حالت دستیار</label>
+                ${this.renderModeSwitch(activeMode)}
+              </div>
             </div>
             <div class="qadr-ai-route">
               <strong>مسیر مدل</strong>
@@ -339,9 +699,18 @@ export class QadrAssistantPanel extends Panel {
               <button type="button" class="qadr-ai-btn" data-action="open-resilience">داشبورد تاب‌آوری</button>
               <button type="button" class="qadr-ai-btn" data-action="toggle-compact">${this.state.compactMode ? 'حالت کامل' : 'حالت فشرده'}</button>
               <button type="button" class="qadr-ai-btn" data-action="toggle-fullscreen">${this.fullscreen ? 'خروج از تمام‌صفحه' : 'تمام‌صفحه'}</button>
+              <button type="button" class="qadr-ai-btn" data-action="toggle-reasoning">${this.showReasoning ? 'پنهان‌کردن reasoning' : 'نمایش reasoning'}</button>
               ${this.activeJobId ? '<button type="button" class="qadr-ai-btn" data-action="minimize-job">اجرای پس‌زمینه</button>' : ''}
             </div>
           </header>
+
+          <nav class="qadr-ai-breadcrumbs" aria-label="مسیر ناوبری">
+            <span class="qadr-ai-breadcrumb">کارگاه هوشمند</span>
+            <span class="qadr-ai-breadcrumb-sep">/</span>
+            <span class="qadr-ai-breadcrumb">${thread ? escapeHtml(formatThreadTitle(thread)) : 'رشته فعال'}</span>
+            <span class="qadr-ai-breadcrumb-sep">/</span>
+            <span class="qadr-ai-breadcrumb current">${escapeHtml(selectedMessage?.structured?.reportTitle || selectedMessage?.content.slice(0, 42) || 'بدون گزارش فعال')}</span>
+          </nav>
 
           <div class="qadr-ai-status-line">${escapeHtml(this.statusLine)}</div>
 
@@ -352,35 +721,30 @@ export class QadrAssistantPanel extends Panel {
             </div>
           </div>
 
-          <section class="qadr-ai-prompts">
-            ${promptEntries.map((entry) => {
-              const composed = composePromptEntry(entry, {
-                query: this.draftQuery,
-                domainMode: currentMode,
-                taskClass: currentTask,
-                mapContext: this.lastMapContext,
-                pinnedEvidence: pinned,
-                memoryNotes: this.state.memoryNotes,
-              });
+          <section class="qadr-ai-conversation-stage">
+            <section class="qadr-ai-conversation">
+              ${thread && thread.messages.length > 0
+                ? thread.messages.map((message) => this.renderConversationMessage(message, selectedMessage)).join('')
+                : '<div class="qadr-ai-empty-box">گفت‌وگو هنوز شروع نشده است.</div>'}
+            </section>
 
-              return `
-                <article class="qadr-ai-prompt-card">
-                  <h4>${escapeHtml(entry.title)}</h4>
-                  <p>${escapeHtml(entry.summary)}</p>
-                  <div class="qadr-ai-prompt-actions">
-                    ${entry.actions.map((action) => `
-                      <button
-                        type="button"
-                        class="qadr-ai-btn"
-                        data-prompt-action="${escapeHtml(action.id)}"
-                        data-prompt-id="${escapeHtml(entry.id)}"
-                        data-prompt-value="${encodeURIComponent(composed)}"
-                      >${escapeHtml(action.label)}</button>
-                    `).join('')}
-                  </div>
-                </article>
-              `;
-            }).join('')}
+            <section class="qadr-ai-sheet-stack">
+              <div class="qadr-ai-sheet-stack-header">
+                <div class="qadr-ai-sheet-tabs">
+                  <button type="button" class="qadr-ai-sheet-tab ${this.activeSheetTab === 'report' ? 'active' : ''}" data-sheet-tab="report">برگه گزارش</button>
+                  <button type="button" class="qadr-ai-sheet-tab ${this.activeSheetTab === 'evidence' ? 'active' : ''}" data-sheet-tab="evidence">ضمیمه شواهد</button>
+                  <button type="button" class="qadr-ai-sheet-tab ${this.activeSheetTab === 'context' ? 'active' : ''}" data-sheet-tab="context">زمینه و حافظه</button>
+                </div>
+                <div class="qadr-ai-export-actions">
+                  <button type="button" class="qadr-ai-btn" data-export="json" ${latestAssistant ? '' : 'disabled'}>JSON</button>
+                  <button type="button" class="qadr-ai-btn" data-export="markdown" ${latestAssistant ? '' : 'disabled'}>Markdown</button>
+                  <button type="button" class="qadr-ai-btn" data-export="html" ${latestAssistant ? '' : 'disabled'}>HTML/PDF</button>
+                </div>
+              </div>
+              <div class="qadr-ai-sheet-body">
+                ${this.renderSheetContent(thread, selectedMessage, pinned)}
+              </div>
+            </section>
           </section>
 
           <section class="qadr-ai-composer">
@@ -396,88 +760,26 @@ export class QadrAssistantPanel extends Panel {
               <input type="file" data-role="doc-input" accept=".txt,.md,.json" style="display:none" />
             </div>
           </section>
-
-          <section class="qadr-ai-conversation">
-            ${thread && thread.messages.length > 0 ? thread.messages.map((message) => `
-              <article class="qadr-ai-message ${message.role}">
-                <header>
-                  <strong>${message.role === 'user' ? 'تحلیلگر' : 'QADR110'}</strong>
-                  <div class="qadr-ai-message-meta">
-                    <span>${escapeHtml(message.createdAt)}</span>
-                    ${message.provider ? `<span>${escapeHtml(message.provider)}${message.model ? ` / ${escapeHtml(message.model)}` : ''}</span>` : ''}
-                    ${renderConfidenceBand(message)}
-                  </div>
-                </header>
-                <div class="qadr-ai-message-body">
-                  ${message.role === 'assistant' ? renderStructuredMessage(message) : `<p>${escapeHtml(message.content)}</p>`}
-                </div>
-              </article>
-            `).join('') : '<div class="qadr-ai-empty-box">گفت‌وگو هنوز شروع نشده است.</div>'}
-          </section>
         </section>
 
-        <aside class="qadr-ai-evidence">
+        <aside class="qadr-ai-evidence qadr-ai-inspector">
           <div class="qadr-ai-sidebar-header">
-            <strong>خروجی</strong>
+            <strong>بازرس عامل</strong>
+            <span class="qadr-ai-pill subtle">${escapeHtml(localizeWorkbenchMode(activeMode))}</span>
           </div>
-          <div class="qadr-ai-export-actions">
-            <button type="button" class="qadr-ai-btn" data-export="json" ${latestAssistant ? '' : 'disabled'}>JSON</button>
-            <button type="button" class="qadr-ai-btn" data-export="markdown" ${latestAssistant ? '' : 'disabled'}>Markdown</button>
-            <button type="button" class="qadr-ai-btn" data-export="html" ${latestAssistant ? '' : 'disabled'}>HTML/PDF</button>
+          <div class="qadr-ai-inspector-tabs">
+            <button type="button" class="qadr-ai-inspector-tab ${this.activeInspectorTab === 'suggestions' ? 'active' : ''}" data-inspector-tab="suggestions">پیشنهادها</button>
+            <button type="button" class="qadr-ai-inspector-tab ${this.activeInspectorTab === 'tools' ? 'active' : ''}" data-inspector-tab="tools">ابزارها</button>
+            <button type="button" class="qadr-ai-inspector-tab ${this.activeInspectorTab === 'reasoning' ? 'active' : ''}" data-inspector-tab="reasoning">Reasoning</button>
+            <button type="button" class="qadr-ai-inspector-tab ${this.activeInspectorTab === 'evidence' ? 'active' : ''}" data-inspector-tab="evidence">شواهد</button>
           </div>
-
-          <div class="qadr-ai-sidebar-header">
-            <strong>شواهد پین‌شده</strong>
+          <div class="qadr-ai-inspector-body">
+            ${this.renderInspectorContent(currentMode, currentTask, promptEntries, selectedMessage, evidence, pinned)}
           </div>
-          <div class="qadr-ai-evidence-list">
-            ${pinned.length > 0 ? pinned.map((item) => `
-              <article class="qadr-ai-evidence-card pinned">
-                <strong>${escapeHtml(item.title)}</strong>
-                <p>${escapeHtml(item.summary)}</p>
-                <small>${escapeHtml(item.source.title)} | ${Math.round(item.score * 100)}%</small>
-                <button type="button" class="qadr-ai-icon-btn" data-toggle-pin="${escapeHtml(item.id)}">برداشتن پین</button>
-              </article>
-            `).join('') : '<div class="qadr-ai-empty-box">شواهد pinned وجود ندارد.</div>'}
-          </div>
-
-          <div class="qadr-ai-sidebar-header">
-            <strong>Evidenceهای اخیر</strong>
-          </div>
-          <div class="qadr-ai-evidence-list">
-            ${evidence.length > 0 ? evidence.slice(0, 8).map((item) => `
-              <article class="qadr-ai-evidence-card">
-                <strong>${escapeHtml(item.title)}</strong>
-                <p>${escapeHtml(item.summary)}</p>
-                <small>${escapeHtml(item.source.title)} | ${Math.round(item.score * 100)}% | ${escapeHtml(item.timeContext)}</small>
-                <button type="button" class="qadr-ai-icon-btn" data-toggle-pin="${escapeHtml(item.id)}">${thread?.pinnedEvidenceIds.includes(item.id) ? 'برداشتن پین' : 'پین'}</button>
-              </article>
-            `).join('') : '<div class="qadr-ai-empty-box">هنوز کارت شاهدی ثبت نشده است.</div>'}
-          </div>
-
           <div class="qadr-ai-sidebar-header">
             <strong>حافظه فضای کار</strong>
           </div>
           <textarea class="qadr-ai-memory-input" data-role="memory-input" placeholder="یادداشت تحلیلی، فرض مهم یا مشاهده کوتاه...">${escapeHtml(this.draftMemory)}</textarea>
-          <div class="qadr-ai-memory-list">
-            ${this.state.memoryNotes.length > 0 ? this.state.memoryNotes.slice(0, 6).map((note) => `
-              <article class="qadr-ai-memory-card">
-                <strong>${escapeHtml(note.title)}</strong>
-                <p>${escapeHtml(note.content)}</p>
-              </article>
-            `).join('') : '<div class="qadr-ai-empty-box">یادداشتی ذخیره نشده است.</div>'}
-          </div>
-
-          <div class="qadr-ai-sidebar-header">
-            <strong>اسناد بارگذاری‌شده</strong>
-          </div>
-          <div class="qadr-ai-memory-list">
-            ${this.state.knowledgeDocuments.length > 0 ? this.state.knowledgeDocuments.slice(0, 6).map((document) => `
-              <article class="qadr-ai-memory-card">
-                <strong>${escapeHtml(document.title)}</strong>
-                <p>${escapeHtml(document.summary)}</p>
-              </article>
-            `).join('') : '<div class="qadr-ai-empty-box">هنوز گزارشی ingest نشده است.</div>'}
-          </div>
         </aside>
       </div>
     `;
@@ -521,9 +823,50 @@ export class QadrAssistantPanel extends Panel {
       this.render();
     });
 
+    root.querySelectorAll<HTMLElement>('[data-ai-mode]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const mode = button.dataset.aiMode as AssistantWorkbenchMode | undefined;
+        if (!mode) return;
+        this.setWorkbenchMode(mode);
+      });
+    });
+
+    root.querySelectorAll<HTMLElement>('[data-inspector-tab]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const tab = button.dataset.inspectorTab as AssistantInspectorTab | undefined;
+        if (!tab) return;
+        this.activeInspectorTab = tab;
+        this.render();
+      });
+    });
+
+    root.querySelectorAll<HTMLElement>('[data-sheet-tab]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const tab = button.dataset.sheetTab as AssistantSheetTab | undefined;
+        if (!tab) return;
+        this.activeSheetTab = tab;
+        this.render();
+      });
+    });
+
+    root.querySelectorAll<HTMLElement>('[data-select-message]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const messageId = button.dataset.selectMessage;
+        if (!messageId) return;
+        this.selectedMessageId = messageId;
+        const requestedSheet = button.dataset.openSheet as AssistantSheetTab | undefined;
+        const requestedInspector = button.dataset.selectInspector as AssistantInspectorTab | undefined;
+        if (requestedSheet) this.activeSheetTab = requestedSheet;
+        if (requestedInspector) this.activeInspectorTab = requestedInspector;
+        this.render();
+      });
+    });
+
     root.querySelectorAll<HTMLElement>('[data-thread-id]').forEach((button) => {
       button.addEventListener('click', () => {
         this.state = setActiveAssistantThread(this.state, button.dataset.threadId || null);
+        this.selectedMessageId = latestAssistantMessage(this.activeThread)?.id ?? null;
+        this.activeSheetTab = 'report';
         this.render();
       });
     });
@@ -536,6 +879,7 @@ export class QadrAssistantPanel extends Panel {
         if (this.state.threads.length === 0) {
           this.state = upsertAssistantThread(this.state, createAssistantThread(DEFAULT_ASSISTANT_DOMAIN_MODE, 'assistant', 'گفت‌وگوی جدید'));
         }
+        this.selectedMessageId = latestAssistantMessage(this.activeThread)?.id ?? null;
         this.render();
       });
     });
@@ -552,6 +896,7 @@ export class QadrAssistantPanel extends Panel {
         this.state = upsertAssistantThread(this.state, thread);
         this.draftQuery = workflow.promptOverride || this.draftQuery;
         this.statusLine = `گردش‌کار بارگذاری شد: ${workflow.name}`;
+        this.selectedMessageId = latestAssistantMessage(thread)?.id ?? null;
         this.render();
       });
     });
@@ -563,6 +908,8 @@ export class QadrAssistantPanel extends Panel {
           const next = createAssistantThread(DEFAULT_ASSISTANT_DOMAIN_MODE, 'assistant', 'گفت‌وگوی جدید');
           this.state = upsertAssistantThread(this.state, next);
           this.draftQuery = '';
+          this.selectedMessageId = null;
+          this.activeSheetTab = 'report';
           this.render();
           return;
         }
@@ -590,6 +937,14 @@ export class QadrAssistantPanel extends Panel {
         }
         if (action === 'toggle-fullscreen') {
           this.fullscreen = !this.fullscreen;
+          this.render();
+          return;
+        }
+        if (action === 'toggle-reasoning') {
+          this.showReasoning = !this.showReasoning;
+          if (this.showReasoning) {
+            this.activeInspectorTab = 'reasoning';
+          }
           this.render();
           return;
         }
@@ -768,6 +1123,26 @@ export class QadrAssistantPanel extends Panel {
       updatedAt: now,
       messages: [...thread.messages, userMessage],
     };
+    nextThread.sessionContext = appendAssistantIntent(
+      normalizeAssistantSessionContext(nextThread.sessionContext || thread.sessionContext, nextThread.id),
+      {
+        query,
+        taskClass: nextThread.taskClass,
+        domainMode: nextThread.domainMode,
+        messages: nextThread.messages.map((message) => ({
+          role: message.role,
+          content: message.content,
+          createdAt: message.createdAt,
+        })),
+        mapContext: this.lastMapContext,
+        createdAt: now,
+      },
+    );
+    nextThread.sessionContext = appendAssistantMapInteraction(
+      nextThread.sessionContext,
+      this.lastMapContext,
+      this.lastMapContext?.createdAt || now,
+    );
 
     this.state = upsertAssistantThread(this.state, nextThread);
     this.statusLine = 'در حال اجرای تحلیل...';
@@ -801,16 +1176,43 @@ export class QadrAssistantPanel extends Panel {
           memoryNotes: this.state.memoryNotes,
           knowledgeDocuments: this.state.knowledgeDocuments,
           mapContext: this.lastMapContext,
+          sessionContext: nextThread.sessionContext,
           workflowId: nextThread.workflowId,
         }),
       });
 
+      const assistantMessage: AssistantMessage = {
+        ...response.message,
+        provider: response.provider,
+        model: response.model,
+        evidenceCards: response.evidenceCards,
+        trace: response.trace,
+      };
       const updatedThread: AssistantConversationThread = {
         ...nextThread,
-        updatedAt: response.message.createdAt,
-        messages: [...nextThread.messages, response.message],
+        updatedAt: assistantMessage.createdAt,
+        messages: [...nextThread.messages, assistantMessage],
       };
+      updatedThread.sessionContext = appendReusableInsight(
+        normalizeAssistantSessionContext(updatedThread.sessionContext || nextThread.sessionContext, updatedThread.id),
+        assistantMessage,
+        query,
+      );
       this.state = upsertAssistantThread(this.state, updatedThread);
+      this.selectedMessageId = assistantMessage.id;
+      this.activeSheetTab = 'report';
+      if (this.lastMapContext) {
+        dispatchMapAwareAiInsightUpdated(document, {
+          mapContextId: this.lastMapContext.id,
+          mapContextCacheKey: this.lastMapContext.cacheKey,
+          title: query.slice(0, 80),
+          summary: assistantMessage.structured?.executiveSummary || assistantMessage.content,
+          evidenceTitles: (response.evidenceCards ?? []).slice(0, 4).map((card) => card.title),
+          followUpSuggestions: response.followUpSuggestions.slice(0, 5),
+          confidenceBand: assistantMessage.confidenceBand,
+          updatedAt: assistantMessage.createdAt,
+        });
+      }
       this.statusLine = response.status === 'refused'
         ? 'درخواست با guardrail دفاعی/قانونی بازگردانی شد.'
         : 'تحلیل فارسی آماده است.';

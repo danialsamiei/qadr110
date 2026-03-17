@@ -27,12 +27,19 @@ import {
   type RuntimeSecretKey,
 } from '@/services/runtime-config';
 import { getApiBaseUrl, isDesktopRuntime, resolveLocalApiPort, startSmartPollLoop, type SmartPollLoopHandle } from '@/services/runtime';
-import { tryInvokeTauri, invokeTauri } from '@/services/tauri-bridge';
+import { tryInvokeTauri } from '@/services/tauri-bridge';
+import { openExternalUrl } from '@/services/desktop-opener';
+import { prepareDesktopShellState } from '@/services/desktop-shell-store';
+import {
+  registerDesktopWindowStatePersistence,
+  restoreCurrentDesktopWindowState,
+} from '@/services/desktop-window-state';
 import { escapeHtml } from '@/utils/sanitize';
 import { initI18n, t } from '@/services/i18n';
 import { applyStoredTheme } from '@/utils/theme-manager';
 import { applyFont } from '@/services/font-settings';
 import { trackFeatureToggle } from '@/services/analytics';
+import { migrateLegacyBrandStorage, QADR_API_KEY, QADR_SETTINGS_OPEN_KEY } from '@/utils/qadr-branding';
 
 let activeSection = 'overview';
 let settingsManager: SettingsManager;
@@ -188,7 +195,7 @@ function renderOverview(area: HTMLElement): void {
   const dashOffset = circumference - (pct / 100) * circumference;
   const ringColor = ready === total ? 'var(--settings-green)' : ready > 0 ? 'var(--settings-blue)' : 'var(--settings-yellow)';
 
-  const wmState = getSecretState('WORLDMONITOR_API_KEY');
+  const wmState = getSecretState(QADR_API_KEY);
   const wmStatusText = wmState.present ? t('modals.settingsWindow.status.active') : t('modals.settingsWindow.status.notSet');
   const wmStatusClass = wmState.present ? 'ok' : 'warn';
   const catCards = SETTINGS_CATEGORIES.map(cat => {
@@ -218,28 +225,28 @@ function renderOverview(area: HTMLElement): void {
     </div>
 
     <div class="settings-ov-license">
-      <section class="wm-section">
-        <h2 class="wm-section-title">${t('modals.settingsWindow.worldMonitor.apiKey.title')}</h2>
-        <p class="wm-section-desc">${t('modals.settingsWindow.worldMonitor.apiKey.description')}</p>
-        <div class="wm-key-row">
-          <div class="wm-input-wrap">
-            <input type="password" class="wm-input" data-wm-key-input
+      <section class="qadr-license-section">
+        <h2 class="qadr-license-title">${t('modals.settingsWindow.worldMonitor.apiKey.title')}</h2>
+        <p class="qadr-license-desc">${t('modals.settingsWindow.worldMonitor.apiKey.description')}</p>
+        <div class="qadr-license-key-row">
+          <div class="qadr-license-input-wrap">
+            <input type="password" class="qadr-license-input" data-qadr-key-input
               placeholder="${t('modals.settingsWindow.worldMonitor.apiKey.placeholder')}"
               autocomplete="off" spellcheck="false"
               ${wmState.present ? `value="${MASKED_SENTINEL}"` : ''} />
-            <button type="button" class="wm-toggle-vis" data-wm-toggle title="${t('modals.settingsWindow.actions.showHide')}">&#x1f441;</button>
+            <button type="button" class="qadr-license-toggle" data-qadr-toggle title="${t('modals.settingsWindow.actions.showHide')}">&#x1f441;</button>
           </div>
-          <span class="wm-badge ${wmStatusClass}">${wmStatusText}</span>
+          <span class="qadr-license-badge ${wmStatusClass}">${wmStatusText}</span>
         </div>
       </section>
 
-      <div class="wm-divider"><span>${t('modals.settingsWindow.worldMonitor.dividerOr')}</span></div>
+      <div class="qadr-license-divider"><span>${t('modals.settingsWindow.worldMonitor.dividerOr')}</span></div>
 
-      <section class="wm-section">
-        <h2 class="wm-section-title">${t('modals.settingsWindow.worldMonitor.register.title')}</h2>
-        <p class="wm-section-desc">${t('modals.settingsWindow.worldMonitor.register.description')}</p>
-        <div class="wm-register-row">
-          <button type="button" class="wm-submit-btn" data-wm-open-pro>
+      <section class="qadr-license-section">
+        <h2 class="qadr-license-title">${t('modals.settingsWindow.worldMonitor.register.title')}</h2>
+        <p class="qadr-license-desc">${t('modals.settingsWindow.worldMonitor.register.description')}</p>
+        <div class="qadr-license-register-row">
+          <button type="button" class="qadr-license-submit-btn" data-qadr-open-pro>
             ${t('modals.settingsWindow.worldMonitor.register.submitBtn')}
           </button>
         </div>
@@ -251,21 +258,21 @@ function renderOverview(area: HTMLElement): void {
 }
 
 function initOverviewListeners(area: HTMLElement): void {
-  area.querySelector('[data-wm-toggle]')?.addEventListener('click', () => {
-    const input = area.querySelector<HTMLInputElement>('[data-wm-key-input]');
+  area.querySelector('[data-qadr-toggle]')?.addEventListener('click', () => {
+    const input = area.querySelector<HTMLInputElement>('[data-qadr-key-input]');
     if (input) input.type = input.type === 'password' ? 'text' : 'password';
   });
 
-  area.querySelector<HTMLInputElement>('[data-wm-key-input]')?.addEventListener('input', (e) => {
+  area.querySelector<HTMLInputElement>('[data-qadr-key-input]')?.addEventListener('input', (e) => {
     const input = e.target as HTMLInputElement;
     if (input.value.startsWith(MASKED_SENTINEL)) {
       input.value = input.value.slice(MASKED_SENTINEL.length);
     }
   });
 
-  area.querySelector('[data-wm-open-pro]')?.addEventListener('click', () => {
+  area.querySelector('[data-qadr-open-pro]')?.addEventListener('click', () => {
     const url = 'https://qadr.alefba.dev/pro';
-    void invokeTauri<void>('open_url', { url }).catch(() => window.open(url, '_blank'));
+    void openExternalUrl(url);
   });
 
   area.querySelectorAll<HTMLButtonElement>('.settings-ov-cat[data-section]').forEach(btn => {
@@ -483,7 +490,7 @@ function initFeatureSectionListeners(area: HTMLElement): void {
       const url = link.dataset.signupUrl;
       if (!url) return;
       if (isDesktopRuntime()) {
-        void invokeTauri<void>('open_url', { url }).catch(() => window.open(url, '_blank'));
+        void openExternalUrl(url);
       } else {
         window.open(url, '_blank');
       }
@@ -671,9 +678,9 @@ function initDiagnostics(): void {
   const trafficCount = document.getElementById('trafficCount');
 
   if (fetchDebugToggle) {
-    fetchDebugToggle.checked = localStorage.getItem('wm-debug-log') === '1';
+    fetchDebugToggle.checked = localStorage.getItem('qadr110-debug-log') === '1';
     fetchDebugToggle.addEventListener('change', () => {
-      localStorage.setItem('wm-debug-log', fetchDebugToggle.checked ? '1' : '0');
+      localStorage.setItem('qadr110-debug-log', fetchDebugToggle.checked ? '1' : '0');
     });
   }
 
@@ -849,6 +856,10 @@ function handleSearch(query: string): void {
 // ── Init ──
 
 async function initSettingsWindow(): Promise<void> {
+  migrateLegacyBrandStorage();
+  await prepareDesktopShellState();
+  await restoreCurrentDesktopWindowState();
+  registerDesktopWindowStatePersistence();
   await initI18n();
   applyStoredTheme();
   applyFont();
@@ -881,7 +892,7 @@ async function initSettingsWindow(): Promise<void> {
   document.getElementById('okBtn')?.addEventListener('click', () => {
     void (async () => {
       try {
-        const wmKeyInput = document.querySelector<HTMLInputElement>('[data-wm-key-input]');
+        const wmKeyInput = document.querySelector<HTMLInputElement>('[data-qadr-key-input]');
         const wmKeyValue = wmKeyInput?.value.trim();
         const hasWmKeyChange = !!(wmKeyValue && wmKeyValue !== MASKED_SENTINEL && wmKeyValue.length > 0);
 
@@ -895,7 +906,7 @@ async function initSettingsWindow(): Promise<void> {
         }
 
         if (hasWmKeyChange && wmKeyValue) {
-          await setSecretValue('WORLDMONITOR_API_KEY', wmKeyValue);
+          await setSecretValue(QADR_API_KEY, wmKeyValue);
         }
 
         if (hasPending) {
@@ -931,7 +942,7 @@ async function initSettingsWindow(): Promise<void> {
   });
 }
 
-localStorage.setItem('wm-settings-open', '1');
-window.addEventListener('beforeunload', () => localStorage.removeItem('wm-settings-open'));
+localStorage.setItem(QADR_SETTINGS_OPEN_KEY, '1');
+window.addEventListener('beforeunload', () => localStorage.removeItem(QADR_SETTINGS_OPEN_KEY));
 
 void initSettingsWindow();

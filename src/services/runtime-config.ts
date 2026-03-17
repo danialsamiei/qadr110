@@ -1,5 +1,6 @@
 import { getApiBaseUrl, isDesktopRuntime } from './runtime';
 import { invokeTauri } from './tauri-bridge';
+import { LEGACY_API_KEY, QADR_API_KEY, QADR_SECRETS_UPDATED_KEY } from '@/utils/qadr-branding';
 
 export type RuntimeSecretKey =
   | 'GROQ_API_KEY'
@@ -25,7 +26,7 @@ export type RuntimeSecretKey =
   | 'UCDP_ACCESS_TOKEN'
   | 'OLLAMA_API_URL'
   | 'OLLAMA_MODEL'
-  | 'WORLDMONITOR_API_KEY'
+  | 'QADR110_API_KEY'
   | 'WTO_API_KEY'
   | 'AVIATIONSTACK_API'
   | 'ICAO_API_KEY'
@@ -89,7 +90,7 @@ export interface RuntimeConfig {
   secrets: Partial<Record<RuntimeSecretKey, RuntimeSecretState>>;
 }
 
-const TOGGLES_STORAGE_KEY = 'worldmonitor-runtime-feature-toggles';
+const TOGGLES_STORAGE_KEY = 'qadr110-runtime-feature-toggles';
 function getSidecarEnvUpdateUrl(): string {
   return `${getApiBaseUrl()}/api/local-env-update`;
 }
@@ -350,7 +351,12 @@ export const RUNTIME_FEATURES: RuntimeFeatureDefinition[] = [
 
 function readEnvSecret(key: RuntimeSecretKey): string {
   const envValue = (import.meta as { env?: Record<string, unknown> }).env?.[key];
-  return typeof envValue === 'string' ? envValue.trim() : '';
+  if (typeof envValue === 'string' && envValue.trim()) return envValue.trim();
+  if (key === QADR_API_KEY) {
+    const legacyValue = (import.meta as { env?: Record<string, unknown> }).env?.[LEGACY_API_KEY];
+    return typeof legacyValue === 'string' ? legacyValue.trim() : '';
+  }
+  return '';
 }
 
 function readStoredToggles(): Record<RuntimeFeatureId, boolean> {
@@ -402,7 +408,7 @@ export function validateSecret(key: RuntimeSecretKey, value: string): { valid: b
     }
   }
 
-  if (key === 'WORLDMONITOR_API_KEY') {
+  if (key === QADR_API_KEY) {
     if (trimmed.length < 16) return { valid: false, hint: 'API key must be at least 16 characters' };
     return { valid: true };
   }
@@ -446,7 +452,7 @@ seedSecretsFromEnvironment();
 // When one window saves secrets or toggles features, the `storage` event fires in other same-origin windows.
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', (e) => {
-    if (e.key === 'wm-secrets-updated') {
+    if (e.key === QADR_SECRETS_UPDATED_KEY) {
       void loadDesktopSecrets();
     } else if (e.key === TOGGLES_STORAGE_KEY && e.newValue) {
       try {
@@ -551,7 +557,7 @@ export async function setSecretValue(key: RuntimeSecretKey, value: string): Prom
   // Signal other windows (main ↔ settings) to reload secrets from keychain.
   // The `storage` event fires in all same-origin windows except the one that wrote.
   try {
-    localStorage.setItem('wm-secrets-updated', String(Date.now()));
+    localStorage.setItem(QADR_SECRETS_UPDATED_KEY, String(Date.now()));
   } catch { /* localStorage may be unavailable */ }
 
   notifyConfigChanged();
