@@ -2259,14 +2259,20 @@ body {
   flex: 1 1 auto;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(118px, 148px) minmax(0, 1fr);
+  direction: ltr;
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(118px, 148px);
   gap: var(--qadr-space-4);
   padding: var(--qadr-space-4);
   background: var(--qadr-shell-bg);
+  align-items: stretch;
 }
 
 #app[data-qadr-shell="analytical-workbench"] .qadr-command-rail {
+  grid-column: 2 / 3;
   min-height: 0;
+  min-width: 0;
+  block-size: 100%;
   display: flex;
   flex-direction: column;
   gap: var(--qadr-space-3);
@@ -2513,9 +2519,14 @@ body {
 }
 
 #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-main {
+  grid-column: 1 / 2;
   display: flex;
   flex-direction: column;
   gap: var(--qadr-space-3);
+  min-width: 0;
+  min-height: 0;
+  block-size: 100%;
+  overflow: hidden;
 }
 
 #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-topbar {
@@ -2637,9 +2648,13 @@ body {
 }
 
 #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-page-strip {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  display: flex;
+  flex-wrap: nowrap;
   gap: var(--qadr-space-2);
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-block-end: 2px;
+  scrollbar-gutter: stable;
 }
 
 #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-page-btn {
@@ -2647,8 +2662,9 @@ body {
   align-items: flex-start;
   gap: 12px;
   min-width: 0;
-  min-height: 76px;
-  padding: 12px 14px;
+  min-height: 58px;
+  flex: 0 0 220px;
+  padding: 10px 12px;
   border-radius: var(--qadr-radius-md);
   text-align: start;
 }
@@ -2710,13 +2726,22 @@ body {
   grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
   gap: var(--qadr-space-4);
   flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  align-items: stretch;
 }
 
 #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-canvas {
   min-width: 0;
+  min-height: 0;
+  block-size: 100%;
+  display: flex;
 }
 
 #app[data-qadr-shell="analytical-workbench"] .main-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
   gap: var(--qadr-space-3);
   overflow: hidden;
   background: transparent;
@@ -3072,6 +3097,7 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  min-width: 0;
   overflow: hidden;
 }
 
@@ -3283,8 +3309,13 @@ body {
   }
 
   #app[data-qadr-shell="analytical-workbench"] .qadr-command-rail {
+    grid-column: auto;
     order: 2;
     padding: var(--qadr-space-2);
+  }
+
+  #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-main {
+    grid-column: auto;
   }
 
   #app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-actions,
@@ -3321,7 +3352,41 @@ body {
   }
 
   #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-page-strip {
+    display: grid;
     grid-template-columns: 1fr;
+    overflow: visible;
+  }
+
+  #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-page-btn {
+    flex-basis: auto;
+  }
+}
+
+@media (min-width: 1600px) {
+  #app[data-qadr-shell="analytical-workbench"] .main-content {
+    display: flex;
+    grid-template-columns: none;
+    grid-template-rows: none;
+  }
+
+  #app[data-qadr-shell="analytical-workbench"] .main-content.map-hidden {
+    grid-template-columns: none;
+  }
+
+  #app[data-qadr-shell="analytical-workbench"] .map-section {
+    grid-column: auto;
+    grid-row: auto;
+    height: min(54vh, 620px) !important;
+    min-height: 360px;
+    max-height: none;
+  }
+
+  #app[data-qadr-shell="analytical-workbench"] .map-section.pinned {
+    height: min(54vh, 620px) !important;
+  }
+
+  #app[data-qadr-shell="analytical-workbench"] .qadr-report-sheet-stack {
+    min-height: 320px;
   }
 }
 

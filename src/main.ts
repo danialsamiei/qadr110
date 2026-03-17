@@ -392,7 +392,7 @@ async function bootstrapApplication(): Promise<void> {
 
   // In desktop mode, route /api/* calls to the local Tauri sidecar backend.
   installRuntimeFetchPatch();
-  // In web production, route RPC calls through api.alefba.dev (Cloudflare edge).
+  // In web mode, only route RPC calls through a dedicated edge API origin when explicitly configured.
   installWebApiRedirect();
   loadDesktopSecrets().catch(() => {});
 

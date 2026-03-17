@@ -91,17 +91,23 @@ async function fetchCollectorSnapshots(pipeline: PipelineDef): Promise<PipelineC
         sampleCount: payload.items?.length || 0,
       }))
       .catch(() => ({ key: 'telegram', title: 'Telegram collector', status: 'offline' as const, sampleCount: 0 })),
-    fetchOk(apiPath('/api/intelligence/v1/searchGdeltDocuments'), {
+    fetchOk(apiPath('/api/intelligence/v1/search-gdelt-documents'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: pipeline.countries.join(' OR '), limit: 8 }),
+      body: JSON.stringify({
+        query: pipeline.countries.join(' OR '),
+        maxRecords: 8,
+        timespan: '72h',
+        toneFilter: '',
+        sort: 'date',
+      }),
     })
       .then(r => r.json())
-      .then((payload: { documents?: unknown[] }) => ({
+      .then((payload: { articles?: unknown[] }) => ({
         key: 'gdelt',
         title: 'GDELT intelligence',
         status: 'live' as const,
-        sampleCount: payload.documents?.length || 0,
+        sampleCount: payload.articles?.length || 0,
       }))
       .catch(() => ({ key: 'gdelt', title: 'GDELT intelligence', status: 'degraded' as const, sampleCount: 0 })),
     fetchOk(apiPath('/api/netblocks?limit=5'))

@@ -2,12 +2,30 @@ import http from 'node:http';
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { Readable } from 'node:stream';
+import { pathToFileURL } from 'node:url';
+import { tsImport } from 'tsx/esm/api';
 
 const distDir = path.resolve(process.cwd(), process.env.DIST_DIR || 'dist');
 const predictDistDir = path.resolve(process.cwd(), process.env.PREDICT_DIST_DIR || 'predict/frontend/dist');
 const predictBackendUrl = process.env.PREDICT_BACKEND_URL || 'http://127.0.0.1:5101';
+const apiDir = path.resolve(process.cwd(), 'api');
 const port = Number.parseInt(process.env.PORT || process.argv[2] || '3000', 10);
 const host = process.env.HOST || '0.0.0.0';
+const localApiModuleCache = new Map();
+
+const LOCAL_EDGE_API_ROUTES = new Map([
+  ['/api/ais-snapshot', 'ais-snapshot.js'],
+  ['/api/economic/v1/get-macro-signals', 'economic/v1/get-macro-signals.ts'],
+  ['/api/infrastructure/v1/list-temporal-anomalies', 'infrastructure/v1/list-temporal-anomalies.ts'],
+  ['/api/intelligence/v1/get-risk-scores', 'intelligence/v1/get-risk-scores.ts'],
+  ['/api/intelligence/v1/search-gdelt-documents', 'intelligence/v1/search-gdelt-documents.ts'],
+  ['/api/intelligence/v1/searchGdeltDocuments', 'intelligence/v1/searchGdeltDocuments.ts'],
+  ['/api/market/v1/list-etf-flows', 'market/v1/list-etf-flows.ts'],
+  ['/api/market/v1/list-gulf-quotes', 'market/v1/list-gulf-quotes.ts'],
+  ['/api/market/v1/list-stablecoin-markets', 'market/v1/list-stablecoin-markets.ts'],
+  ['/api/supply-chain/v1/get-chokepoint-status', 'supply-chain/v1/get-chokepoint-status.ts'],
+  ['/api/supply-chain/v1/get-shipping-rates', 'supply-chain/v1/get-shipping-rates.ts'],
+]);
 
 const mimeTypes = {
   '.css': 'text/css; charset=utf-8',
@@ -46,6 +64,10 @@ function safePathname(rawPathname) {
   if (!normalized.startsWith('/')) return '/';
   if (normalized.includes('..')) return '/';
   return normalized;
+}
+
+function normalizeRoutePath(pathname) {
+  return pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
 }
 
 function isPredictHost(hostHeader) {
@@ -186,6 +208,84 @@ async function proxyRequest(req, res, upstreamUrl) {
     .pipe(res);
 }
 
+async function writeFetchResponse(req, res, response) {
+  res.statusCode = response.status;
+  res.statusMessage = response.statusText;
+  response.headers.forEach((value, key) => {
+    if (HOP_BY_HOP_HEADERS.has(key.toLowerCase())) return;
+    res.setHeader(key, value);
+  });
+
+  if (!response.body || (req.method || 'GET') === 'HEAD') {
+    res.end();
+    return;
+  }
+
+  Readable.fromWeb(response.body)
+    .on('error', () => {
+      if (!res.headersSent) {
+        res.writeHead(502, { 'Content-Type': 'text/plain; charset=utf-8' });
+      }
+      res.end('Bad Gateway');
+    })
+    .pipe(res);
+}
+
+async function loadLocalApiModule(relativePath) {
+  const normalizedPath = relativePath.replace(/\\/g, '/');
+  const filePath = path.join(apiDir, normalizedPath);
+  let cachedModulePromise = localApiModuleCache.get(filePath);
+  if (!cachedModulePromise) {
+    cachedModulePromise = tsImport(pathToFileURL(filePath).href, import.meta.url);
+    localApiModuleCache.set(filePath, cachedModulePromise);
+  }
+  return cachedModulePromise;
+}
+
+async function maybeHandleLocalApiRequest(req, res, pathname, url) {
+  const modulePath = LOCAL_EDGE_API_ROUTES.get(pathname);
+  if (!modulePath) return false;
+
+  const requestHeaders = copyHeaders(req.headers);
+  const requestBody = await readRequestBody(req);
+  const protocolHeader = Array.isArray(req.headers['x-forwarded-proto'])
+    ? req.headers['x-forwarded-proto'][0]
+    : req.headers['x-forwarded-proto'];
+  const protocol = (protocolHeader || 'https').split(',')[0]?.trim() || 'https';
+  const requestUrl = `${protocol}://${req.headers.host || 'localhost'}${pathname}${url.search}`;
+  const requestInit = {
+    method: req.method || 'GET',
+    headers: requestHeaders,
+    body: requestBody?.length ? requestBody : undefined,
+    duplex: requestBody?.length ? 'half' : undefined,
+  };
+
+  try {
+    const module = await loadLocalApiModule(modulePath);
+    const handler = module?.default;
+    if (typeof handler !== 'function') {
+      sendNotFound(res, 'API handler is not available');
+      return true;
+    }
+
+    const response = await handler(new Request(requestUrl, requestInit));
+    if (!(response instanceof Response)) {
+      throw new TypeError(`API handler ${modulePath} did not return a Response`);
+    }
+
+    await writeFetchResponse(req, res, response);
+    return true;
+  } catch (error) {
+    res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify({
+      error: 'Local API handler failed',
+      path: pathname,
+      details: error instanceof Error ? error.message : 'unknown error',
+    }));
+    return true;
+  }
+}
+
 function normalizePredictSubpath(pathname) {
   if (pathname === '/predict' || pathname === '/predict/') return '/';
   return pathname.startsWith('/predict/') ? pathname.slice('/predict'.length) || '/' : pathname;
@@ -195,9 +295,17 @@ const server = http.createServer(async (req, res) => {
   const method = req.method || 'GET';
   const url = new URL(req.url || '/', 'http://localhost');
   const pathname = safePathname(decodeURIComponent(url.pathname));
+  const routePathname = normalizeRoutePath(pathname);
   const predictHostRequest = isPredictHost(req.headers.host);
 
   try {
+    if (!predictHostRequest && (routePathname === '/api' || routePathname.startsWith('/api/'))) {
+      const handled = await maybeHandleLocalApiRequest(req, res, routePathname, url);
+      if (handled) {
+        return;
+      }
+    }
+
     if (predictHostRequest) {
       if (pathname === '/health') {
         await proxyRequest(req, res, `${predictBackendUrl}/health${url.search}`);

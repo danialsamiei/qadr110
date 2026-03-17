@@ -34,6 +34,18 @@ const emptyShipping: GetShippingRatesResponse = { indices: [], fetchedAt: '', up
 const emptyChokepoints: GetChokepointStatusResponse = { chokepoints: [], fetchedAt: '', upstreamUnavailable: false };
 const emptyMinerals: GetCriticalMineralsResponse = { minerals: [], fetchedAt: '', upstreamUnavailable: false };
 
+function markShippingUnavailable(): GetShippingRatesResponse {
+  return { ...emptyShipping, upstreamUnavailable: true };
+}
+
+function markChokepointsUnavailable(): GetChokepointStatusResponse {
+  return { ...emptyChokepoints, upstreamUnavailable: true };
+}
+
+function markMineralsUnavailable(): GetCriticalMineralsResponse {
+  return { ...emptyMinerals, upstreamUnavailable: true };
+}
+
 export async function fetchShippingRates(): Promise<GetShippingRatesResponse> {
   const hydrated = getHydratedData('shippingRates') as GetShippingRatesResponse | undefined;
   if (hydrated?.indices?.length) return hydrated;
@@ -43,7 +55,7 @@ export async function fetchShippingRates(): Promise<GetShippingRatesResponse> {
       return client.getShippingRates({});
     }, emptyShipping);
   } catch {
-    return emptyShipping;
+    return markShippingUnavailable();
   }
 }
 
@@ -56,7 +68,7 @@ export async function fetchChokepointStatus(): Promise<GetChokepointStatusRespon
       return client.getChokepointStatus({});
     }, emptyChokepoints);
   } catch {
-    return emptyChokepoints;
+    return markChokepointsUnavailable();
   }
 }
 
@@ -69,6 +81,6 @@ export async function fetchCriticalMinerals(): Promise<GetCriticalMineralsRespon
       return client.getCriticalMinerals({});
     }, emptyMinerals);
   } catch {
-    return emptyMinerals;
+    return markMineralsUnavailable();
   }
 }

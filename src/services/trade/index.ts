@@ -39,6 +39,22 @@ const emptyTariffs: GetTariffTrendsResponse = { datapoints: [], fetchedAt: '', u
 const emptyFlows: GetTradeFlowsResponse = { flows: [], fetchedAt: '', upstreamUnavailable: false };
 const emptyBarriers: GetTradeBarriersResponse = { barriers: [], fetchedAt: '', upstreamUnavailable: false };
 
+function markRestrictionsUnavailable(): GetTradeRestrictionsResponse {
+  return { ...emptyRestrictions, upstreamUnavailable: true };
+}
+
+function markTariffsUnavailable(): GetTariffTrendsResponse {
+  return { ...emptyTariffs, upstreamUnavailable: true };
+}
+
+function markFlowsUnavailable(): GetTradeFlowsResponse {
+  return { ...emptyFlows, upstreamUnavailable: true };
+}
+
+function markBarriersUnavailable(): GetTradeBarriersResponse {
+  return { ...emptyBarriers, upstreamUnavailable: true };
+}
+
 export async function fetchTradeRestrictions(countries: string[] = [], limit = 50): Promise<GetTradeRestrictionsResponse> {
   if (!isFeatureAvailable('wtoTrade')) return emptyRestrictions;
   try {
@@ -46,7 +62,7 @@ export async function fetchTradeRestrictions(countries: string[] = [], limit = 5
       return client.getTradeRestrictions({ countries, limit });
     }, emptyRestrictions);
   } catch {
-    return emptyRestrictions;
+    return markRestrictionsUnavailable();
   }
 }
 
@@ -57,7 +73,7 @@ export async function fetchTariffTrends(reportingCountry: string, partnerCountry
       return client.getTariffTrends({ reportingCountry, partnerCountry, productSector, years });
     }, emptyTariffs);
   } catch {
-    return emptyTariffs;
+    return markTariffsUnavailable();
   }
 }
 
@@ -68,7 +84,7 @@ export async function fetchTradeFlows(reportingCountry: string, partnerCountry: 
       return client.getTradeFlows({ reportingCountry, partnerCountry, years });
     }, emptyFlows);
   } catch {
-    return emptyFlows;
+    return markFlowsUnavailable();
   }
 }
 
@@ -79,6 +95,6 @@ export async function fetchTradeBarriers(countries: string[] = [], measureType =
       return client.getTradeBarriers({ countries, measureType, limit });
     }, emptyBarriers);
   } catch {
-    return emptyBarriers;
+    return markBarriersUnavailable();
   }
 }

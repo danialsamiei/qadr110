@@ -24,7 +24,7 @@ function readEnvFlag(key: string): boolean {
 }
 
 const WS_API_URL = readEnvString('VITE_WS_API_URL');
-const DEFAULT_WEB_API_URL = 'https://api.alefba.dev';
+const DEFAULT_WEB_API_URL = readEnvString('VITE_WEB_API_BASE_URL');
 const KEYED_CLOUD_API_PATTERN = /^\/api\/(?:[^/]+\/v1\/|bootstrap(?:\?|$)|polymarket(?:\?|$)|ais-snapshot(?:\?|$))/;
 
 const DEFAULT_REMOTE_HOSTS: Record<string, string> = {
@@ -161,7 +161,11 @@ export function getConfiguredWebApiBaseUrl(): string {
 }
 
 export function getCanonicalApiOrigin(): string {
-  return getConfiguredWebApiBaseUrl() || DEFAULT_WEB_API_URL;
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return getConfiguredWebApiBaseUrl() || window.location.origin;
+  }
+
+  return getConfiguredWebApiBaseUrl() || 'https://qadr.alefba.dev';
 }
 
 export function getRemoteApiBaseUrl(): string {

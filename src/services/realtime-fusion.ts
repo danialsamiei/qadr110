@@ -77,7 +77,11 @@ export async function loadRealtimeFusionSnapshot(): Promise<FusionSnapshot> {
     fetch('/api/google-trends?geo=IR').then(async (r) => ({ ok: r.ok, data: await r.json().catch(() => null) })),
     fetch('/api/netblocks?limit=10').then(async (r) => ({ ok: r.ok, data: await r.json().catch(() => null) })),
     fetch('/api/polymarket').then(r => ({ ok: r.ok })),
-    fetch('/api/intelligence/v1/searchGdeltDocuments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: 'iran', limit: 5 }) }).then(r => ({ ok: r.ok })),
+    fetch('/api/intelligence/v1/search-gdelt-documents', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: 'iran', maxRecords: 5, timespan: '72h', toneFilter: '', sort: 'date' }),
+    }).then(r => ({ ok: r.ok })),
   ]);
 
   const analyticalAt = (i: number): AnalyticalFeed | null => {

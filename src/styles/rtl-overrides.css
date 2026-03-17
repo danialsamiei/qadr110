@@ -1,174 +1,162 @@
-/* RTL overrides for Arabic (dir="rtl") — targeted fixes only */
+/* RTL overrides for app-local RTL surfaces — targeted fixes only */
 
 /* Language selector: flip arrow and margins */
-[dir="rtl"] .lang-select {
+#app[data-ui-direction="rtl"] .lang-select {
   padding: 4px 6px 4px 24px;
   background-position: left 8px center;
   margin-inline: 0 8px;
 }
 
 /* Header element margins */
-[dir="rtl"] .variant-switcher {
+#app[data-ui-direction="rtl"] .variant-switcher {
   margin-inline: 0 6px;
 }
 
-[dir="rtl"] .version {
+#app[data-ui-direction="rtl"] .version {
   margin-inline: 6px 0;
 }
 
-[dir="rtl"] .update-toast {
+#app[data-ui-direction="rtl"] .update-toast {
   inset-inline: auto 16px;
 }
 
-[dir="rtl"] .github-link {
+#app[data-ui-direction="rtl"] .github-link {
   margin-inline: 8px 0;
 }
 
-[dir="rtl"] .search-btn {
+#app[data-ui-direction="rtl"] .search-btn {
   margin-inline: 0 8px;
 }
 
 /* Accent bars → logical inline-start */
-[dir="rtl"] .panel-summary {
+#app[data-ui-direction="rtl"] .panel-summary {
   border-inline-start: 3px solid var(--accent);
 }
 
-[dir="rtl"] .signal-item {
+#app[data-ui-direction="rtl"] .signal-item {
   border-inline-start: 3px solid var(--accent);
 }
 
-[dir="rtl"] .signal-item.velocity_spike {
+#app[data-ui-direction="rtl"] .signal-item.velocity_spike {
   border-inline-start-color: var(--red);
 }
 
-[dir="rtl"] .signal-item.keyword_spike {
+#app[data-ui-direction="rtl"] .signal-item.keyword_spike {
   border-inline-start-color: var(--semantic-high);
 }
 
-[dir="rtl"] .signal-item.prediction_leads_news {
+#app[data-ui-direction="rtl"] .signal-item.prediction_leads_news {
   border-inline-start-color: var(--yellow);
 }
 
-[dir="rtl"] .signal-item.silent_divergence {
+#app[data-ui-direction="rtl"] .signal-item.silent_divergence {
   border-inline-start-color: var(--green);
 }
 
-[dir="rtl"] .signal-item.convergence {
+#app[data-ui-direction="rtl"] .signal-item.convergence {
   border-inline-start-color: var(--defcon-4);
 }
 
-[dir="rtl"] .signal-item.triangulation {
+#app[data-ui-direction="rtl"] .signal-item.triangulation {
   border-inline-start-color: var(--semantic-high);
 }
 
-[dir="rtl"] .signal-item.flow_drop {
+#app[data-ui-direction="rtl"] .signal-item.flow_drop {
   border-inline-start-color: var(--semantic-info);
 }
 
-[dir="rtl"] .signal-item.flow_price_divergence {
+#app[data-ui-direction="rtl"] .signal-item.flow_price_divergence {
   border-inline-start-color: var(--semantic-normal);
 }
 
 /* News/intel card borders */
-[dir="rtl"] .news-card,
-[dir="rtl"] .popup-header,
-[dir="rtl"] .trending-topic-item,
-[dir="rtl"] .intel-item {
+#app[data-ui-direction="rtl"] .news-card,
+#app[data-ui-direction="rtl"] .popup-header,
+#app[data-ui-direction="rtl"] .trending-topic-item,
+#app[data-ui-direction="rtl"] .intel-item {
   border-inline-start-width: 3px;
   border-inline-start-style: solid;
 }
 
-[dir="rtl"] .item.alert {
+#app[data-ui-direction="rtl"] .item.alert {
   border-inline-start: 2px solid var(--red);
   padding-inline: 8px 0;
   margin-inline: -8px 0;
 }
 
-[dir="rtl"] .panel-info-tooltip ul {
+#app[data-ui-direction="rtl"] .panel-info-tooltip ul {
   padding-inline: 14px 0;
 }
 
 /* text-align flips */
-[dir="rtl"] .related-asset {
+#app[data-ui-direction="rtl"] .related-asset {
   text-align: right;
 }
 
-[dir="rtl"] .export-option {
+#app[data-ui-direction="rtl"] .export-option {
   text-align: right;
 }
 
-[dir="rtl"] .cii-share-btn,
-[dir="rtl"] .country-intel-share-btn,
-[dir="rtl"] .sources-counter {
+#app[data-ui-direction="rtl"] .cii-share-btn,
+#app[data-ui-direction="rtl"] .country-intel-share-btn,
+#app[data-ui-direction="rtl"] .sources-counter {
   margin-inline: auto 0;
 }
 
-[dir="rtl"] .sources-counter {
+#app[data-ui-direction="rtl"] .sources-counter {
   margin-inline: auto 12px;
 }
 
 /* QADR110 analytical workbench */
-[dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-shell {
-  direction: rtl;
-}
-
-[dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-command-rail {
-  order: 2;
-}
-
-[dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-stage {
-  grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
-}
-
-[dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-breadcrumbs {
+#app[data-ui-direction="rtl"][data-qadr-shell="analytical-workbench"] .qadr-workbench-breadcrumbs {
   justify-content: flex-start;
 }
 
-[dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-breadcrumb-sep {
+#app[data-ui-direction="rtl"][data-qadr-shell="analytical-workbench"] .qadr-breadcrumb-sep {
   transform: scaleX(-1);
 }
 
-[dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-palette,
-[dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-chip,
-[dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-page,
-[dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-meta-card,
-[dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-page-btn,
-[dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-inspector-card,
-[dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-notebook-card,
-[dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-mini-card,
-[dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-page-inline-chip {
+#app[data-ui-direction="rtl"][data-qadr-shell="analytical-workbench"] .qadr-command-rail-palette,
+#app[data-ui-direction="rtl"][data-qadr-shell="analytical-workbench"] .qadr-command-rail-chip,
+#app[data-ui-direction="rtl"][data-qadr-shell="analytical-workbench"] .qadr-command-rail-page,
+#app[data-ui-direction="rtl"][data-qadr-shell="analytical-workbench"] .qadr-workbench-meta-card,
+#app[data-ui-direction="rtl"][data-qadr-shell="analytical-workbench"] .qadr-workbench-page-btn,
+#app[data-ui-direction="rtl"][data-qadr-shell="analytical-workbench"] .qadr-inspector-card,
+#app[data-ui-direction="rtl"][data-qadr-shell="analytical-workbench"] .qadr-notebook-card,
+#app[data-ui-direction="rtl"][data-qadr-shell="analytical-workbench"] .qadr-mini-card,
+#app[data-ui-direction="rtl"][data-qadr-shell="analytical-workbench"] .qadr-page-inline-chip {
   text-align: right;
 }
 
-[dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-toolbar {
+#app[data-ui-direction="rtl"][data-qadr-shell="analytical-workbench"] .qadr-workbench-toolbar {
   align-items: stretch;
 }
 
-[dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-mode-switch,
-[dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-tabs,
-[dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-toolbar-actions,
-[dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-page-strip {
+#app[data-ui-direction="rtl"][data-qadr-shell="analytical-workbench"] .qadr-workbench-mode-switch,
+#app[data-ui-direction="rtl"][data-qadr-shell="analytical-workbench"] .qadr-workbench-tabs,
+#app[data-ui-direction="rtl"][data-qadr-shell="analytical-workbench"] .qadr-workbench-toolbar-actions,
+#app[data-ui-direction="rtl"][data-qadr-shell="analytical-workbench"] .qadr-workbench-page-strip {
   justify-content: flex-start;
 }
 
-[dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-command-rail-palette {
+#app[data-ui-direction="rtl"][data-qadr-shell="analytical-workbench"] .qadr-command-rail-palette {
   align-items: flex-start;
 }
 
-[dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-bullet-list {
+#app[data-ui-direction="rtl"][data-qadr-shell="analytical-workbench"] .qadr-bullet-list {
   padding-inline: 0 18px;
 }
 
-[dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-evidence-collapse {
+#app[data-ui-direction="rtl"][data-qadr-shell="analytical-workbench"] .qadr-evidence-collapse {
   transform: scaleX(-1);
 }
 
-[dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-panel-overlay-body-compare {
+#app[data-ui-direction="rtl"][data-qadr-shell="analytical-workbench"] .qadr-panel-overlay-body-compare {
   direction: rtl;
 }
 
 @media (max-width: 1360px) {
-  [dir="rtl"] #app[data-qadr-shell="analytical-workbench"] .qadr-workbench-stage {
+  #app[data-ui-direction="rtl"][data-qadr-shell="analytical-workbench"] .qadr-workbench-stage {
     grid-template-columns: minmax(0, 1fr);
   }
 }

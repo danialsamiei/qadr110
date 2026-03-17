@@ -46,11 +46,15 @@ function normalizeLanguage(lng: string): SupportedLanguage {
 
 function applyDocumentDirection(lang: string): void {
   const base = lang.split('-')[0] || lang;
+  const isRtlLanguage = RTL_LANGUAGES.has(base);
   document.documentElement.setAttribute('lang', base === 'zh' ? 'zh-CN' : base);
-  if (RTL_LANGUAGES.has(base)) {
-    document.documentElement.setAttribute('dir', 'rtl');
-  } else {
-    document.documentElement.removeAttribute('dir');
+  document.documentElement.setAttribute('dir', 'ltr');
+  document.body?.setAttribute('dir', 'ltr');
+
+  const appRoot = document.getElementById('app');
+  if (appRoot) {
+    appRoot.dataset.uiDirection = isRtlLanguage ? 'rtl' : 'ltr';
+    appRoot.dataset.uiLanguage = base;
   }
 }
 
