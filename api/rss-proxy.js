@@ -29,6 +29,28 @@ const RELAY_ONLY_DOMAINS = new Set([
   'www.atlanticcouncil.org',
 ]);
 
+function xmlEscape(value = '') {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function buildUnavailableFeed(feedUrl, message) {
+  const now = new Date().toUTCString();
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>QADR110 RSS Proxy Unavailable</title>
+    <link>${xmlEscape(feedUrl)}</link>
+    <description>${xmlEscape(message)}</description>
+    <lastBuildDate>${xmlEscape(now)}</lastBuildDate>
+  </channel>
+</rss>`;
+}
+
 async function fetchViaRailway(feedUrl, timeoutMs) {
   const relayBaseUrl = getRelayBaseUrl();
   if (!relayBaseUrl) return null;
@@ -192,13 +214,17 @@ export default async function handler(req) {
   } catch (error) {
     const isTimeout = error.name === 'AbortError';
     console.error('RSS proxy error:', feedUrl, error.message);
-    return new Response(JSON.stringify({
-      error: isTimeout ? 'Feed timeout' : 'Failed to fetch feed',
-      details: error.message,
-      url: feedUrl
-    }), {
-      status: isTimeout ? 504 : 502,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    return new Response(buildUnavailableFeed(
+      feedUrl,
+      isTimeout ? 'Feed timeout' : `Failed to fetch feed: ${error.message}`,
+    ), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/xml; charset=utf-8',
+        'Cache-Control': 'public, max-age=30, s-maxage=60, stale-while-revalidate=120',
+        'X-Upstream-Unavailable': '1',
+        ...corsHeaders,
+      },
     });
   }
 }
