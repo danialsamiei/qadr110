@@ -124,6 +124,7 @@ type WorkbenchSpecialPage = {
   mode: WorkbenchMode;
   sheet: WorkbenchSheet;
   icon: string;
+  href?: string;
 };
 
 const ANALYSIS_NAV_ACTIONS: AnalysisNavAction[] = [
@@ -234,6 +235,17 @@ const WORKBENCH_SPECIAL_PAGES: WorkbenchSpecialPage[] = [
     mode: 'foresight',
     sheet: 'reports',
     icon: '◇',
+  },
+  {
+    id: 'predict',
+    label: 'Predict Lab',
+    kicker: 'PRED',
+    description: 'MiroFish workspace برای شبیه‌سازی، گزارش و تعامل چندعاملی',
+    panelId: 'strategic-foresight',
+    mode: 'foresight',
+    sheet: 'reports',
+    icon: '◌',
+    href: '/predict/',
   },
   {
     id: 'audit',
@@ -1382,6 +1394,10 @@ export class PanelLayoutManager implements AppModule {
   private openWorkbenchPage(pageId: string): void {
     const page = WORKBENCH_SPECIAL_PAGES.find((item) => item.id === pageId);
     if (!page) return;
+    if (page.href) {
+      window.location.assign(page.href);
+      return;
+    }
     this.setActiveSheet(page.sheet);
     this.focusPanel(page.panelId);
   }

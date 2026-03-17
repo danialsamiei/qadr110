@@ -1,0 +1,22 @@
+[Unit]
+Description=QADR110 Predict Backend (MiroFish)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=saman
+Group=saman
+WorkingDirectory=/opt/qadr110/predict/backend
+Environment=PATH=/opt/qadr110/predict/backend/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=PYTHONUNBUFFERED=1
+Environment=FLASK_HOST=127.0.0.1
+Environment=FLASK_PORT=5101
+Environment=MIROFISH_ALLOW_DEGRADED_START=true
+EnvironmentFile=-/opt/qadr110/predict/.env
+ExecStart=/opt/qadr110/predict/backend/.venv/bin/python run.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
