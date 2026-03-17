@@ -56,8 +56,15 @@ This uses the existing LiteLLM gateway and local model stack already present on 
 - Predict frontend build path: `predict/frontend/dist`
 - Predict backend service template:
   - [`deploy/systemd/qadr110-predict-backend.service`](/C:/Users/never/Documents/CodeX/_tmp_qadr110/deploy/systemd/qadr110-predict-backend.service)
+  - [`deploy/systemd/qadr110-predict-backend-docker.service`](/C:/Users/never/Documents/CodeX/_tmp_qadr110/deploy/systemd/qadr110-predict-backend-docker.service)
 - Main reverse-proxy/static entrypoint:
   - [`scripts/serve-dist.mjs`](/C:/Users/never/Documents/CodeX/_tmp_qadr110/scripts/serve-dist.mjs)
+
+## Python compatibility note
+
+- Upstream `camel-oasis==0.2.5` requires Python `<3.12`.
+- On servers that only ship Python `3.12`, deploy the predict backend with the Docker-based service template above.
+- On servers with Python `3.11`, the plain systemd + virtualenv path remains valid.
 
 ## Known limitations
 
