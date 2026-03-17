@@ -24,7 +24,7 @@ function readEnvFlag(key: string): boolean {
 }
 
 const WS_API_URL = readEnvString('VITE_WS_API_URL');
-const DEFAULT_WEB_API_URL = 'https://api.qadr.alefba.dev';
+const DEFAULT_WEB_API_URL = 'https://api.alefba.dev';
 const KEYED_CLOUD_API_PATTERN = /^\/api\/(?:[^/]+\/v1\/|bootstrap(?:\?|$)|polymarket(?:\?|$)|ais-snapshot(?:\?|$))/;
 
 const DEFAULT_REMOTE_HOSTS: Record<string, string> = {
@@ -224,7 +224,7 @@ function extractHostnames(...urls: (string | undefined)[]): string[] {
 
 const APP_HOSTS = new Set([
   'qadr.alefba.dev',
-  'api.qadr.alefba.dev',
+  'api.alefba.dev',
   'localhost',
   '127.0.0.1',
   ...extractHostnames(WS_API_URL, readEnvString('VITE_WS_RELAY_URL')),
@@ -234,7 +234,7 @@ function isAppOriginUrl(urlStr: string): boolean {
   try {
     const u = new URL(urlStr);
     const host = u.hostname;
-    return APP_HOSTS.has(host) || host.endsWith('.qadr.alefba.dev');
+    return APP_HOSTS.has(host) || host.endsWith('.qadr.alefba.dev') || host.endsWith('.alefba.dev');
   } catch {
     return false;
   }

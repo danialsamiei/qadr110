@@ -890,6 +890,7 @@ export class PanelLayoutManager implements AppModule {
   }
 
   private updateWorkbenchChrome(): void {
+    this.ensureOverlayIntegrity();
     this.updateSheetState();
     this.updateBreadcrumbs();
     this.updateTopbarMeta();
@@ -1290,14 +1291,39 @@ export class PanelLayoutManager implements AppModule {
 
   private closeCompareMode(): boolean {
     const overlay = document.getElementById('qadrCompareOverlay');
-    if (!overlay || this.compareRestore.length === 0) return false;
-    this.compareRestore.forEach((restore) => this.restorePanelLocation(restore));
-    this.compareRestore = [];
+    if (!overlay) return false;
+    if (this.compareRestore.length > 0) {
+      this.compareRestore.forEach((restore) => this.restorePanelLocation(restore));
+      this.compareRestore = [];
+    }
     overlay.hidden = true;
     overlay.classList.remove('active');
     document.body.classList.remove('qadr-compare-open');
     this.updateWorkbenchChrome();
     return true;
+  }
+
+  private ensureOverlayIntegrity(): void {
+    const overlay = document.getElementById('qadrCompareOverlay');
+    if (!overlay || overlay.hidden) return;
+
+    const paneA = document.getElementById('qadrComparePaneA');
+    const paneB = document.getElementById('qadrComparePaneB');
+    const hasBothPanels = Boolean(
+      paneA?.querySelector('.panel[data-panel]') &&
+      paneB?.querySelector('.panel[data-panel]')
+    );
+
+    if (hasBothPanels) return;
+
+    overlay.hidden = true;
+    overlay.classList.remove('active');
+    document.body.classList.remove('qadr-compare-open');
+    if (this.compareRestore.length > 0) {
+      this.compareRestore.forEach((restore) => this.restorePanelLocation(restore));
+    }
+    this.compareRestore = [];
+    this.compareSelection = [];
   }
 
   private capturePanelRestore(panelEl: HTMLElement, panelId: string): WorkbenchPanelRestore | null {

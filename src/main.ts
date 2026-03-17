@@ -309,6 +309,20 @@ import { migrateLegacyBrandStorage, QADR_SETTINGS_OPEN_KEY } from '@/utils/qadr-
 // Both need i18n initialized so t() does not return undefined.
 const urlParams = new URL(location.href).searchParams;
 
+function shouldEnableVercelAnalytics(): boolean {
+  const explicitFlag = import.meta.env.VITE_ENABLE_VERCEL_ANALYTICS;
+  if (explicitFlag === 'true' || explicitFlag === '1') {
+    return true;
+  }
+
+  if (explicitFlag === 'false' || explicitFlag === '0') {
+    return false;
+  }
+
+  const hostname = location.hostname.toLowerCase();
+  return hostname.endsWith('.vercel.app');
+}
+
 function showAccessGate(): Promise<boolean> {
   const key = 'qadr110-auth-ok';
   if (sessionStorage.getItem(key) === '1') return Promise.resolve(true);
@@ -364,17 +378,21 @@ async function bootstrapApplication(): Promise<void> {
   // Persist demo=1 in localStorage so demo mode survives subsequent reloads.
   initDemoModeFromUrl();
 
-  // Initialize Vercel Analytics (10% sampling to reduce costs)
-  inject({
-    beforeSend: (event) => (Math.random() > 0.1 ? null : event),
-  });
+  // Vercel Analytics injects a runtime script path that does not exist on self-hosted
+  // deployments behind Cloudflare/systemd. Keep it off unless we are actually on Vercel
+  // or an explicit env flag enabled it.
+  if (shouldEnableVercelAnalytics()) {
+    inject({
+      beforeSend: (event) => (Math.random() > 0.1 ? null : event),
+    });
+  }
 
   // Initialize dynamic meta tags for sharing
   initMetaTags();
 
   // In desktop mode, route /api/* calls to the local Tauri sidecar backend.
   installRuntimeFetchPatch();
-  // In web production, route RPC calls through api.qadr.alefba.dev (Cloudflare edge).
+  // In web production, route RPC calls through api.alefba.dev (Cloudflare edge).
   installWebApiRedirect();
   loadDesktopSecrets().catch(() => {});
 
