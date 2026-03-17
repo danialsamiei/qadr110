@@ -1,4 +1,5 @@
 import { getCorsHeaders, isDisallowedOrigin } from './_cors.js';
+import { parseRssItems } from './_rss-parser.js';
 
 export const config = { runtime: 'edge' };
 
@@ -14,15 +15,28 @@ function freshnessFromHours(hours) {
   return 'stale';
 }
 
-function parseGoogleTrendsRss(rawRss) {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(rawRss, 'text/xml');
-  const items = Array.from(doc.querySelectorAll('item'));
+function buildUnavailablePayload(geo, source, details) {
+  return {
+    geo,
+    source,
+    feedType: 'google-trends',
+    itemCount: 0,
+    trends: [],
+    samples: [],
+    sourceConfidence: 0,
+    freshness: 'stale',
+    contradictionFlags: ['feed_unavailable'],
+    entitySummary: [],
+    upstreamUnavailable: true,
+    details,
+  };
+}
 
-  const topics = items.map((item) => ({
-    title: (item.querySelector('title')?.textContent || '').trim(),
-    pubDate: item.querySelector('pubDate')?.textContent || '',
-  })).filter((item) => item.title);
+function parseGoogleTrendsRss(rawRss) {
+  const topics = parseRssItems(rawRss).map((item) => ({
+    title: item.title,
+    pubDate: item.pubDate || '',
+  }));
 
   const avgAgeHours = topics.length
     ? topics.reduce((sum, item) => sum + hoursSince(item.pubDate), 0) / topics.length
@@ -65,6 +79,7 @@ function parseGoogleTrendsRss(rawRss) {
   return {
     feedType: 'google-trends',
     itemCount: topics.length,
+    trends: topics.slice(0, 10),
     sourceConfidence,
     freshness: freshnessFromHours(avgAgeHours),
     contradictionFlags,
@@ -88,15 +103,30 @@ export default async function handler(req) {
   try {
     const res = await fetch(trendsRss, { headers: { 'User-Agent': 'QADR110/1.0' } });
     const text = await res.text();
+    if (!res.ok) {
+      return new Response(JSON.stringify(buildUnavailablePayload(geo, trendsRss, `HTTP ${res.status}`)), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120', ...corsHeaders },
+      });
+    }
+
     const analytical = parseGoogleTrendsRss(text);
+    const isXmlLike = analytical.itemCount > 0 || /<rss[\s>]|<feed[\s>]/i.test(text);
+    if (!isXmlLike) {
+      return new Response(JSON.stringify(buildUnavailablePayload(geo, trendsRss, 'Unexpected upstream payload')), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120', ...corsHeaders },
+      });
+    }
+
     return new Response(JSON.stringify({ geo, source: trendsRss, ...analytical, rawRss: text.slice(0, 200000) }), {
-      status: res.ok ? 200 : 502,
+      status: 200,
       headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, s-maxage=120', ...corsHeaders },
     });
   } catch (error) {
-    return new Response(JSON.stringify({ error: 'Fetch failed', details: String(error) }), {
-      status: 502,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    return new Response(JSON.stringify(buildUnavailablePayload(geo, trendsRss, String(error))), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120', ...corsHeaders },
     });
   }
 }

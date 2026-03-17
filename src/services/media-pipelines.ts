@@ -112,19 +112,19 @@ async function fetchCollectorSnapshots(pipeline: PipelineDef): Promise<PipelineC
       .catch(() => ({ key: 'gdelt', title: 'GDELT intelligence', status: 'degraded' as const, sampleCount: 0 })),
     fetchOk(apiPath('/api/netblocks?limit=5'))
       .then(r => r.json())
-      .then((payload: { incidents?: unknown[] }) => ({
+      .then((payload: { incidents?: unknown[]; upstreamUnavailable?: boolean }) => ({
         key: 'netblocks',
         title: 'NetBlocks collector',
-        status: 'live' as const,
+        status: payload.upstreamUnavailable ? 'offline' as const : 'live' as const,
         sampleCount: payload.incidents?.length || 0,
       }))
       .catch(() => ({ key: 'netblocks', title: 'NetBlocks collector', status: 'offline' as const, sampleCount: 0 })),
     fetchOk(apiPath('/api/google-trends?geo=IR'))
       .then(r => r.json())
-      .then((payload: { trends?: unknown[] }) => ({
+      .then((payload: { trends?: unknown[]; upstreamUnavailable?: boolean }) => ({
         key: 'trends',
         title: 'Google Trends collector',
-        status: 'live' as const,
+        status: payload.upstreamUnavailable ? 'degraded' as const : 'live' as const,
         sampleCount: payload.trends?.length || 0,
       }))
       .catch(() => ({ key: 'trends', title: 'Google Trends collector', status: 'degraded' as const, sampleCount: 0 })),

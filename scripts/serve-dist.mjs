@@ -27,6 +27,15 @@ const LOCAL_EDGE_API_ROUTES = new Map([
   ['/api/supply-chain/v1/get-shipping-rates', 'supply-chain/v1/get-shipping-rates.ts'],
 ]);
 
+const LOCAL_EDGE_DYNAMIC_SUFFIXES = [
+  '[rpc].ts',
+  '[rpc].js',
+  '[...path].ts',
+  '[...path].js',
+  '[[...path]].ts',
+  '[[...path]].js',
+];
+
 const mimeTypes = {
   '.css': 'text/css; charset=utf-8',
   '.gif': 'image/gif',
@@ -242,8 +251,38 @@ async function loadLocalApiModule(relativePath) {
   return cachedModulePromise;
 }
 
+function resolveLocalApiModulePath(pathname) {
+  const aliasPath = LOCAL_EDGE_API_ROUTES.get(pathname);
+  if (aliasPath) return aliasPath;
+  if (!pathname.startsWith('/api/')) return null;
+
+  const relativePath = pathname.slice('/api/'.length).replace(/^\/+/, '');
+  if (!relativePath) return null;
+
+  const candidatePaths = [
+    `${relativePath}.js`,
+    `${relativePath}.ts`,
+  ];
+
+  const lastSlashIndex = relativePath.lastIndexOf('/');
+  if (lastSlashIndex !== -1) {
+    const parentPath = relativePath.slice(0, lastSlashIndex);
+    for (const suffix of LOCAL_EDGE_DYNAMIC_SUFFIXES) {
+      candidatePaths.push(`${parentPath}/${suffix}`);
+    }
+  }
+
+  for (const candidatePath of candidatePaths) {
+    if (existsSync(path.join(apiDir, candidatePath))) {
+      return candidatePath;
+    }
+  }
+
+  return null;
+}
+
 async function maybeHandleLocalApiRequest(req, res, pathname, url) {
-  const modulePath = LOCAL_EDGE_API_ROUTES.get(pathname);
+  const modulePath = resolveLocalApiModulePath(pathname);
   if (!modulePath) return false;
 
   const requestHeaders = copyHeaders(req.headers);

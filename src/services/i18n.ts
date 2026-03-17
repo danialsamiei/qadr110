@@ -8,10 +8,6 @@ const SUPPORTED_LANGUAGES = ['fa', 'en', 'bg', 'cs', 'fr', 'de', 'el', 'es', 'it
 type SupportedLanguage = typeof SUPPORTED_LANGUAGES[number];
 type TranslationDictionary = Record<string, unknown>;
 type I18nEnv = Record<string, string | boolean | undefined>;
-type ImportMetaGlob = <T>(
-  pattern: string | string[],
-  options?: { import?: string },
-) => Record<string, () => Promise<T>>;
 
 function readEnvFlag(value: string | boolean | undefined): boolean {
   return value === true || value === 'true' || value === '1';
@@ -19,20 +15,15 @@ function readEnvFlag(value: string | boolean | undefined): boolean {
 
 const SUPPORTED_LANGUAGE_SET = new Set<SupportedLanguage>(SUPPORTED_LANGUAGES);
 const loadedLanguages = new Set<SupportedLanguage>();
-const i18nMeta = import.meta as ImportMeta & {
-  env?: I18nEnv;
-  glob?: ImportMetaGlob;
-};
+const i18nMeta = import.meta as ImportMeta & { env?: I18nEnv };
 const i18nEnv = i18nMeta.env ?? {};
 const isDev = readEnvFlag(i18nEnv.DEV);
 
 // Lazy-load only the locale that's actually needed — all others stay out of the bundle.
-const localeModules = typeof i18nMeta.glob === 'function'
-  ? i18nMeta.glob<TranslationDictionary>(
-    ['../locales/*.json', '!../locales/en.json'],
-    { import: 'default' },
-  )
-  : {};
+const localeModules = import.meta.glob<TranslationDictionary>(
+  ['../locales/*.json', '!../locales/en.json'],
+  { import: 'default' },
+);
 
 const RTL_LANGUAGES = new Set(['ar', 'fa']);
 

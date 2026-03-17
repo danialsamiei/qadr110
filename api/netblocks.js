@@ -1,4 +1,5 @@
 import { getCorsHeaders, isDisallowedOrigin } from './_cors.js';
+import { parseRssItems } from './_rss-parser.js';
 
 export const config = { runtime: 'edge' };
 
@@ -14,16 +15,28 @@ function freshnessFromHours(hours) {
   return 'stale';
 }
 
-function parseNetblocksRss(rawRss, limit = 10) {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(rawRss, 'text/xml');
-  const items = Array.from(doc.querySelectorAll('item')).slice(0, limit);
+function buildUnavailablePayload(limit, source, details) {
+  return {
+    source,
+    limit,
+    feedType: 'netblocks',
+    itemCount: 0,
+    sourceConfidence: 0,
+    freshness: 'stale',
+    contradictionFlags: ['feed_unavailable'],
+    entitySummary: [],
+    incidents: [],
+    upstreamUnavailable: true,
+    details,
+  };
+}
 
-  const incidents = items.map((item) => ({
-    title: (item.querySelector('title')?.textContent || '').trim(),
-    pubDate: item.querySelector('pubDate')?.textContent || '',
-    link: item.querySelector('link')?.textContent || '',
-  })).filter((item) => item.title);
+function parseNetblocksRss(rawRss, limit = 10) {
+  const incidents = parseRssItems(rawRss, limit).map((item) => ({
+    title: item.title,
+    pubDate: item.pubDate || '',
+    link: item.link || '',
+  }));
 
   const newestAge = incidents.length
     ? Math.min(...incidents.map((item) => hoursSince(item.pubDate)))
@@ -98,15 +111,30 @@ export default async function handler(req) {
   try {
     const res = await fetch(feedUrl, { headers: { 'User-Agent': 'QADR110/1.0' } });
     const xml = await res.text();
+    if (!res.ok) {
+      return new Response(JSON.stringify(buildUnavailablePayload(limit, feedUrl, `HTTP ${res.status}`)), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120', ...corsHeaders },
+      });
+    }
+
     const analytical = parseNetblocksRss(xml, limit);
+    const isXmlLike = analytical.itemCount > 0 || /<rss[\s>]|<feed[\s>]/i.test(xml);
+    if (!isXmlLike) {
+      return new Response(JSON.stringify(buildUnavailablePayload(limit, feedUrl, 'Unexpected upstream payload')), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120', ...corsHeaders },
+      });
+    }
+
     return new Response(JSON.stringify({ source: feedUrl, limit, ...analytical, rawRss: xml.slice(0, 200000) }), {
-      status: res.ok ? 200 : 502,
+      status: 200,
       headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, s-maxage=180', ...corsHeaders },
     });
   } catch (error) {
-    return new Response(JSON.stringify({ error: 'Fetch failed', details: String(error) }), {
-      status: 502,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    return new Response(JSON.stringify(buildUnavailablePayload(limit, feedUrl, String(error))), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120', ...corsHeaders },
     });
   }
 }
