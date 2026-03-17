@@ -2997,6 +2997,10 @@ body {
   backdrop-filter: blur(12px);
 }
 
+#app[data-qadr-shell="analytical-workbench"] .qadr-panel-overlay[hidden] {
+  display: none !important;
+}
+
 #app[data-qadr-shell="analytical-workbench"] .qadr-panel-overlay-shell {
   inline-size: min(1480px, 100%);
   block-size: min(88vh, 100%);
