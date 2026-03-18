@@ -70,6 +70,7 @@ import {
   PIPELINE_COLORS,
   STRATEGIC_WATERWAYS,
   ECONOMIC_CENTERS,
+  NET_ESTIMATES,
   AI_DATA_CENTERS,
   SITE_VARIANT,
   STARTUP_HUBS,
@@ -88,7 +89,10 @@ import {
   MINING_SITES,
   PROCESSING_PLANTS,
   COMMODITY_PORTS as COMMODITY_GEO_PORTS,
+  getNetEstimateCoreRadiusMeters,
+  getNetEstimateRingRadiusMeters,
 } from '@/config';
+import type { NetEstimate } from '@/config';
 import type { GulfInvestment } from '@/types';
 import { resolveTradeRouteSegments, TRADE_ROUTES as TRADE_ROUTES_LIST, type TradeRouteSegment } from '@/config/trade-routes';
 import { getLayersForVariant, resolveLayerLabel, bindLayerSearch, type MapVariant } from '@/config/map-layer-definitions';
@@ -1303,6 +1307,14 @@ export class DeckGLMap {
       layers.push(this.createGhostLayer('iran-events-layer', this.iranEvents, d => [d.longitude, d.latitude], { radiusMinPixels: 12 }));
     }
 
+    if (mapLayers.net) {
+      layers.push(this.createNetEstimateRingLayer());
+      layers.push(this.createNetEstimateCoreLayer());
+      if (currentZoom >= 5) {
+        layers.push(this.createNetEstimateLabelsLayer());
+      }
+    }
+
     // Weather alerts layer
     if (mapLayers.weather && filteredWeatherAlerts.length > 0) {
       layers.push(this.createWeatherLayer(filteredWeatherAlerts));
@@ -2113,6 +2125,65 @@ export class DeckGLMap {
       radiusMinPixels: 4,
       radiusMaxPixels: 16,
       pickable: true,
+    });
+  }
+
+  private createNetEstimateRingLayer(): ScatterplotLayer<NetEstimate> {
+    return new ScatterplotLayer<NetEstimate>({
+      id: 'net-estimate-ring-layer',
+      data: NET_ESTIMATES,
+      pickable: false,
+      stroked: true,
+      filled: true,
+      getPosition: (d) => [d.lon, d.lat],
+      getRadius: (d) => getNetEstimateRingRadiusMeters(d.uncertaintyKm),
+      radiusMinPixels: 20,
+      radiusMaxPixels: 90,
+      getFillColor: [59, 130, 246, 24],
+      getLineColor: [96, 165, 250, 132],
+      getLineWidth: 2,
+      lineWidthMinPixels: 1,
+      billboard: true,
+    });
+  }
+
+  private createNetEstimateCoreLayer(): ScatterplotLayer<NetEstimate> {
+    return new ScatterplotLayer<NetEstimate>({
+      id: 'net-estimate-core-layer',
+      data: NET_ESTIMATES,
+      pickable: false,
+      stroked: true,
+      filled: true,
+      getPosition: (d) => [d.lon, d.lat],
+      getRadius: (d) => getNetEstimateCoreRadiusMeters(d.probability),
+      radiusMinPixels: 7,
+      radiusMaxPixels: 28,
+      getFillColor: (d) => [59, 130, 246, 120 + d.probability] as [number, number, number, number],
+      getLineColor: [191, 219, 254, 220],
+      getLineWidth: 2,
+      lineWidthMinPixels: 1,
+      billboard: true,
+    });
+  }
+
+  private createNetEstimateLabelsLayer(): TextLayer<NetEstimate> {
+    return new TextLayer<NetEstimate>({
+      id: 'net-estimate-label-layer',
+      data: NET_ESTIMATES,
+      pickable: false,
+      getPosition: (d) => [d.lon, d.lat],
+      getText: (d) => `${d.label} · ${d.probability}%`,
+      getSize: 12,
+      sizeUnits: 'pixels',
+      getPixelOffset: [18, -16],
+      getColor: [226, 232, 240, 225],
+      getBackgroundColor: [11, 15, 20, 190],
+      background: true,
+      backgroundPadding: [6, 3],
+      fontFamily: 'Vazirmatn, Tahoma, sans-serif',
+      billboard: true,
+      getTextAnchor: 'start',
+      getAlignmentBaseline: 'center',
     });
   }
 
@@ -4144,6 +4215,7 @@ export class DeckGLMap {
       helpItem(label('conflictZones'), 'geoConflicts'),
 
       helpItem(label('intelHotspots'), 'geoHotspots'),
+      helpItem(label('net'), 'geoNetEstimates'),
       helpItem(staticLabel('sanctions'), 'geoSanctions'),
       helpItem(label('protests'), 'geoProtests'),
       helpItem(label('ucdpEvents'), 'geoUcdpEvents'),

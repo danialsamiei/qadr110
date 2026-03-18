@@ -29,6 +29,7 @@ import {
   STRATEGIC_WATERWAYS,
   APT_GROUPS,
   ECONOMIC_CENTERS,
+  NET_ESTIMATES,
   AI_DATA_CENTERS,
   PORTS,
   SPACEPORTS,
@@ -39,6 +40,8 @@ import {
   ACCELERATORS,
   TECH_HQS,
   CLOUD_REGIONS,
+  getNetEstimateCoreSizePx,
+  getNetEstimateRingSizePx,
   // Finance variant data
   STOCK_EXCHANGES,
   FINANCIAL_CENTERS,
@@ -372,6 +375,7 @@ export class MapComponent {
     // Variant-aware layer buttons
     const fullLayers: (keyof MapLayers)[] = [
       'iranAttacks',                                      // Iran conflict
+      'net',
       'conflicts', 'hotspots', 'sanctions', 'protests',  // geopolitical
       'bases', 'nuclear', 'irradiators',                 // military/strategic
       'military',                                         // military tracking (flights + vessels)
@@ -429,6 +433,7 @@ export class MapComponent {
       commodityHubs: 'components.deckgl.layers.commodityHubs',
       gulfInvestments: 'components.deckgl.layers.gulfInvestments',
       iranAttacks: 'components.deckgl.layers.iranAttacks',
+      net: 'components.deckgl.layers.net',
       gpsJamming: 'components.deckgl.layers.gpsJamming',
       ciiChoropleth: 'components.deckgl.layers.ciiChoropleth',
     };
@@ -574,6 +579,7 @@ export class MapComponent {
         ${helpSection('geopolitical', [
       helpItem(label('conflictZones'), 'geoConflicts'),
       helpItem(label('intelHotspots'), 'geoHotspots'),
+      helpItem(label('net'), 'geoNetEstimates'),
       helpItem(staticLabel('sanctions'), 'geoSanctions'),
       helpItem(label('protests'), 'geoProtests'),
       helpItem(label('ucdpEvents'), 'geoUcdpEvents'),
@@ -674,6 +680,7 @@ export class MapComponent {
         <div class="map-legend-item"><span class="legend-dot high"></span>${escapeHtml((t('popups.hotspot.levels.high') ?? 'HIGH').toUpperCase())}</div>
         <div class="map-legend-item"><span class="legend-dot elevated"></span>${escapeHtml((t('popups.hotspot.levels.elevated') ?? 'ELEVATED').toUpperCase())}</div>
         <div class="map-legend-item"><span class="legend-dot low"></span>${escapeHtml((t('popups.monitoring') ?? 'MONITORING').toUpperCase())}</div>
+        <div class="map-legend-item"><span class="legend-dot net"></span>NET</div>
         <div class="map-legend-item"><span class="map-legend-icon conflict">⚔</span>${escapeHtml(t('modals.search.types.conflict').toUpperCase())}</div>
         <div class="map-legend-item"><span class="map-legend-icon earthquake">●</span>${escapeHtml(t('modals.search.types.earthquake').toUpperCase())}</div>
         <div class="map-legend-item"><span class="map-legend-icon apt">⚠</span>APT</div>
@@ -1553,6 +1560,10 @@ export class MapComponent {
 
         this.overlays.appendChild(div);
       });
+    }
+
+    if (this.state.layers.net) {
+      this.renderNetEstimates(projection);
     }
 
     // Hotspots (always HTML - level colors and BREAKING badges)
@@ -2863,6 +2874,41 @@ export class MapComponent {
         this.overlays.appendChild(dot);
       });
     }
+  }
+
+  private renderNetEstimates(projection: d3.GeoProjection): void {
+    NET_ESTIMATES.forEach((estimate) => {
+      const pos = projection([estimate.lon, estimate.lat]);
+      if (!pos || !Number.isFinite(pos[0]) || !Number.isFinite(pos[1])) return;
+
+      const marker = document.createElement('div');
+      marker.className = 'net-estimate-marker';
+      marker.style.left = `${pos[0]}px`;
+      marker.style.top = `${pos[1]}px`;
+      marker.title = `${estimate.label} · ${estimate.probability}% · ${estimate.areaNote}`;
+      marker.setAttribute('aria-label', `${estimate.label} ${estimate.probability}%`);
+
+      const ring = document.createElement('div');
+      ring.className = 'net-estimate-ring';
+      const ringSize = getNetEstimateRingSizePx(estimate.probability, estimate.uncertaintyKm);
+      ring.style.width = `${ringSize}px`;
+      ring.style.height = `${ringSize}px`;
+
+      const core = document.createElement('div');
+      core.className = 'net-estimate-core';
+      const coreSize = getNetEstimateCoreSizePx(estimate.probability);
+      core.style.width = `${coreSize}px`;
+      core.style.height = `${coreSize}px`;
+
+      const label = document.createElement('div');
+      label.className = 'net-estimate-label';
+      label.textContent = `${estimate.label} · ${estimate.probability}%`;
+
+      marker.appendChild(ring);
+      marker.appendChild(core);
+      marker.appendChild(label);
+      this.overlays.appendChild(marker);
+    });
   }
 
   private renderWaterways(projection: d3.GeoProjection): void {

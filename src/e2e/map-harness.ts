@@ -138,6 +138,7 @@ app.style.margin = '0 auto';
 const allLayersEnabled: MapLayers = {
   gpsJamming: true,
   satellites: false,
+  net: true,
 
 
   conflicts: true,
@@ -194,6 +195,7 @@ const allLayersEnabled: MapLayers = {
 const allLayersDisabled: MapLayers = {
   gpsJamming: false,
   satellites: false,
+  net: false,
 
 
   conflicts: false,

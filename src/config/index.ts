@@ -22,6 +22,7 @@ export { UNDERSEA_CABLES, MAP_URLS } from './geo';
 
 // AI Datacenters (shared)
 export { AI_DATA_CENTERS } from './ai-datacenters';
+export { NET_ESTIMATES, type NetEstimate, getNetEstimateCoreRadiusMeters, getNetEstimateRingRadiusMeters, getNetEstimateCoreSizePx, getNetEstimateRingSizePx } from './net-estimates';
 
 // Feeds configuration (shared functions, variant-specific data)
 export {

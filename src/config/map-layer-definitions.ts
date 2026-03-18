@@ -28,6 +28,7 @@ export const LAYER_REGISTRY: Record<keyof MapLayers, LayerDefinition> = {
   iranAttacks:              def('iranAttacks',              '&#127919;', 'iranAttacks',              'Iran Attacks', ['flat', 'globe'], _desktop ? 'locked' : undefined),
   hotspots:                 def('hotspots',                 '&#127919;', 'intelHotspots',            'Intel Hotspots'),
   conflicts:                def('conflicts',                '&#9876;',   'conflictZones',            'Conflict Zones'),
+  net:                      def('net',                      '&#128760;', 'net',                      'NET', ['flat']),
 
   bases:                    def('bases',                    '&#127963;', 'militaryBases',            'Military Bases'),
   nuclear:                  def('nuclear',                  '&#9762;',   'nuclearSites',             'Nuclear Sites'),
@@ -82,7 +83,7 @@ export const LAYER_REGISTRY: Record<keyof MapLayers, LayerDefinition> = {
 
 const VARIANT_LAYER_ORDER: Record<MapVariant, Array<keyof MapLayers>> = {
   full: [
-    'iranAttacks', 'hotspots', 'conflicts',
+    'iranAttacks', 'hotspots', 'conflicts', 'net',
     'bases', 'nuclear', 'irradiators', 'spaceports',
     'cables', 'pipelines', 'datacenters', 'military',
     'ais', 'tradeRoutes', 'flights', 'roadTraffic', 'protests',
@@ -210,6 +211,7 @@ export const LAYER_SYNONYMS: Record<string, Array<keyof MapLayers>> = {
   gulf: ['gulfInvestments'],
   gcc: ['gulfInvestments'],
   sanction: ['sanctions'],
+  net: ['net'],
   night: ['dayNight'],
   sun: ['dayNight'],
   resilience: ['nrcChoropleth'],

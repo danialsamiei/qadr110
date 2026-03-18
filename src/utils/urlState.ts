@@ -7,6 +7,7 @@ const LAYER_KEYS: (keyof MapLayers)[] = [
   'cables',
   'pipelines',
   'hotspots',
+  'net',
   'ais',
   'nuclear',
   'irradiators',

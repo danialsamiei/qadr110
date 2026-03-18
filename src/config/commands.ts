@@ -70,6 +70,7 @@ export const COMMANDS: Command[] = [
   { id: 'layer:satellites', keywords: ['satellites', 'orbital', 'surveillance', 'space'], label: 'Toggle orbital surveillance', icon: '\u{1F6F0}\uFE0F', category: 'layers' },
   { id: 'layer:ucdp', keywords: ['ucdp', 'armed conflict', 'armed conflict events'], label: 'Toggle armed conflict events', icon: '\u2694\uFE0F', category: 'layers' },
   { id: 'layer:iran', keywords: ['iran', 'iran attacks'], label: 'Toggle Iran attacks', icon: '\u{1F3AF}', category: 'layers' },
+  { id: 'layer:net', keywords: ['net', 'net layer', 'institutional estimate'], label: 'Toggle NET estimates', icon: '\u{1F310}', category: 'layers' },
   { id: 'layer:irradiators', keywords: ['irradiators', 'gamma', 'radiation'], label: 'Toggle gamma irradiators', icon: '\u2623\uFE0F', category: 'layers' },
   { id: 'layer:spaceports', keywords: ['spaceports', 'launch sites', 'rockets'], label: 'Toggle spaceports', icon: '\u{1F680}', category: 'layers' },
   { id: 'layer:datacenters', keywords: ['datacenters', 'data centers', 'ai data'], label: 'Toggle AI data centers', icon: '\u{1F5A5}\uFE0F', category: 'layers' },

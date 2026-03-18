@@ -88,6 +88,7 @@ const FULL_MAP_LAYERS: MapLayers = {
   iranAttacks: _desktop ? false : true,
   gpsJamming: false,
   satellites: false,
+  net: false,
 
 
   conflicts: true,
@@ -149,6 +150,7 @@ const FULL_MOBILE_MAP_LAYERS: MapLayers = {
   iranAttacks: true,
   gpsJamming: false,
   satellites: false,
+  net: false,
 
 
   conflicts: true,
@@ -268,6 +270,7 @@ const TECH_PANELS: Record<string, PanelConfig> = {
 const TECH_MAP_LAYERS: MapLayers = {
   gpsJamming: false,
   satellites: false,
+  net: false,
 
 
   conflicts: false,
@@ -329,6 +332,7 @@ const TECH_MAP_LAYERS: MapLayers = {
 const TECH_MOBILE_MAP_LAYERS: MapLayers = {
   gpsJamming: false,
   satellites: false,
+  net: false,
 
 
   conflicts: false,
@@ -450,6 +454,7 @@ const FINANCE_PANELS: Record<string, PanelConfig> = {
 const FINANCE_MAP_LAYERS: MapLayers = {
   gpsJamming: false,
   satellites: false,
+  net: false,
 
 
   conflicts: false,
@@ -511,6 +516,7 @@ const FINANCE_MAP_LAYERS: MapLayers = {
 const FINANCE_MOBILE_MAP_LAYERS: MapLayers = {
   gpsJamming: false,
   satellites: false,
+  net: false,
 
 
   conflicts: false,
@@ -589,6 +595,7 @@ const HAPPY_PANELS: Record<string, PanelConfig> = {
 const HAPPY_MAP_LAYERS: MapLayers = {
   gpsJamming: false,
   satellites: false,
+  net: false,
 
 
   conflicts: false,
@@ -650,6 +657,7 @@ const HAPPY_MAP_LAYERS: MapLayers = {
 const HAPPY_MOBILE_MAP_LAYERS: MapLayers = {
   gpsJamming: false,
   satellites: false,
+  net: false,
 
 
   conflicts: false,
@@ -757,6 +765,7 @@ const COMMODITY_PANELS: Record<string, PanelConfig> = {
 const COMMODITY_MAP_LAYERS: MapLayers = {
   gpsJamming: false,
   satellites: false,
+  net: false,
 
 
   conflicts: false,
@@ -818,6 +827,7 @@ const COMMODITY_MAP_LAYERS: MapLayers = {
 const COMMODITY_MOBILE_MAP_LAYERS: MapLayers = {
   gpsJamming: false,
   satellites: false,
+  net: false,
 
 
   conflicts: false,
