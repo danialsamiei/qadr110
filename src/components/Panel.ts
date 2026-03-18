@@ -171,6 +171,7 @@ export class Panel {
   protected statusBadgeEl: HTMLElement | null = null;
   protected newBadgeEl: HTMLElement | null = null;
   protected panelId: string;
+  private readonly closable: boolean;
   private abortController: AbortController = new AbortController();
   private tooltipCloseHandler: (() => void) | null = null;
   private resizeHandle: HTMLElement | null = null;
@@ -206,6 +207,7 @@ export class Panel {
 
   constructor(options: PanelOptions) {
     this.panelId = options.id;
+    this.closable = options.closable !== false;
     this.element = document.createElement('div');
     this.element.className = `panel ${options.className || ''}`;
     this.element.dataset.panel = options.id;
@@ -269,7 +271,7 @@ export class Panel {
       this.header.appendChild(this.countEl);
     }
 
-    this.appendWindowControls(options.closable !== false);
+    this.ensureWindowControls();
 
     this.content = document.createElement('div');
     this.content.className = 'panel-content';
@@ -646,12 +648,27 @@ export class Panel {
     headerLeft.appendChild(badge);
   }
 
-  protected appendWindowControls(closable: boolean): void {
+  protected ensureWindowControls(): void {
+    if (!this.header.querySelector('.panel-minimize-btn')) {
+      this.header.appendChild(this.createMinimizeButton());
+    }
+
+    if (!this.closable) {
+      this.header.querySelector('.panel-close-btn')?.remove();
+      return;
+    }
+
+    if (!this.header.querySelector('.panel-close-btn')) {
+      this.header.appendChild(this.createCloseButton());
+    }
+  }
+
+  private createMinimizeButton(): HTMLButtonElement {
     const minimizeBtn = h('button', {
       className: 'icon-btn panel-minimize-btn',
       'aria-label': t('components.panel.minimizePanel'),
       title: t('components.panel.minimizePanel'),
-    }, '−');
+    }, '−') as HTMLButtonElement;
     minimizeBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       this.element.dispatchEvent(new CustomEvent('wm:panel-minimize', {
@@ -659,18 +676,15 @@ export class Panel {
         detail: { panelId: this.panelId },
       }));
     });
-    this.header.appendChild(minimizeBtn);
-
-    if (!closable) return;
-    this.appendCloseButton();
+    return minimizeBtn;
   }
 
-  protected appendCloseButton(): void {
+  private createCloseButton(): HTMLButtonElement {
     const closeBtn = h('button', {
       className: 'icon-btn panel-close-btn',
       'aria-label': t('components.panel.closePanel'),
       title: t('components.panel.closePanel'),
-    }, '\u2715');
+    }, '\u2715') as HTMLButtonElement;
     closeBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       this.element.dispatchEvent(new CustomEvent('wm:panel-close', {
@@ -678,10 +692,11 @@ export class Panel {
         detail: { panelId: this.panelId },
       }));
     });
-    this.header.appendChild(closeBtn);
+    return closeBtn;
   }
 
   public getElement(): HTMLElement {
+    this.ensureWindowControls();
     return this.element;
   }
 
