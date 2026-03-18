@@ -259,6 +259,8 @@ const WORKBENCH_SPECIAL_PAGES: WorkbenchSpecialPage[] = [
   },
 ];
 
+const MINIMIZED_PANELS_KEY = 'qadr110-minimized-panels';
+
 const MAP_VIEW_LABELS: Record<string, string> = {
   global: 'جهانی',
   america: 'آمریکا',
@@ -289,6 +291,7 @@ export class PanelLayoutManager implements AppModule {
   private compareSelection: string[] = [];
   private focusRestore: WorkbenchPanelRestore | null = null;
   private compareRestore: WorkbenchPanelRestore[] = [];
+  private minimizedPanels = this.loadMinimizedPanels();
   private countryBriefState: { visible: boolean; maximized: boolean; code: string | null; name: string | null } = {
     visible: false,
     maximized: false,
@@ -554,6 +557,7 @@ export class PanelLayoutManager implements AppModule {
           </div>
         </div>
       </div>
+      ${this.renderWindowTaskbar()}
       ${this.renderPanelOverlays()}
       <footer class="site-footer">
         <div class="site-footer-brand">
@@ -796,6 +800,15 @@ export class PanelLayoutManager implements AppModule {
     `;
   }
 
+  private renderWindowTaskbar(): string {
+    return `
+      <div class="qadr-window-taskbar" id="qadrWindowTaskbar" aria-label="نوار پنجره‌ها">
+        <div class="qadr-window-taskbar-label">پنجره‌ها</div>
+        <div class="qadr-window-taskbar-list" id="qadrWindowTaskbarList"></div>
+      </div>
+    `;
+  }
+
   private setupMobileMapToggle(): void {
     const mapSection = document.getElementById('mapSection');
     const headerLeft = mapSection?.querySelector('.panel-header-left');
@@ -864,6 +877,18 @@ export class PanelLayoutManager implements AppModule {
       const target = event.target as HTMLElement | null;
       if (!target) return;
 
+      const taskbarButton = target.closest<HTMLElement>('[data-window-taskbar-action]');
+      if (taskbarButton?.dataset.windowTaskbarAction) {
+        const panelId = taskbarButton.dataset.windowTaskbarPanel;
+        if (!panelId) return;
+        if (taskbarButton.dataset.windowTaskbarAction === 'restore') {
+          this.restoreMinimizedPanel(panelId);
+        } else if (taskbarButton.dataset.windowTaskbarAction === 'close') {
+          this.closePanel(panelId);
+        }
+        return;
+      }
+
       const actionButton = target.closest<HTMLElement>('[data-workbench-action]');
       if (actionButton?.dataset.workbenchAction) {
         this.handleWorkbenchAction(actionButton.dataset.workbenchAction, actionButton);
@@ -921,6 +946,25 @@ export class PanelLayoutManager implements AppModule {
     };
     this.ctx.container.addEventListener('mousedown', overlayBackdropHandler);
     this.workbenchCleanupHandlers.push(() => this.ctx.container.removeEventListener('mousedown', overlayBackdropHandler));
+
+    const panelCloseHandler = (event: Event) => {
+      const customEvent = event as CustomEvent<{ panelId?: string }>;
+      const panelId = customEvent.detail?.panelId;
+      if (!panelId) return;
+      this.closePanel(panelId);
+    };
+    const panelMinimizeHandler = (event: Event) => {
+      const customEvent = event as CustomEvent<{ panelId?: string }>;
+      const panelId = customEvent.detail?.panelId;
+      if (!panelId) return;
+      this.minimizePanel(panelId);
+    };
+    this.ctx.container.addEventListener('wm:panel-close', panelCloseHandler as EventListener);
+    this.ctx.container.addEventListener('wm:panel-minimize', panelMinimizeHandler as EventListener);
+    this.workbenchCleanupHandlers.push(() => {
+      this.ctx.container.removeEventListener('wm:panel-close', panelCloseHandler as EventListener);
+      this.ctx.container.removeEventListener('wm:panel-minimize', panelMinimizeHandler as EventListener);
+    });
 
     const keydownHandler = (event: KeyboardEvent) => {
       if (this.isTextEntryTarget(event.target)) return;
@@ -1694,11 +1738,14 @@ export class PanelLayoutManager implements AppModule {
         return;
       }
       const panel = this.ctx.panels[key];
-      panel?.toggle(config.enabled);
-      if (!config.enabled && this.selectedPanelId === key) {
+      const minimized = this.minimizedPanels.has(key);
+      panel?.toggle(config.enabled && !minimized);
+      panel?.getElement().classList.toggle('panel-minimized', minimized);
+      if ((!config.enabled || minimized) && this.selectedPanelId === key) {
         this.selectedPanelId = null;
       }
     });
+    this.renderWindowTaskbarState();
     this.updateWorkbenchChrome();
   }
 
@@ -2314,7 +2361,82 @@ export class PanelLayoutManager implements AppModule {
       this.applyPanelSettings();
     }
 
+    if (this.minimizedPanels.has(panelId)) {
+      this.restoreMinimizedPanel(panelId, false);
+    }
+
     this.focusPanelElement(panelId, 18);
+  }
+
+  private loadMinimizedPanels(): Set<string> {
+    try {
+      const stored = localStorage.getItem(MINIMIZED_PANELS_KEY);
+      if (!stored) return new Set();
+      const parsed = JSON.parse(stored);
+      if (!Array.isArray(parsed)) return new Set();
+      return new Set(parsed.filter((value): value is string => typeof value === 'string'));
+    } catch {
+      return new Set();
+    }
+  }
+
+  private saveMinimizedPanels(): void {
+    try {
+      localStorage.setItem(MINIMIZED_PANELS_KEY, JSON.stringify(Array.from(this.minimizedPanels)));
+    } catch {
+      // ignore storage failures
+    }
+  }
+
+  private minimizePanel(panelId: string): void {
+    if (!this.ctx.panelSettings[panelId]?.enabled) return;
+    this.minimizedPanels.add(panelId);
+    this.saveMinimizedPanels();
+    this.applyPanelSettings();
+  }
+
+  private restoreMinimizedPanel(panelId: string, focus = true): void {
+    if (!this.minimizedPanels.has(panelId)) return;
+    this.minimizedPanels.delete(panelId);
+    this.saveMinimizedPanels();
+    this.applyPanelSettings();
+    if (focus) {
+      this.focusPanelElement(panelId, 18);
+    }
+  }
+
+  private closePanel(panelId: string): void {
+    const config = this.ctx.panelSettings[panelId];
+    if (!config) return;
+    config.enabled = false;
+    this.minimizedPanels.delete(panelId);
+    saveToStorage(STORAGE_KEYS.panels, this.ctx.panelSettings);
+    this.saveMinimizedPanels();
+    this.applyPanelSettings();
+  }
+
+  private renderWindowTaskbarState(): void {
+    const taskbar = this.ctx.container.querySelector<HTMLElement>('#qadrWindowTaskbar');
+    const list = this.ctx.container.querySelector<HTMLElement>('#qadrWindowTaskbarList');
+    if (!taskbar || !list) return;
+
+    const panelIds = this.resolvedPanelOrder.filter((panelId) =>
+      this.minimizedPanels.has(panelId) && this.ctx.panelSettings[panelId]?.enabled !== false);
+
+    taskbar.classList.toggle('is-empty', panelIds.length === 0);
+    list.innerHTML = panelIds.length > 0
+      ? panelIds.map((panelId) => {
+        const title = escapeHtml(this.getPanelTitle(panelId) ?? panelId);
+        return `
+          <div class="qadr-window-taskbar-item">
+            <button type="button" class="qadr-window-taskbar-chip" data-window-taskbar-action="restore" data-window-taskbar-panel="${panelId}" title="بازگردانی ${title}">
+              <span class="qadr-window-taskbar-chip-label">${title}</span>
+            </button>
+            <button type="button" class="qadr-window-taskbar-close" data-window-taskbar-action="close" data-window-taskbar-panel="${panelId}" aria-label="بستن ${title}" title="بستن ${title}">×</button>
+          </div>
+        `;
+      }).join('')
+      : '<div class="qadr-window-taskbar-empty">پنجره‌ای minimize نشده است.</div>';
   }
 
   private focusPanelElement(panelId: string, remainingAttempts: number): void {
@@ -2662,7 +2784,7 @@ export class PanelLayoutManager implements AppModule {
       const grid = document.getElementById('panelsGrid');
       if (!grid) return;
       this.insertByOrder(grid, el, key);
-      this.updateWorkbenchChrome();
+      this.applyPanelSettings();
     }).catch((err) => {
       console.error(`[panel] failed to lazy-load "${key}"`, err);
     });

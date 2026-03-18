@@ -269,9 +269,7 @@ export class Panel {
       this.header.appendChild(this.countEl);
     }
 
-    if (options.closable !== false) {
-      this.appendCloseButton();
-    }
+    this.appendWindowControls(options.closable !== false);
 
     this.content = document.createElement('div');
     this.content.className = 'panel-content';
@@ -646,6 +644,25 @@ export class Panel {
     badge.className = 'panel-live-count';
     badge.textContent = `${count}`;
     headerLeft.appendChild(badge);
+  }
+
+  protected appendWindowControls(closable: boolean): void {
+    const minimizeBtn = h('button', {
+      className: 'icon-btn panel-minimize-btn',
+      'aria-label': t('components.panel.minimizePanel'),
+      title: t('components.panel.minimizePanel'),
+    }, '−');
+    minimizeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.element.dispatchEvent(new CustomEvent('wm:panel-minimize', {
+        bubbles: true,
+        detail: { panelId: this.panelId },
+      }));
+    });
+    this.header.appendChild(minimizeBtn);
+
+    if (!closable) return;
+    this.appendCloseButton();
   }
 
   protected appendCloseButton(): void {

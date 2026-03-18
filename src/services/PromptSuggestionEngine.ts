@@ -781,6 +781,13 @@ export class PromptSuggestionEngine implements AppModule {
           <span>${suggestions.length} پیشنهاد</span>
           <span>${PROMPT_INTELLIGENCE_AGENT_PROFILE.role}</span>
         </div>
+        <div class="qadr-prompt-intel-compact-list" id="qadrPromptIntelCompactList" ${this.collapsed ? '' : 'hidden'}>
+          ${suggestions.length > 0 ? suggestions.map((item) => `
+            <button type="button" class="qadr-prompt-intel-compact-card" data-prompt-suggestion-id="${item.id}">
+              <strong class="qadr-prompt-intel-compact-title">${item.label}</strong>
+            </button>
+          `).join('') : '<div class="qadr-prompt-intel-empty">فعلا کانتکست کافی برای پیشنهاد پویا در دسترس نیست.</div>'}
+        </div>
         <div class="qadr-prompt-intel-list" id="qadrPromptIntelList" ${this.collapsed ? 'hidden' : ''}>
           ${suggestions.length > 0 ? suggestions.map((item) => `
             <button type="button" class="qadr-prompt-intel-card" data-prompt-suggestion-id="${item.id}">

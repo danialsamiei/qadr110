@@ -1115,6 +1115,92 @@ canvas,
   opacity: 0.6;
 }
 
+.qadr-window-taskbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 58px;
+  padding: 10px 20px;
+  border-top: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(12, 17, 27, 0.96), rgba(9, 13, 21, 0.98));
+  backdrop-filter: blur(14px);
+}
+
+.qadr-window-taskbar-label {
+  flex: 0 0 auto;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.qadr-window-taskbar-list {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-block: 2px;
+}
+
+.qadr-window-taskbar-empty {
+  color: var(--text-dim);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.qadr-window-taskbar-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.qadr-window-taskbar-chip,
+.qadr-window-taskbar-close {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.qadr-window-taskbar-chip {
+  max-width: 220px;
+  min-width: 0;
+  padding: 9px 12px;
+  border-radius: 999px;
+}
+
+.qadr-window-taskbar-chip-label {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.qadr-window-taskbar-close {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.qadr-window-taskbar-chip:hover,
+.qadr-window-taskbar-close:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.08);
+}
+
 @media (max-width: 768px) {
   .site-footer {
     flex-direction: column;
@@ -1126,6 +1212,13 @@ canvas,
     flex-wrap: wrap;
     justify-content: center;
     gap: 12px;
+  }
+
+  .qadr-window-taskbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 10px 14px;
   }
 }
 
@@ -1405,16 +1498,31 @@ body.panel-resize-active iframe {
 }
 
 /* ---- Close (X) button on panels (extends .icon-btn) ---- */
+.panel-header .panel-minimize-btn,
 .panel-header .panel-close-btn {
   font-size: 14px;
   opacity: 0;
   transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.panel-header .panel-minimize-btn {
+  order: 998;
+}
+
+.panel-header .panel-close-btn {
   order: 999;
 }
 
+.panel:hover .panel-minimize-btn,
 .panel:hover .panel-close-btn,
+.panel-minimize-btn:focus-visible,
 .panel-close-btn:focus-visible {
   opacity: 1;
+}
+
+.panel-header .panel-minimize-btn:hover {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
 }
 
 .panel-header .panel-close-btn:hover {
@@ -1424,6 +1532,7 @@ body.panel-resize-active iframe {
 
 /* On touch devices, always show the close button */
 @media (hover: none) {
+  .panel-header .panel-minimize-btn,
   .panel-header .panel-close-btn {
     opacity: 0.7;
   }
@@ -2750,6 +2859,7 @@ body {
 #app[data-qadr-shell="analytical-workbench"] .map-section,
 #app[data-qadr-shell="analytical-workbench"] .qadr-report-sheet-stack,
 #app[data-qadr-shell="analytical-workbench"] .qadr-evidence-drawer,
+#app[data-qadr-shell="analytical-workbench"] .qadr-window-taskbar,
 #app[data-qadr-shell="analytical-workbench"] .site-footer {
   background: linear-gradient(180deg, rgba(14, 20, 32, 0.97), rgba(10, 14, 24, 0.92));
   border: 1px solid var(--qadr-shell-border);
@@ -2797,6 +2907,7 @@ body {
   flex-direction: column;
   gap: var(--qadr-space-2);
   padding: 14px;
+  box-sizing: border-box;
   border-radius: var(--qadr-radius-lg);
   border: 1px solid rgba(191, 208, 255, 0.18);
   background:
@@ -2893,6 +3004,19 @@ body {
   max-block-size: min(58vh, 520px);
   overflow: auto;
   padding-inline-end: 2px;
+  inline-size: 100%;
+  min-inline-size: 0;
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-prompt-intel-compact-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--qadr-space-2);
+  max-block-size: min(62vh, 620px);
+  overflow: auto;
+  padding-inline-end: 2px;
+  inline-size: 100%;
+  min-inline-size: 0;
 }
 
 #app[data-qadr-shell="analytical-workbench"] .qadr-prompt-intel-card {
@@ -2902,6 +3026,55 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  inline-size: 100%;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-prompt-intel-compact-card {
+  appearance: none;
+  inline-size: 100%;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  box-sizing: border-box;
+  padding: 12px;
+  border-radius: calc(var(--qadr-radius-md) + 2px);
+  border: 1px solid rgba(191, 208, 255, 0.14);
+  background: rgba(20, 28, 44, 0.68);
+  color: var(--qadr-shell-ink);
+  text-align: start;
+  cursor: pointer;
+  overflow: hidden;
+  transition:
+    transform var(--qadr-motion-fast, 160ms ease),
+    border-color var(--qadr-motion-fast, 160ms ease),
+    background var(--qadr-motion-fast, 160ms ease),
+    box-shadow var(--qadr-motion-fast, 160ms ease);
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-prompt-intel-compact-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(191, 208, 255, 0.32);
+  background: rgba(28, 38, 58, 0.9);
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-prompt-intel-compact-card:focus-visible {
+  outline: 2px solid rgba(191, 208, 255, 0.94);
+  outline-offset: 2px;
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-prompt-intel-compact-title {
+  display: -webkit-box;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: rgba(240, 244, 255, 0.96);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 #app[data-qadr-shell="analytical-workbench"] .qadr-prompt-intel-badge {
@@ -2980,39 +3153,43 @@ body {
 }
 
 #app[data-qadr-shell="analytical-workbench"] .qadr-prompt-intel-panel.is-collapsed .qadr-prompt-intel-shell {
-  align-items: center;
-  padding: 12px 10px;
+  align-items: stretch;
+  padding: 12px;
   gap: var(--qadr-space-3);
 }
 
 #app[data-qadr-shell="analytical-workbench"] .qadr-prompt-intel-panel.is-collapsed {
-  inline-size: 80px;
+  inline-size: min(248px, calc(100% - 24px));
 }
 
 #app[data-qadr-shell="analytical-workbench"] .qadr-prompt-intel-panel.is-collapsed .qadr-prompt-intel-header {
-  flex-direction: column;
-  justify-content: center;
+  align-items: flex-start;
 }
 
 #app[data-qadr-shell="analytical-workbench"] .qadr-prompt-intel-panel.is-collapsed .qadr-prompt-intel-heading {
-  align-items: center;
-  text-align: center;
-}
-
-#app[data-qadr-shell="analytical-workbench"] .qadr-prompt-intel-panel.is-collapsed .qadr-prompt-intel-kicker {
-  font-size: 9px;
-  letter-spacing: 0.2em;
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
-}
-
-#app[data-qadr-shell="analytical-workbench"] .qadr-prompt-intel-panel.is-collapsed .qadr-prompt-intel-actions {
-  flex-direction: column;
+  min-inline-size: 0;
 }
 
 #app[data-qadr-shell="analytical-workbench"] .qadr-prompt-intel-panel.is-collapsed .qadr-prompt-intel-heading strong,
 #app[data-qadr-shell="analytical-workbench"] .qadr-prompt-intel-panel.is-collapsed .qadr-prompt-intel-anchor,
 #app[data-qadr-shell="analytical-workbench"] .qadr-prompt-intel-panel.is-collapsed .qadr-prompt-intel-meta {
+  display: none;
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-prompt-intel-panel.is-collapsed .qadr-prompt-intel-kicker {
+  font-size: 9px;
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-prompt-intel-panel.is-collapsed .qadr-prompt-intel-actions {
+  align-self: stretch;
+  justify-content: space-between;
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-prompt-intel-panel.is-collapsed .qadr-prompt-intel-list {
+  display: none;
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-prompt-intel-panel:not(.is-collapsed) .qadr-prompt-intel-compact-list {
   display: none;
 }
 
@@ -3306,6 +3483,12 @@ body {
 
 #app[data-qadr-shell="analytical-workbench"] .site-footer {
   margin: 0 var(--qadr-space-4) var(--qadr-space-4);
+  border-radius: var(--qadr-radius-md);
+  border-top: 1px solid var(--qadr-shell-border);
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-window-taskbar {
+  margin: 0 var(--qadr-space-4) var(--qadr-space-3);
   border-radius: var(--qadr-radius-md);
   border-top: 1px solid var(--qadr-shell-border);
 }

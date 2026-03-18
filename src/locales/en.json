@@ -1723,6 +1723,7 @@
       "showMethodologyInfo": "Show methodology info",
       "dragToResize": "Drag to resize (double-click to reset)",
       "openSettings": "Open Settings",
+      "minimizePanel": "Minimize panel",
       "closePanel": "Close panel",
       "addPanel": "Add Panel"
     },
