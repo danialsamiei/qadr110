@@ -1118,12 +1118,16 @@ canvas,
 .qadr-window-taskbar {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
-  min-height: 58px;
-  padding: 10px 20px;
+  min-height: 62px;
+  padding: 8px 16px;
   border-top: 1px solid var(--border);
-  background: linear-gradient(180deg, rgba(12, 17, 27, 0.96), rgba(9, 13, 21, 0.98));
-  backdrop-filter: blur(14px);
+  background: rgba(10, 14, 24, 0.96);
+  backdrop-filter: blur(10px);
+  position: sticky;
+  bottom: 0;
+  z-index: 40;
 }
 
 .qadr-window-taskbar-label {
@@ -1158,14 +1162,36 @@ canvas,
   flex: 0 0 auto;
 }
 
+.qadr-window-taskbar-center,
+.qadr-window-taskbar-side {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  position: relative;
+}
+
+.qadr-window-taskbar-center {
+  flex: 1 1 auto;
+}
+
+.qadr-window-taskbar-side--right {
+  justify-content: flex-end;
+}
+
 .qadr-window-taskbar-chip,
-.qadr-window-taskbar-close {
+.qadr-window-taskbar-close,
+.qadr-window-launcher-btn,
+.qadr-window-clock-btn,
+.qadr-window-launcher-item,
+.qadr-window-clock-item {
   appearance: none;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.04);
   color: var(--text);
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  font: inherit;
 }
 
 .qadr-window-taskbar-chip {
@@ -1195,10 +1221,122 @@ canvas,
 }
 
 .qadr-window-taskbar-chip:hover,
-.qadr-window-taskbar-close:hover {
+.qadr-window-taskbar-close:hover,
+.qadr-window-launcher-btn:hover,
+.qadr-window-clock-btn:hover,
+.qadr-window-launcher-item:hover,
+.qadr-window-clock-item:hover {
   transform: translateY(-1px);
   border-color: rgba(255, 255, 255, 0.22);
   background: rgba(255, 255, 255, 0.08);
+}
+
+.qadr-window-launcher-btn,
+.qadr-window-clock-btn {
+  min-height: 42px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  text-align: right;
+}
+
+.qadr-window-clock-btn {
+  display: grid;
+  gap: 2px;
+  min-width: min(310px, 34vw);
+}
+
+.qadr-window-clock-primary {
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.qadr-window-clock-secondary {
+  color: var(--text-dim);
+  font-size: 10px;
+}
+
+.qadr-window-launcher-menu,
+.qadr-window-clock-menu {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  min-width: min(340px, 40vw);
+  max-width: min(420px, calc(100vw - 32px));
+  max-height: min(48vh, 520px);
+  overflow: auto;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(10, 14, 24, 0.98);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
+  border-radius: 8px;
+}
+
+.qadr-window-launcher-menu {
+  inset-inline-start: 0;
+}
+
+.qadr-window-clock-menu {
+  inset-inline-end: 0;
+}
+
+.qadr-window-launcher-item,
+.qadr-window-clock-item {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: center;
+  text-align: right;
+  margin-bottom: 6px;
+}
+
+.qadr-window-clock-item strong,
+.qadr-window-launcher-item-label {
+  font-size: 12px;
+  color: var(--text);
+}
+
+.qadr-window-clock-item span {
+  grid-column: 2;
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.qadr-window-clock-item.active {
+  border-color: rgba(96, 165, 250, 0.45);
+  background: rgba(37, 99, 235, 0.14);
+}
+
+.qadr-window-launcher-item-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #6b7280;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.qadr-window-launcher-item.status-off .qadr-window-launcher-item-dot {
+  background: #6b7280;
+}
+
+.qadr-window-launcher-item.status-limited .qadr-window-launcher-item-dot {
+  background: #f59e0b;
+}
+
+.qadr-window-launcher-item.status-ready .qadr-window-launcher-item-dot {
+  background: #22c55e;
+}
+
+.qadr-window-launcher-item.status-loading .qadr-window-launcher-item-dot {
+  background: #3b82f6;
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.75);
+  animation: qadr-taskbar-pulse 1s ease-in-out infinite;
+}
+
+@keyframes qadr-taskbar-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
 }
 
 @media (max-width: 768px) {
@@ -1219,6 +1357,16 @@ canvas,
     align-items: stretch;
     gap: 8px;
     padding: 10px 14px;
+  }
+
+  .qadr-window-taskbar-center,
+  .qadr-window-taskbar-side {
+    width: 100%;
+  }
+
+  .qadr-window-clock-btn,
+  .qadr-window-launcher-btn {
+    width: 100%;
   }
 }
 
@@ -2908,13 +3056,16 @@ body {
   gap: var(--qadr-space-2);
   padding: 14px;
   box-sizing: border-box;
-  border-radius: var(--qadr-radius-lg);
+  border-radius: 8px;
   border: 1px solid rgba(191, 208, 255, 0.18);
   background:
     linear-gradient(180deg, rgba(15, 20, 33, 0.94), rgba(11, 15, 24, 0.9)),
     radial-gradient(circle at top, rgba(111, 144, 255, 0.12), transparent 58%);
   box-shadow: 0 16px 42px rgba(4, 10, 20, 0.38);
   backdrop-filter: blur(16px);
+  inline-size: 100%;
+  max-inline-size: 100%;
+  overflow: hidden;
 }
 
 #app[data-qadr-shell="analytical-workbench"] .qadr-prompt-intel-header,
@@ -3052,6 +3203,9 @@ body {
     border-color var(--qadr-motion-fast, 160ms ease),
     background var(--qadr-motion-fast, 160ms ease),
     box-shadow var(--qadr-motion-fast, 160ms ease);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
 }
 
 #app[data-qadr-shell="analytical-workbench"] .qadr-prompt-intel-compact-card:hover {
@@ -3075,6 +3229,7 @@ body {
   text-overflow: ellipsis;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+  inline-size: 100%;
 }
 
 #app[data-qadr-shell="analytical-workbench"] .qadr-prompt-intel-badge {
@@ -3159,7 +3314,7 @@ body {
 }
 
 #app[data-qadr-shell="analytical-workbench"] .qadr-prompt-intel-panel.is-collapsed {
-  inline-size: min(248px, calc(100% - 24px));
+  inline-size: min(292px, calc(100% - 24px));
 }
 
 #app[data-qadr-shell="analytical-workbench"] .qadr-prompt-intel-panel.is-collapsed .qadr-prompt-intel-header {
@@ -15449,12 +15604,13 @@ a.prediction-link:hover {
 .deckgl-time-slider {
   position: absolute;
   top: 10px;
-  left: 10px;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 100;
   background: var(--bg);
   padding: 8px 12px;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 8px;
 }
 
 .deckgl-time-slider .time-options {
@@ -15496,7 +15652,7 @@ a.prediction-link:hover {
   max-width: min(248px, calc(100vw - 32px));
   background: rgba(7, 11, 18, 0.86);
   border: 1px solid rgba(148, 163, 184, 0.22);
-  border-radius: 22px;
+  border-radius: 8px;
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.42);
   backdrop-filter: blur(18px);
   display: flex;
@@ -19582,12 +19738,13 @@ body.has-breaking-alert .panels-grid {
    ============================================================ */
 .community-widget {
   position: fixed;
-  bottom: 24px;
-  left: 24px;
+  bottom: 78px;
+  right: 24px;
+  left: auto;
   z-index: 9000;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: flex-end;
   gap: 6px;
   animation: cw-float-in 0.4s cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -19626,8 +19783,8 @@ body.has-breaking-alert .panels-grid {
   gap: 10px;
   background: var(--panel-bg, #141414);
   border: 1px solid var(--border, #2a2a2a);
-  border-radius: 28px;
-  padding: 8px 8px 8px 16px;
+  border-radius: 8px;
+  padding: 8px 8px 8px 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
@@ -20056,20 +20213,16 @@ body.has-breaking-alert .panels-grid {
 .popup-header.road-traffic.severe { --road-color: var(--semantic-critical); }
 .qadr-map-aware-ai-overlay {
   position: absolute;
-  inset-inline-end: 1rem;
-  inset-block-end: 8.5rem;
+  inset: 0;
   z-index: 32;
   pointer-events: none;
-  max-width: min(24rem, calc(100% - 2rem));
+  max-width: none;
   transition: transform 180ms ease, opacity 180ms ease;
 }
 
 .qadr-map-aware-ai-overlay.is-anchored {
-  inset-inline-end: auto;
-  inset-block-end: auto;
-  inset-inline-start: var(--qadr-map-anchor-x);
-  inset-block-start: var(--qadr-map-anchor-y);
-  transform: translate(1rem, calc(-100% - 1rem));
+  inset: 0;
+  transform: none;
 }
 
 .qadr-map-aware-card {
@@ -20078,7 +20231,7 @@ body.has-breaking-alert .panels-grid {
   gap: 0.75rem;
   min-width: 18rem;
   padding: 0.95rem 1rem;
-  border-radius: 1rem;
+  border-radius: 8px;
   border: 1px solid rgba(122, 141, 164, 0.25);
   background:
     linear-gradient(180deg, rgba(13, 20, 33, 0.96), rgba(8, 14, 25, 0.94)),
@@ -20086,6 +20239,10 @@ body.has-breaking-alert .panels-grid {
   box-shadow: 0 20px 50px rgba(3, 8, 20, 0.34);
   color: var(--qadr-color-text, #f8fafc);
   backdrop-filter: blur(16px);
+  box-sizing: border-box;
+  max-width: min(28rem, calc(100vw - 2rem));
+  position: absolute;
+  cursor: default;
 }
 
 .qadr-map-aware-card.empty {
@@ -20097,6 +20254,36 @@ body.has-breaking-alert .panels-grid {
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.75rem;
+  cursor: move;
+  user-select: none;
+}
+
+.qadr-map-aware-window-meta,
+.qadr-scenario-window-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.qadr-map-aware-window-controls,
+.qadr-scenario-window-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.qadr-map-aware-window-controls button,
+.qadr-scenario-window-controls button {
+  inline-size: 28px;
+  block-size: 28px;
+  border-radius: 4px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  background: rgba(15, 23, 42, 0.92);
+  color: rgba(248, 250, 252, 0.92);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
 }
 
 .qadr-map-aware-kicker {
@@ -20183,17 +20370,9 @@ body.has-breaking-alert .panels-grid {
 }
 
 @media (max-width: 960px) {
-  .qadr-map-aware-ai-overlay,
-  .qadr-map-aware-ai-overlay.is-anchored {
-    inset-inline: 0.75rem;
-    inset-block-end: 0.75rem;
-    inset-block-start: auto;
-    transform: none;
-    max-width: none;
-  }
-
   .qadr-map-aware-card {
     min-width: 0;
+    width: min(100%, calc(100vw - 1.5rem));
   }
 }
 
@@ -20295,7 +20474,7 @@ body.has-breaking-alert .panels-grid {
   display: grid;
   gap: 0.75rem;
   padding: 1rem;
-  border-radius: 1rem;
+  border-radius: 8px;
   border: 1px solid rgba(122, 141, 164, 0.22);
   background:
     linear-gradient(180deg, rgba(10, 14, 25, 0.94), rgba(7, 11, 20, 0.92)),
@@ -20303,6 +20482,9 @@ body.has-breaking-alert .panels-grid {
   box-shadow: 0 20px 60px rgba(2, 6, 23, 0.36);
   backdrop-filter: blur(16px);
   color: #f8fafc;
+  box-sizing: border-box;
+  max-width: calc(100vw - 2rem);
+  cursor: default;
 }
 
 .qadr-scenario-map-card.empty {
@@ -20321,6 +20503,8 @@ body.has-breaking-alert .panels-grid {
 .qadr-scenario-map-header {
   justify-content: space-between;
   align-items: flex-start;
+  cursor: move;
+  user-select: none;
 }
 
 .qadr-scenario-kicker {
@@ -20342,6 +20526,7 @@ body.has-breaking-alert .panels-grid {
 
 .qadr-scenario-layers button,
 .qadr-scenario-map-actions button,
+.qadr-scenario-evidence-list button,
 .qadr-scenario-entities span,
 .qadr-scenario-clusters article {
   border-radius: 999px;
@@ -20353,7 +20538,8 @@ body.has-breaking-alert .panels-grid {
 }
 
 .qadr-scenario-layers button,
-.qadr-scenario-map-actions button {
+.qadr-scenario-map-actions button,
+.qadr-scenario-evidence-list button {
   padding: 0.42rem 0.72rem;
   cursor: pointer;
   transition: transform 140ms ease, background-color 140ms ease, border-color 140ms ease;
@@ -20362,7 +20548,13 @@ body.has-breaking-alert .panels-grid {
 .qadr-scenario-layers button.active,
 .qadr-scenario-layers button:hover,
 .qadr-scenario-map-actions button:hover,
-.qadr-scenario-map-actions button:focus-visible {
+.qadr-scenario-map-actions button:focus-visible,
+.qadr-scenario-evidence-list button:hover,
+.qadr-scenario-evidence-list button:focus-visible,
+.qadr-map-aware-window-controls button:hover,
+.qadr-map-aware-window-controls button:focus-visible,
+.qadr-scenario-window-controls button:hover,
+.qadr-scenario-window-controls button:focus-visible {
   outline: none;
   transform: translateY(-1px);
   border-color: rgba(125, 211, 252, 0.58);
@@ -20390,10 +20582,36 @@ body.has-breaking-alert .panels-grid {
   padding: 0.3rem 0.55rem;
 }
 
+.qadr-scenario-evidence-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
 @media (max-width: 960px) {
   .qadr-scenario-map-card {
     inset-inline: 0.75rem;
     inset-block-end: 4.75rem;
     width: auto;
   }
+}
+
+#app[data-ui-direction="rtl"] :is(
+  button[type="button"],
+  .panel,
+  .panel-content,
+  .qadr-window-taskbar,
+  .qadr-map-aware-card,
+  .qadr-scenario-map-card,
+  .qadr-prompt-intel-shell,
+  .deckgl-layer-toggles,
+  .site-footer
+) {
+  direction: rtl;
+  text-align: right;
+  unicode-bidi: plaintext;
+}
+
+#app[data-ui-direction="rtl"] button[type="button"] {
+  text-align: right;
 }

@@ -15,9 +15,9 @@ export function mountCommunityWidget(): void {
       <div class="cw-dot"></div>
       <span class="cw-text">Social Khabar</span>
       <a class="cw-cta" href="${SOCIAL_KHABAR_URL}" target="_blank" rel="noopener">ورود به کانال</a>
-      <button class="cw-close" aria-label="${t('common.close')}">&times;</button>
+      <button type="button" class="cw-close" aria-label="${t('common.close')}">&times;</button>
     </div>
-    <button class="cw-dismiss">${t('components.community.dontShowAgain')}</button>
+    <button type="button" class="cw-dismiss">${t('components.community.dontShowAgain')}</button>
   `;
 
   const dismiss = () => {

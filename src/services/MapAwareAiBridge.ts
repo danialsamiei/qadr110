@@ -22,8 +22,25 @@ import { buildGeoContextSnapshot } from '@/services/map-analysis-workspace';
 import { buildViewportPolygonCoordinates, resolveMapSelectionLabel } from '@/services/map-aware-ai-utils';
 import { debounce } from '@/utils';
 import type { MapPointClickPayload } from '@/components/map-interactions';
+import {
+  attachFloatingWindowDrag,
+  clampFloatingWindowPosition,
+  loadFloatingWindowState,
+  pickFloatingWindowPosition,
+  saveFloatingWindowState,
+  type FloatingWindowPosition,
+} from '@/services/qadr-floating-window';
+import {
+  getDesktopWindow,
+  registerDesktopWindow,
+  setDesktopWindowState,
+  subscribeDesktopWindows,
+  updateDesktopWindow,
+} from '@/services/qadr-desktop-shell';
 
 const PANEL_ID = 'qadrMapAwareAiOverlay';
+const WINDOW_ID = 'map-aware-ai-card';
+const WINDOW_STORAGE_KEY = 'qadr110-map-aware-window';
 
 type MapAwareCommand =
   | 'analyze-area'
@@ -228,6 +245,9 @@ export class MapAwareAiBridge implements AppModule {
   private readonly insightCache = new Map<string, MapAwareAiInsightDetail>();
   private readonly debouncedRefresh: (() => void) & { cancel(): void };
   private readonly insightHandler: EventListener;
+  private unsubscribeWindowState: (() => void) | null = null;
+  private dragCleanup: (() => void) | null = null;
+  private windowPosition = loadFloatingWindowState(WINDOW_STORAGE_KEY).position;
 
   constructor(private readonly ctx: AppContext) {
     this.debouncedRefresh = debounce(() => this.refreshCurrentSnapshot('map-state'), 260);
@@ -240,17 +260,31 @@ export class MapAwareAiBridge implements AppModule {
   }
 
   init(): void {
+    registerDesktopWindow({
+      id: WINDOW_ID,
+      title: 'AI نقشه‌محور',
+      state: 'open',
+      status: 'limited',
+      minimizable: true,
+      closable: true,
+      kind: 'custom',
+    });
     this.mount();
     this.ctx.map?.onMapClicked((payload) => this.handleMapClick(payload));
     this.ctx.map?.onStateChanged(() => this.debouncedRefresh());
     this.ctx.map?.setOnLayerChange(() => this.debouncedRefresh());
     this.ctx.map?.onTimeRangeChanged(() => this.debouncedRefresh());
     document.addEventListener(MAP_AWARE_AI_EVENT_TYPES.insightUpdated, this.insightHandler);
+    this.unsubscribeWindowState = subscribeDesktopWindows(() => this.render());
   }
 
   destroy(): void {
     this.debouncedRefresh.cancel();
     document.removeEventListener(MAP_AWARE_AI_EVENT_TYPES.insightUpdated, this.insightHandler);
+    this.unsubscribeWindowState?.();
+    this.unsubscribeWindowState = null;
+    this.dragCleanup?.();
+    this.dragCleanup = null;
     this.panelEl?.remove();
     this.panelEl = null;
   }
@@ -266,6 +300,15 @@ export class MapAwareAiBridge implements AppModule {
     this.panelEl.setAttribute('aria-live', 'polite');
     this.panelEl.addEventListener('click', (event) => {
       const target = event.target as HTMLElement | null;
+      const windowAction = target?.closest<HTMLElement>('[data-map-aware-window-action]')?.dataset.mapAwareWindowAction;
+      if (windowAction === 'minimize') {
+        setDesktopWindowState(WINDOW_ID, 'minimized');
+        return;
+      }
+      if (windowAction === 'close') {
+        setDesktopWindowState(WINDOW_ID, 'closed');
+        return;
+      }
       const command = target?.closest<HTMLElement>('[data-map-aware-command]')?.dataset.mapAwareCommand as MapAwareCommand | undefined;
       if (!command || !this.currentSnapshot) return;
       this.runCommand(command);
@@ -276,16 +319,20 @@ export class MapAwareAiBridge implements AppModule {
   private handleMapClick(payload: MapPointClickPayload): void {
     this.currentAnchor = { lat: payload.lat, lon: payload.lon };
     this.currentSnapshot = this.resolveSnapshot(payload.lat, payload.lon);
+    if (getDesktopWindow(WINDOW_ID)?.state !== 'open') {
+      setDesktopWindowState(WINDOW_ID, 'open');
+    }
     this.ctx.map?.flashLocation(payload.lat, payload.lon, 1600);
     if (this.currentSnapshot) {
       dispatchMapContext(document, this.currentSnapshot.context);
+      updateDesktopWindow(WINDOW_ID, { status: 'ready' });
     }
     this.render();
   }
 
   private refreshCurrentSnapshot(_reason: string): void {
     if (!this.currentAnchor) {
-      this.updateOverlayPosition();
+      this.syncWindowGeometry();
       return;
     }
     this.currentSnapshot = this.resolveSnapshot(this.currentAnchor.lat, this.currentAnchor.lon);
@@ -355,44 +402,115 @@ export class MapAwareAiBridge implements AppModule {
     this.render();
   }
 
-  private updateOverlayPosition(): void {
-    if (!this.panelEl || !this.currentSnapshot) return;
-    const projected = this.ctx.map?.project(this.currentSnapshot.center.lat, this.currentSnapshot.center.lon);
-    if (!projected) {
-      this.panelEl.classList.remove('is-anchored');
-      this.panelEl.style.removeProperty('--qadr-map-anchor-x');
-      this.panelEl.style.removeProperty('--qadr-map-anchor-y');
-      return;
+  private persistWindowPosition(position: FloatingWindowPosition): void {
+    this.windowPosition = position;
+    saveFloatingWindowState(WINDOW_STORAGE_KEY, { position });
+  }
+
+  private resolveOverlayPosition(card: HTMLElement): FloatingWindowPosition {
+    const hostRect = this.panelEl?.getBoundingClientRect();
+    if (!hostRect) return { x: 12, y: 12 };
+    const projected = this.currentSnapshot ? this.ctx.map?.project(this.currentSnapshot.center.lat, this.currentSnapshot.center.lon) : null;
+    const occupied = Array.from(document.querySelectorAll<HTMLElement>('.qadr-scenario-map-card'))
+      .filter((el) => el.offsetParent !== null)
+      .map((el) => {
+        const rect = el.getBoundingClientRect();
+        return new DOMRect(rect.left - hostRect.left, rect.top - hostRect.top, rect.width, rect.height);
+      });
+    if (this.windowPosition) {
+      return clampFloatingWindowPosition(hostRect, card.offsetWidth, card.offsetHeight, this.windowPosition, { bottomInset: 92 });
     }
-    this.panelEl.classList.add('is-anchored');
-    this.panelEl.style.setProperty('--qadr-map-anchor-x', `${Math.round(projected.x)}px`);
-    this.panelEl.style.setProperty('--qadr-map-anchor-y', `${Math.round(projected.y)}px`);
+    const baseX = projected?.x ?? hostRect.width - card.offsetWidth - 18;
+    const baseY = projected?.y ?? 18;
+    return pickFloatingWindowPosition(
+      hostRect,
+      card.offsetWidth,
+      card.offsetHeight,
+      occupied,
+      [
+        { x: baseX + 18, y: Math.max(16, baseY - card.offsetHeight - 18) },
+        { x: baseX - card.offsetWidth - 18, y: Math.max(16, baseY - card.offsetHeight - 18) },
+        { x: hostRect.width - card.offsetWidth - 16, y: 16 },
+        { x: hostRect.width - card.offsetWidth - 16, y: Math.max(16, hostRect.height - card.offsetHeight - 96) },
+      ],
+      { bottomInset: 92 },
+    );
+  }
+
+  private syncWindowGeometry(): void {
+    this.dragCleanup?.();
+    this.dragCleanup = null;
+    if (!this.panelEl) return;
+    const card = this.panelEl.querySelector<HTMLElement>('.qadr-map-aware-card');
+    const header = this.panelEl.querySelector<HTMLElement>('.qadr-map-aware-header');
+    if (!card || !header) return;
+    const position = this.resolveOverlayPosition(card);
+    this.persistWindowPosition(position);
+    this.panelEl.classList.remove('is-anchored');
+    card.style.left = `${Math.round(position.x)}px`;
+    card.style.top = `${Math.round(position.y)}px`;
+    card.style.bottom = 'auto';
+    this.dragCleanup = attachFloatingWindowDrag(
+      header,
+      card,
+      () => this.panelEl?.getBoundingClientRect() ?? new DOMRect(0, 0, window.innerWidth, window.innerHeight),
+      (next) => {
+        this.persistWindowPosition(next);
+        card.style.left = `${Math.round(next.x)}px`;
+        card.style.top = `${Math.round(next.y)}px`;
+      },
+      () => this.windowPosition ?? position,
+      { bottomInset: 92 },
+    );
   }
 
   private render(): void {
     if (!this.panelEl) return;
+    const windowRecord = getDesktopWindow(WINDOW_ID);
+    const isOpen = windowRecord?.state === 'open';
     const snapshot = this.currentSnapshot;
     if (!snapshot) {
+      updateDesktopWindow(WINDOW_ID, { status: 'limited' });
       this.panelEl.innerHTML = `
-        <div class="qadr-map-aware-card empty">
-          <strong>AI نقشه‌محور</strong>
-          <p>برای فعال شدن تحلیل نقشه‌محور، روی یک نقطه یا محدوده روی نقشه کلیک کنید.</p>
-        </div>
+        ${isOpen ? `
+          <div class="qadr-map-aware-card empty">
+            <div class="qadr-map-aware-header">
+              <div>
+                <span class="qadr-map-aware-kicker">Map-Aware AI</span>
+                <strong>AI نقشه‌محور</strong>
+              </div>
+              <div class="qadr-map-aware-window-controls">
+                <button type="button" data-map-aware-window-action="minimize" aria-label="مینیمایز">−</button>
+                <button type="button" data-map-aware-window-action="close" aria-label="بستن">×</button>
+              </div>
+            </div>
+            <p>برای فعال شدن تحلیل نقشه‌محور، روی یک نقطه یا محدوده روی نقشه کلیک کنید.</p>
+          </div>
+        ` : ''}
       `;
+      this.syncWindowGeometry();
       return;
     }
 
     const insight = this.insightCache.get(snapshot.context.cacheKey || snapshot.context.id);
     const clusterSummary = summarizeClusters(snapshot.context);
     const nearbySignals = snapshot.nearbySignals.slice(0, 4);
+    updateDesktopWindow(WINDOW_ID, { status: insight ? 'ready' : 'loading' });
     this.panelEl.innerHTML = `
+      ${isOpen ? `
       <div class="qadr-map-aware-card">
         <div class="qadr-map-aware-header">
           <div>
             <span class="qadr-map-aware-kicker">Map-Aware AI</span>
             <strong>${snapshot.country?.name || 'نقطه انتخاب‌شده'}</strong>
           </div>
-          <span class="qadr-map-aware-meta">زوم ${snapshot.viewport.zoom.toFixed(1)} | ${snapshot.viewport.view}</span>
+          <div class="qadr-map-aware-window-meta">
+            <span class="qadr-map-aware-meta">زوم ${snapshot.viewport.zoom.toFixed(1)} | ${snapshot.viewport.view}</span>
+            <div class="qadr-map-aware-window-controls">
+              <button type="button" data-map-aware-window-action="minimize" aria-label="مینیمایز">−</button>
+              <button type="button" data-map-aware-window-action="close" aria-label="بستن">×</button>
+            </div>
+          </div>
         </div>
         <p class="qadr-map-aware-summary">${insight?.summary || snapshot.context.contextSummary || snapshot.promptContext.split('\n')[0]}</p>
         ${clusterSummary.length > 0 ? `<div class="qadr-map-aware-clusters">${clusterSummary.map((item) => `<span>${item}</span>`).join('')}</div>` : ''}
@@ -410,7 +528,8 @@ export class MapAwareAiBridge implements AppModule {
         </div>
         ${insight?.followUpSuggestions?.length ? `<div class="qadr-map-aware-followups">${insight.followUpSuggestions.slice(0, 3).map((item) => `<span>${item}</span>`).join('')}</div>` : ''}
       </div>
+      ` : ''}
     `;
-    this.updateOverlayPosition();
+    this.syncWindowGeometry();
   }
 }

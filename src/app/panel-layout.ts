@@ -75,6 +75,12 @@ import { t } from '@/services/i18n';
 import { getCurrentTheme } from '@/utils';
 import { trackCriticalBannerAction } from '@/services/analytics';
 import { getSecretState } from '@/services/runtime-config';
+import {
+  listDesktopWindows,
+  setDesktopWindowState,
+  subscribeDesktopWindows,
+  type QadrDesktopWindowStatus,
+} from '@/services/qadr-desktop-shell';
 
 export interface PanelLayoutCallbacks {
   openCountryStory: (code: string, name: string) => void;
@@ -272,6 +278,95 @@ const MAP_VIEW_LABELS: Record<string, string> = {
   oceania: 'اقیانوسیه',
 };
 
+type TaskbarClockMode = 'tehran-fa' | 'utc' | 'washington' | 'tel-aviv' | 'sydney';
+
+const TASKBAR_CLOCK_MODE_KEY = 'qadr110-taskbar-clock-mode';
+
+const TASKBAR_CLOCK_PRESETS: Array<{
+  id: TaskbarClockMode;
+  label: string;
+  locale: string;
+  timeZone: string;
+  options: Intl.DateTimeFormatOptions;
+}> = [
+  {
+    id: 'tehran-fa',
+    label: 'تهران · شمسی',
+    locale: 'fa-IR-u-ca-persian',
+    timeZone: 'Asia/Tehran',
+    options: {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    },
+  },
+  {
+    id: 'utc',
+    label: 'UTC · Gregorian',
+    locale: 'en-GB',
+    timeZone: 'UTC',
+    options: {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    },
+  },
+  {
+    id: 'washington',
+    label: 'Washington, DC',
+    locale: 'en-US',
+    timeZone: 'America/New_York',
+    options: {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    },
+  },
+  {
+    id: 'tel-aviv',
+    label: 'Tel Aviv · Hebrew',
+    locale: 'he-IL-u-ca-hebrew',
+    timeZone: 'Asia/Jerusalem',
+    options: {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    },
+  },
+  {
+    id: 'sydney',
+    label: 'Sydney',
+    locale: 'en-AU',
+    timeZone: 'Australia/Sydney',
+    options: {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    },
+  },
+];
+
 export class PanelLayoutManager implements AppModule {
   private ctx: AppContext;
   private callbacks: PanelLayoutCallbacks;
@@ -292,6 +387,9 @@ export class PanelLayoutManager implements AppModule {
   private focusRestore: WorkbenchPanelRestore | null = null;
   private compareRestore: WorkbenchPanelRestore[] = [];
   private minimizedPanels = this.loadMinimizedPanels();
+  private customWindowUnsubscribe: (() => void) | null = null;
+  private taskbarClockTimer: number | null = null;
+  private taskbarClockMode = this.loadTaskbarClockMode();
   private countryBriefState: { visible: boolean; maximized: boolean; code: string | null; name: string | null } = {
     visible: false,
     maximized: false,
@@ -318,6 +416,12 @@ export class PanelLayoutManager implements AppModule {
     this.panelDragCleanupHandlers = [];
     this.workbenchCleanupHandlers.forEach((cleanup) => cleanup());
     this.workbenchCleanupHandlers = [];
+    this.customWindowUnsubscribe?.();
+    this.customWindowUnsubscribe = null;
+    if (this.taskbarClockTimer !== null) {
+      window.clearInterval(this.taskbarClockTimer);
+      this.taskbarClockTimer = null;
+    }
     this.closeFocusMode();
     this.closeCompareMode();
     if (this.criticalBannerEl) {
@@ -803,8 +907,18 @@ export class PanelLayoutManager implements AppModule {
   private renderWindowTaskbar(): string {
     return `
       <div class="qadr-window-taskbar" id="qadrWindowTaskbar" aria-label="نوار پنجره‌ها">
-        <div class="qadr-window-taskbar-label">پنجره‌ها</div>
-        <div class="qadr-window-taskbar-list" id="qadrWindowTaskbarList"></div>
+        <div class="qadr-window-taskbar-side qadr-window-taskbar-side--left">
+          <button type="button" class="qadr-window-launcher-btn" id="qadrWindowLauncherButton" data-taskbar-action="toggle-launcher" aria-haspopup="menu" aria-expanded="false" aria-controls="qadrWindowLauncherMenu">منو</button>
+          <div class="qadr-window-launcher-menu" id="qadrWindowLauncherMenu" role="menu" hidden></div>
+        </div>
+        <div class="qadr-window-taskbar-center">
+          <div class="qadr-window-taskbar-label">پنجره‌ها</div>
+          <div class="qadr-window-taskbar-list" id="qadrWindowTaskbarList"></div>
+        </div>
+        <div class="qadr-window-taskbar-side qadr-window-taskbar-side--right">
+          <button type="button" class="qadr-window-clock-btn" id="qadrWindowClockButton" data-taskbar-action="toggle-clock" aria-haspopup="menu" aria-expanded="false" aria-controls="qadrWindowClockMenu"></button>
+          <div class="qadr-window-clock-menu" id="qadrWindowClockMenu" role="menu" hidden></div>
+        </div>
       </div>
     `;
   }
@@ -877,11 +991,54 @@ export class PanelLayoutManager implements AppModule {
       const target = event.target as HTMLElement | null;
       if (!target) return;
 
+      if (!target.closest('#qadrWindowLauncherMenu') && !target.closest('#qadrWindowLauncherButton')) {
+        this.setTaskbarMenuState('launcher', false);
+      }
+      if (!target.closest('#qadrWindowClockMenu') && !target.closest('#qadrWindowClockButton')) {
+        this.setTaskbarMenuState('clock', false);
+      }
+
+      const taskbarAction = target.closest<HTMLElement>('[data-taskbar-action]')?.dataset.taskbarAction;
+      if (taskbarAction) {
+        switch (taskbarAction) {
+          case 'toggle-launcher':
+            this.toggleTaskbarMenu('launcher');
+            break;
+          case 'toggle-clock':
+            this.toggleTaskbarMenu('clock');
+            break;
+        }
+        return;
+      }
+
+      const launcherItem = target.closest<HTMLElement>('[data-launcher-item]');
+      if (launcherItem?.dataset.launcherItem) {
+        this.handleLauncherSelection(launcherItem.dataset.launcherItem, launcherItem.dataset.launcherKind || 'panel');
+        this.setTaskbarMenuState('launcher', false);
+        return;
+      }
+
+      const clockChoice = target.closest<HTMLElement>('[data-clock-choice]');
+      if (clockChoice?.dataset.clockChoice) {
+        this.taskbarClockMode = clockChoice.dataset.clockChoice as TaskbarClockMode;
+        this.saveTaskbarClockMode();
+        this.renderTaskbarClock();
+        this.setTaskbarMenuState('clock', false);
+        return;
+      }
+
       const taskbarButton = target.closest<HTMLElement>('[data-window-taskbar-action]');
       if (taskbarButton?.dataset.windowTaskbarAction) {
         const panelId = taskbarButton.dataset.windowTaskbarPanel;
+        const panelKind = taskbarButton.dataset.windowTaskbarKind || 'panel';
         if (!panelId) return;
-        if (taskbarButton.dataset.windowTaskbarAction === 'restore') {
+        if (panelKind === 'custom') {
+          if (taskbarButton.dataset.windowTaskbarAction === 'restore') {
+            setDesktopWindowState(panelId, 'open');
+          } else if (taskbarButton.dataset.windowTaskbarAction === 'close') {
+            setDesktopWindowState(panelId, 'closed');
+          }
+        } else if (taskbarButton.dataset.windowTaskbarAction === 'restore') {
           this.restoreMinimizedPanel(panelId);
         } else if (taskbarButton.dataset.windowTaskbarAction === 'close') {
           this.closePanel(panelId);
@@ -1019,6 +1176,14 @@ export class PanelLayoutManager implements AppModule {
     if (preferredSelection) {
       this.selectPanelForWorkbench(preferredSelection, { syncSheet: false });
     }
+    this.customWindowUnsubscribe = subscribeDesktopWindows(() => {
+      this.renderWindowTaskbarState();
+      this.renderLauncherMenuState();
+    });
+    this.renderWindowTaskbarState();
+    this.renderLauncherMenuState();
+    this.renderTaskbarClock();
+    this.taskbarClockTimer = window.setInterval(() => this.renderTaskbarClock(), 1000);
     this.updateWorkbenchChrome();
   }
 
@@ -1120,6 +1285,9 @@ export class PanelLayoutManager implements AppModule {
     this.updateInspector();
     this.updateNotebook();
     this.updateRailSelection();
+    this.renderWindowTaskbarState();
+    this.renderLauncherMenuState();
+    this.renderTaskbarClock();
   }
 
   private updateSheetState(): void {
@@ -2422,21 +2590,156 @@ export class PanelLayoutManager implements AppModule {
 
     const panelIds = this.resolvedPanelOrder.filter((panelId) =>
       this.minimizedPanels.has(panelId) && this.ctx.panelSettings[panelId]?.enabled !== false);
+    const customWindows = listDesktopWindows().filter((item) => item.state === 'minimized');
+    const itemCount = panelIds.length + customWindows.length;
 
-    taskbar.classList.toggle('is-empty', panelIds.length === 0);
-    list.innerHTML = panelIds.length > 0
-      ? panelIds.map((panelId) => {
-        const title = escapeHtml(this.getPanelTitle(panelId) ?? panelId);
-        return `
-          <div class="qadr-window-taskbar-item">
-            <button type="button" class="qadr-window-taskbar-chip" data-window-taskbar-action="restore" data-window-taskbar-panel="${panelId}" title="بازگردانی ${title}">
-              <span class="qadr-window-taskbar-chip-label">${title}</span>
-            </button>
-            <button type="button" class="qadr-window-taskbar-close" data-window-taskbar-action="close" data-window-taskbar-panel="${panelId}" aria-label="بستن ${title}" title="بستن ${title}">×</button>
-          </div>
-        `;
-      }).join('')
+    taskbar.classList.toggle('is-empty', itemCount === 0);
+    const panelItems = panelIds.map((panelId) => {
+      const title = escapeHtml(this.getPanelTitle(panelId) ?? panelId);
+      return `
+        <div class="qadr-window-taskbar-item">
+          <button type="button" class="qadr-window-taskbar-chip" data-window-taskbar-action="restore" data-window-taskbar-panel="${panelId}" data-window-taskbar-kind="panel" title="بازگردانی ${title}">
+            <span class="qadr-window-taskbar-chip-label">${title}</span>
+          </button>
+          <button type="button" class="qadr-window-taskbar-close" data-window-taskbar-action="close" data-window-taskbar-panel="${panelId}" data-window-taskbar-kind="panel" aria-label="بستن ${title}" title="بستن ${title}">×</button>
+        </div>
+      `;
+    });
+    const customItems = customWindows.map((item) => {
+      const title = escapeHtml(item.title);
+      return `
+        <div class="qadr-window-taskbar-item">
+          <button type="button" class="qadr-window-taskbar-chip" data-window-taskbar-action="restore" data-window-taskbar-panel="${item.id}" data-window-taskbar-kind="custom" title="بازگردانی ${title}">
+            <span class="qadr-window-taskbar-chip-label">${title}</span>
+          </button>
+          <button type="button" class="qadr-window-taskbar-close" data-window-taskbar-action="close" data-window-taskbar-panel="${item.id}" data-window-taskbar-kind="custom" aria-label="بستن ${title}" title="بستن ${title}">×</button>
+        </div>
+      `;
+    });
+    list.innerHTML = itemCount > 0
+      ? [...panelItems, ...customItems].join('')
       : '<div class="qadr-window-taskbar-empty">پنجره‌ای minimize نشده است.</div>';
+  }
+
+  private loadTaskbarClockMode(): TaskbarClockMode {
+    try {
+      const stored = localStorage.getItem(TASKBAR_CLOCK_MODE_KEY);
+      if (TASKBAR_CLOCK_PRESETS.some((item) => item.id === stored)) {
+        return stored as TaskbarClockMode;
+      }
+    } catch {
+      // ignore storage failures
+    }
+    return 'tehran-fa';
+  }
+
+  private saveTaskbarClockMode(): void {
+    try {
+      localStorage.setItem(TASKBAR_CLOCK_MODE_KEY, this.taskbarClockMode);
+    } catch {
+      // ignore storage failures
+    }
+  }
+
+  private setTaskbarMenuState(kind: 'launcher' | 'clock', open: boolean): void {
+    const menu = this.ctx.container.querySelector<HTMLElement>(kind === 'launcher' ? '#qadrWindowLauncherMenu' : '#qadrWindowClockMenu');
+    const button = this.ctx.container.querySelector<HTMLElement>(kind === 'launcher' ? '#qadrWindowLauncherButton' : '#qadrWindowClockButton');
+    if (!menu || !button) return;
+    menu.hidden = !open;
+    button.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+
+  private toggleTaskbarMenu(kind: 'launcher' | 'clock'): void {
+    const menu = this.ctx.container.querySelector<HTMLElement>(kind === 'launcher' ? '#qadrWindowLauncherMenu' : '#qadrWindowClockMenu');
+    if (!menu) return;
+    this.setTaskbarMenuState(kind === 'launcher' ? 'clock' : 'launcher', false);
+    this.setTaskbarMenuState(kind, menu.hidden);
+  }
+
+  private handleLauncherSelection(id: string, kind: string): void {
+    if (kind === 'custom') {
+      setDesktopWindowState(id, 'open');
+      return;
+    }
+    const page = WORKBENCH_SPECIAL_PAGES.find((item) => item.id === id);
+    if (page) {
+      this.openWorkbenchPage(page.id);
+      return;
+    }
+    if (this.ctx.panelSettings[id]) {
+      if (this.minimizedPanels.has(id)) {
+        this.restoreMinimizedPanel(id, false);
+      }
+      this.focusPanel(id);
+    }
+  }
+
+  private resolvePanelOperationalStatus(panelId: string): QadrDesktopWindowStatus {
+    const config = this.ctx.panelSettings[panelId];
+    if (!config?.enabled) return 'off';
+    const panel = this.ctx.panels[panelId];
+    const el = panel?.getElement();
+    const content = el?.querySelector('.panel-content');
+    if (!content || content.querySelector('.panel-loading')) return 'loading';
+    if (content.querySelector('.panel-error-state, .config-error-message, .panel-empty, .empty-state')) return 'limited';
+    return 'ready';
+  }
+
+  private renderLauncherMenuState(): void {
+    const menu = this.ctx.container.querySelector<HTMLElement>('#qadrWindowLauncherMenu');
+    if (!menu) return;
+    const pageItems = WORKBENCH_SPECIAL_PAGES.map((page) => {
+      const status = page.href ? 'ready' : this.resolvePanelOperationalStatus(page.panelId);
+      return {
+        id: page.id,
+        kind: 'page',
+        label: page.label,
+        status,
+      };
+    });
+    const customItems = listDesktopWindows().map((item) => ({
+      id: item.id,
+      kind: 'custom',
+      label: item.title,
+      status: item.status,
+    }));
+    const items = [...pageItems, ...customItems];
+    menu.innerHTML = items.map((item) => `
+      <button
+        type="button"
+        class="qadr-window-launcher-item status-${item.status}"
+        data-launcher-item="${item.id}"
+        data-launcher-kind="${item.kind === 'custom' ? 'custom' : 'page'}"
+        role="menuitem"
+      >
+        <span class="qadr-window-launcher-item-dot" aria-hidden="true"></span>
+        <span class="qadr-window-launcher-item-label">${escapeHtml(item.label)}</span>
+      </button>
+    `).join('');
+  }
+
+  private renderTaskbarClock(): void {
+    const button = this.ctx.container.querySelector<HTMLElement>('#qadrWindowClockButton');
+    const menu = this.ctx.container.querySelector<HTMLElement>('#qadrWindowClockMenu');
+    if (!button || !menu) return;
+    const selected = TASKBAR_CLOCK_PRESETS.find((item) => item.id === this.taskbarClockMode) ?? TASKBAR_CLOCK_PRESETS[0]!;
+    const now = new Date();
+    button.innerHTML = `
+      <span class="qadr-window-clock-primary">${new Intl.DateTimeFormat(selected.locale, selected.options).format(now)}</span>
+      <span class="qadr-window-clock-secondary">${selected.label}</span>
+    `;
+    menu.innerHTML = TASKBAR_CLOCK_PRESETS.map((item) => `
+      <button
+        type="button"
+        class="qadr-window-clock-item${item.id === selected.id ? ' active' : ''}"
+        data-clock-choice="${item.id}"
+        role="menuitemradio"
+        aria-checked="${item.id === selected.id ? 'true' : 'false'}"
+      >
+        <strong>${item.label}</strong>
+        <span>${new Intl.DateTimeFormat(item.locale, item.options).format(now)}</span>
+      </button>
+    `).join('');
   }
 
   private focusPanelElement(panelId: string, remainingAttempts: number): void {

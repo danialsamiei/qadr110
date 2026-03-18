@@ -20,9 +20,26 @@ import { loadAssistantWorkspaceState } from '@/services/assistant-workspace';
 import { scenarioIntelligenceStore } from '@/services/scenario-intelligence';
 import type { ScenarioEngineScenario, ScenarioEngineState } from '@/ai/scenario-engine';
 import { debounce } from '@/utils';
+import {
+  attachFloatingWindowDrag,
+  clampFloatingWindowPosition,
+  loadFloatingWindowState,
+  pickFloatingWindowPosition,
+  saveFloatingWindowState,
+  type FloatingWindowPosition,
+} from '@/services/qadr-floating-window';
+import {
+  getDesktopWindow,
+  registerDesktopWindow,
+  setDesktopWindowState,
+  subscribeDesktopWindows,
+  updateDesktopWindow,
+} from '@/services/qadr-desktop-shell';
 
 const OVERLAY_ID = 'qadrScenarioMapOverlay';
 const STORAGE_KEY = 'qadr110-scenario-map-overlay-layers';
+const WINDOW_ID = 'scenario-map-card';
+const WINDOW_STORAGE_KEY = 'qadr110-scenario-map-window';
 
 type ScenarioMapLayerKey = 'risk-heatmap' | 'escalation-paths' | 'impact-zones';
 type ScenarioHotspotCategory = 'security' | 'infrastructure' | 'social' | 'cyber' | 'economic' | 'osint';
@@ -461,14 +478,27 @@ export class ScenarioMapOverlay implements AppModule {
   private layers = loadLayerState();
   private readonly refreshDebounced: (() => void) & { cancel(): void };
   private unsubscribeState: (() => void) | null = null;
+  private unsubscribeWindowState: (() => void) | null = null;
+  private dragCleanup: (() => void) | null = null;
+  private windowPosition = loadFloatingWindowState(WINDOW_STORAGE_KEY).position;
 
   constructor(private readonly ctx: AppContext) {
     this.refreshDebounced = debounce(() => this.refresh(), 180);
   }
 
   init(): void {
+    registerDesktopWindow({
+      id: WINDOW_ID,
+      title: 'سناریوی نقشه',
+      state: 'minimized',
+      status: 'limited',
+      minimizable: true,
+      closable: true,
+      kind: 'custom',
+    });
     this.mount();
     this.unsubscribeState = scenarioIntelligenceStore.subscribe(() => this.refresh());
+    this.unsubscribeWindowState = subscribeDesktopWindows(() => this.render());
     this.ctx.map?.onStateChanged(() => this.refreshDebounced());
     this.ctx.map?.setOnLayerChange(() => this.refreshDebounced());
     this.ctx.map?.onTimeRangeChanged(() => this.refreshDebounced());
@@ -479,7 +509,11 @@ export class ScenarioMapOverlay implements AppModule {
   destroy(): void {
     this.unsubscribeState?.();
     this.unsubscribeState = null;
+    this.unsubscribeWindowState?.();
+    this.unsubscribeWindowState = null;
     this.refreshDebounced.cancel();
+    this.dragCleanup?.();
+    this.dragCleanup = null;
     this.panelEl?.remove();
     this.panelEl = null;
   }
@@ -499,6 +533,15 @@ export class ScenarioMapOverlay implements AppModule {
   private handleClick(event: Event): void {
     const target = event.target as HTMLElement | null;
     if (!target) return;
+    const windowAction = target.closest<HTMLElement>('[data-scenario-window-action]')?.dataset.scenarioWindowAction;
+    if (windowAction === 'minimize') {
+      setDesktopWindowState(WINDOW_ID, 'minimized');
+      return;
+    }
+    if (windowAction === 'close') {
+      setDesktopWindowState(WINDOW_ID, 'closed');
+      return;
+    }
     const layerButton = target.closest<HTMLElement>('[data-scenario-layer]');
     if (layerButton?.dataset.scenarioLayer) {
       const key = layerButton.dataset.scenarioLayer as ScenarioMapLayerKey;
@@ -516,9 +559,26 @@ export class ScenarioMapOverlay implements AppModule {
     if (hotspotButton?.dataset.scenarioHotspot && this.model) {
       const hotspot = this.model.hotspots.find((item) => item.id === hotspotButton.dataset.scenarioHotspot);
       if (hotspot) {
+        if (getDesktopWindow(WINDOW_ID)?.state !== 'open') {
+          setDesktopWindowState(WINDOW_ID, 'open');
+        }
         this.ctx.map?.setCenter(hotspot.lat, hotspot.lon, Math.max(6, (this.ctx.map?.getState()?.zoom ?? 6)));
         this.ctx.map?.flashLocation(hotspot.lat, hotspot.lon, 1800);
       }
+      return;
+    }
+    const evidenceButton = target.closest<HTMLElement>('[data-scenario-evidence]');
+    if (evidenceButton?.dataset.scenarioEvidence) {
+      this.runEvidencePrompt(evidenceButton.dataset.scenarioEvidence);
+      return;
+    }
+    const control = target.closest<HTMLElement>('[data-scenario-control]')?.dataset.scenarioControl;
+    if (control === 'rerun-primary') {
+      this.runPrimaryRoute();
+      return;
+    }
+    if (control === 'show-more-evidence') {
+      this.runEvidenceExpansion();
     }
   }
 
@@ -598,10 +658,118 @@ export class ScenarioMapOverlay implements AppModule {
     });
   }
 
+  private runPrimaryRoute(): void {
+    const state = scenarioIntelligenceStore.getState();
+    if (!state || !this.model) return;
+    const mapContext = (state.inputSnapshot.mapContext as MapContextEnvelope | null) ?? null;
+    const query = `برای ${this.model.anchor.label} مسیر اصلی سناریو را با شواهد بیشتر و route اصلی دوباره اجرا کن.`;
+    dispatchPromptSuggestionRun(document, {
+      source: 'scenario-map-overlay',
+      suggestion: {
+        id: 'scenario-map:rerun-main-route',
+        category: 'deep-analysis',
+        label: 'بازاجرای مسیر اصلی',
+        why: 'برای بازاجرای مسیر اصلی سناریو با شواهد بیشتر و route canonical.',
+        expectedInsight: 'انتظار می‌رود سناریوی غالب، محرک‌ها و evidence chain با مسیر اصلی دوباره همگرا شوند.',
+        query,
+        promptText: `${query}\n\nشواهد اولیه:\n${state.scenarios.slice(0, 2).flatMap((scenario) => [...scenario.drivers.slice(0, 2), ...scenario.indicators_to_watch.slice(0, 2)]).join('\n')}`,
+        domainMode: 'scenario-planning',
+        taskClass: 'scenario-analysis',
+        score: 88,
+        scoreBreakdown: {
+          base: 62,
+          map: 12,
+          layers: 6,
+          trends: 4,
+          scenario: 8,
+          session: 2,
+          freshness: 4,
+          total: 98,
+        },
+        orchestratorRoute: 'reasoning-local',
+        routeLabel: 'استدلال محلی',
+      },
+      mapContext,
+      autoSubmit: true,
+    });
+  }
+
+  private runEvidenceExpansion(): void {
+    const state = scenarioIntelligenceStore.getState();
+    if (!state || !this.model) return;
+    const topScenario = state.scenarios[0];
+    if (!topScenario) return;
+    const evidence = [...topScenario.drivers, ...topScenario.indicators_to_watch].slice(0, 8).join(' | ');
+    dispatchPromptSuggestionRun(document, {
+      source: 'scenario-map-overlay',
+      suggestion: {
+        id: 'scenario-map:more-evidence',
+        category: 'osint',
+        label: 'شواهد بیشتر',
+        why: 'برای تقویت evidence chain و باز کردن محرک‌ها و watchpointهای سناریوی غالب.',
+        expectedInsight: 'انتظار می‌رود جزئیات بیشتری از drivers، indicators و evidence gapهای ناحیه آشکار شود.',
+        query: `برای ${this.model.anchor.label} شواهد بیشتری درباره سناریوی غالب ارائه کن.`,
+        promptText: `برای ${this.model.anchor.label} شواهد بیشتری برای سناریوی غالب ارائه کن و drivers / indicators / gaps را expand کن.\n\nشواهد فعلی:\n${evidence}`,
+        domainMode: 'scenario-planning',
+        taskClass: 'briefing',
+        score: 84,
+        scoreBreakdown: {
+          base: 60,
+          map: 10,
+          layers: 4,
+          trends: 2,
+          scenario: 8,
+          session: 2,
+          freshness: 4,
+          total: 90,
+        },
+        orchestratorRoute: 'reasoning-local',
+        routeLabel: 'استدلال محلی',
+      },
+      mapContext: state.inputSnapshot.mapContext ?? null,
+      autoSubmit: true,
+    });
+  }
+
+  private runEvidencePrompt(evidenceLabel: string): void {
+    const state = scenarioIntelligenceStore.getState();
+    if (!state || !this.model) return;
+    dispatchPromptSuggestionRun(document, {
+      source: 'scenario-map-overlay',
+      suggestion: {
+        id: `scenario-map:evidence:${evidenceLabel}`,
+        category: 'osint',
+        label: evidenceLabel,
+        why: 'برای drill-down روی یکی از شواهد/شاخص‌های سناریوی نقشه.',
+        expectedInsight: 'انتظار می‌رود نقش این شاهد در likelihood، تشدید یا ابطال سناریو روشن‌تر شود.',
+        query: `روی این شاهد برای ${this.model.anchor.label} تمرکز کن: ${evidenceLabel}`,
+        promptText: `این شاهد را برای ${this.model.anchor.label} تحلیل کن و بگو در کدام سناریوها چه نقشی دارد:\n${evidenceLabel}`,
+        domainMode: 'scenario-planning',
+        taskClass: 'deduction',
+        score: 78,
+        scoreBreakdown: {
+          base: 54,
+          map: 8,
+          layers: 4,
+          trends: 2,
+          scenario: 6,
+          session: 0,
+          freshness: 4,
+          total: 78,
+        },
+        orchestratorRoute: 'reasoning-local',
+        routeLabel: 'استدلال محلی',
+      },
+      mapContext: state.inputSnapshot.mapContext ?? null,
+      autoSubmit: true,
+    });
+  }
+
   private refresh(): void {
     const state = scenarioIntelligenceStore.getState();
     if (!state) {
       this.model = null;
+      updateDesktopWindow(WINDOW_ID, { status: 'limited' });
       this.render();
       return;
     }
@@ -611,18 +779,94 @@ export class ScenarioMapOverlay implements AppModule {
       cyberThreats: this.ctx.cyberThreatsCache ?? undefined,
       newsClusters: this.ctx.latestClusters,
     });
+    updateDesktopWindow(WINDOW_ID, { status: this.model ? 'ready' : 'limited' });
     this.render();
+  }
+
+  private persistWindowPosition(position: FloatingWindowPosition): void {
+    this.windowPosition = position;
+    saveFloatingWindowState(WINDOW_STORAGE_KEY, { position });
+  }
+
+  private resolveCardPosition(card: HTMLElement): FloatingWindowPosition {
+    const hostRect = this.panelEl?.getBoundingClientRect();
+    if (!hostRect) return { x: 16, y: 16 };
+    const occupied = Array.from(document.querySelectorAll<HTMLElement>('.qadr-map-aware-card'))
+      .filter((el) => el.offsetParent !== null)
+      .map((el) => {
+        const rect = el.getBoundingClientRect();
+        return new DOMRect(rect.left - hostRect.left, rect.top - hostRect.top, rect.width, rect.height);
+      });
+    if (this.windowPosition) {
+      return clampFloatingWindowPosition(hostRect, card.offsetWidth, card.offsetHeight, this.windowPosition, { bottomInset: 92 });
+    }
+    return pickFloatingWindowPosition(
+      hostRect,
+      card.offsetWidth,
+      card.offsetHeight,
+      occupied,
+      [
+        {
+          x: Math.max(16, Math.round((hostRect.width - card.offsetWidth) / 2)),
+          y: Math.max(16, Math.round(hostRect.height - card.offsetHeight - 96)),
+        },
+        { x: 16, y: Math.max(16, Math.round(hostRect.height - card.offsetHeight - 96)) },
+      ],
+      { bottomInset: 92 },
+    );
+  }
+
+  private syncCardWindow(): void {
+    this.dragCleanup?.();
+    this.dragCleanup = null;
+    if (!this.panelEl) return;
+    const card = this.panelEl.querySelector<HTMLElement>('.qadr-scenario-map-card');
+    const header = this.panelEl.querySelector<HTMLElement>('.qadr-scenario-map-header');
+    if (!card || !header) return;
+    const position = this.resolveCardPosition(card);
+    this.persistWindowPosition(position);
+    card.style.left = `${Math.round(position.x)}px`;
+    card.style.top = `${Math.round(position.y)}px`;
+    card.style.bottom = 'auto';
+    card.style.insetInlineStart = 'auto';
+    card.style.insetInlineEnd = 'auto';
+    this.dragCleanup = attachFloatingWindowDrag(
+      header,
+      card,
+      () => this.panelEl?.getBoundingClientRect() ?? new DOMRect(0, 0, window.innerWidth, window.innerHeight),
+      (next) => {
+        this.persistWindowPosition(next);
+        card.style.left = `${Math.round(next.x)}px`;
+        card.style.top = `${Math.round(next.y)}px`;
+      },
+      () => this.windowPosition ?? position,
+      { bottomInset: 92 },
+    );
   }
 
   private render(): void {
     if (!this.panelEl) return;
+    const windowRecord = getDesktopWindow(WINDOW_ID);
+    const isOpen = windowRecord?.state === 'open';
     if (!this.model) {
       this.panelEl.innerHTML = `
-        <div class="qadr-scenario-map-card empty">
-          <strong>لایه سناریوی نقشه</strong>
-          <p>بعد از انتخاب یک نقطه یا محدوده، شبیه‌سازی محلی و لایه‌های سرریز اینجا نمایش داده می‌شود.</p>
-        </div>
+        ${isOpen ? `
+          <div class="qadr-scenario-map-card empty">
+            <div class="qadr-scenario-map-header">
+              <div>
+                <span class="qadr-scenario-kicker">Scenario Map</span>
+                <strong>سناریوی نقشه</strong>
+              </div>
+              <div class="qadr-scenario-window-controls">
+                <button type="button" data-scenario-window-action="minimize" aria-label="مینیمایز">−</button>
+                <button type="button" data-scenario-window-action="close" aria-label="بستن">×</button>
+              </div>
+            </div>
+            <p>بعد از انتخاب یک نقطه یا محدوده، شبیه‌سازی محلی و لایه‌های سرریز اینجا نمایش داده می‌شود.</p>
+          </div>
+        ` : ''}
       `;
+      this.syncCardWindow();
       return;
     }
 
@@ -657,6 +901,12 @@ export class ScenarioMapOverlay implements AppModule {
         return `<line class="qadr-scenario-path" x1="${from.x}" y1="${from.y}" x2="${to.x}" y2="${to.y}" stroke-width="${2 + path.weight * 4}"></line>`;
       }).join('')
       : '';
+    const topScenario = state?.scenarios[0];
+    const evidenceButtons = topScenario
+      ? [...topScenario.drivers.slice(0, 4), ...topScenario.indicators_to_watch.slice(0, 4)]
+        .filter((item, index, array) => array.indexOf(item) === index)
+        .slice(0, 6)
+      : [];
 
     this.panelEl.innerHTML = `
       <svg class="qadr-scenario-map-canvas" viewBox="0 0 ${this.panelEl.clientWidth || 420} ${this.panelEl.clientHeight || 320}" preserveAspectRatio="none" aria-hidden="true">
@@ -664,13 +914,20 @@ export class ScenarioMapOverlay implements AppModule {
         ${pathSvg}
       </svg>
       <div class="qadr-scenario-hotspots">${hotspotDots}</div>
+      ${isOpen ? `
       <div class="qadr-scenario-map-card">
         <div class="qadr-scenario-map-header">
           <div>
             <span class="qadr-scenario-kicker">Scenario Map</span>
             <strong>${this.model.anchor.label}</strong>
           </div>
-          <span class="qadr-scenario-meta">${state?.scenarios.length ?? 0} سناریو | ${this.model.hotspots.length} hotspot</span>
+          <div class="qadr-scenario-window-meta">
+            <span class="qadr-scenario-meta">${state?.scenarios.length ?? 0} سناریو | ${this.model.hotspots.length} hotspot</span>
+            <div class="qadr-scenario-window-controls">
+              <button type="button" data-scenario-window-action="minimize" aria-label="مینیمایز">−</button>
+              <button type="button" data-scenario-window-action="close" aria-label="بستن">×</button>
+            </div>
+          </div>
         </div>
         <p class="qadr-scenario-summary">${this.model.summary}</p>
         <div class="qadr-scenario-layers">
@@ -680,6 +937,8 @@ export class ScenarioMapOverlay implements AppModule {
         </div>
         <div class="qadr-scenario-map-actions">
           ${this.model.commands.map((command) => `<button type="button" data-scenario-command="${command.id}">${command.label}</button>`).join('')}
+          <button type="button" data-scenario-control="rerun-primary">بازاجرای مسیر اصلی</button>
+          <button type="button" data-scenario-control="show-more-evidence">شواهد بیشتر</button>
         </div>
         <div class="qadr-scenario-clusters">
           ${this.model.clusters.slice(0, 4).map((cluster) => `
@@ -692,7 +951,14 @@ export class ScenarioMapOverlay implements AppModule {
         <div class="qadr-scenario-entities">
           ${this.model.anchor.nearbyEntities.slice(0, 6).map((entity) => `<span>${entity}</span>`).join('')}
         </div>
+        ${evidenceButtons.length > 0 ? `
+          <div class="qadr-scenario-evidence-list">
+            ${evidenceButtons.map((item) => `<button type="button" data-scenario-evidence="${item}">${item}</button>`).join('')}
+          </div>
+        ` : ''}
       </div>
+      ` : ''}
     `;
+    this.syncCardWindow();
   }
 }

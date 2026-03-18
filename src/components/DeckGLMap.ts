@@ -4129,7 +4129,8 @@ export class DeckGLMap {
       syncCollapsedState(!toggles.classList.contains('is-collapsed'));
     });
 
-    syncCollapsedState(localStorage.getItem(collapseStorageKey) === '1');
+    const storedCollapse = localStorage.getItem(collapseStorageKey);
+    syncCollapsedState(storedCollapse === null ? true : storedCollapse === '1');
   }
 
   /** Show layer help popup explaining each layer */

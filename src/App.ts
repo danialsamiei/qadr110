@@ -61,14 +61,9 @@ function resolveInitialLayoutMode(): 'full' | 'map-only' {
     return requestedMode;
   }
 
-  const storedMode = localStorage.getItem(QADR_LAYOUT_MODE_KEY);
-  if (storedMode === 'full' || storedMode === 'map-only') {
-    return storedMode;
-  }
-
-  // Keep the first-load experience predictable while the shell is being rebuilt.
-  localStorage.setItem(QADR_LAYOUT_MODE_KEY, 'map-only');
-  return 'map-only';
+  // Default every fresh login to the full analytical shell unless explicitly overridden.
+  localStorage.setItem(QADR_LAYOUT_MODE_KEY, 'full');
+  return 'full';
 }
 
 export type { CountryBriefSignals } from '@/app/app-context';
