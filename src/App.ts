@@ -51,6 +51,25 @@ import { ScenarioMapOverlay } from '@/services/ScenarioMapOverlay';
 import { resolveUserRegion, resolvePreciseUserCoordinates, type PreciseCoordinates } from '@/utils/user-location';
 
 const CYBER_LAYER_ENABLED = import.meta.env.VITE_ENABLE_CYBER_LAYER === 'true';
+const QADR_LAYOUT_MODE_KEY = 'qadr110-layout-mode';
+
+function resolveInitialLayoutMode(): 'full' | 'map-only' {
+  const params = new URLSearchParams(window.location.search);
+  const requestedMode = params.get('workspace');
+  if (requestedMode === 'full' || requestedMode === 'map-only') {
+    localStorage.setItem(QADR_LAYOUT_MODE_KEY, requestedMode);
+    return requestedMode;
+  }
+
+  const storedMode = localStorage.getItem(QADR_LAYOUT_MODE_KEY);
+  if (storedMode === 'full' || storedMode === 'map-only') {
+    return storedMode;
+  }
+
+  // Keep the first-load experience predictable while the shell is being rebuilt.
+  localStorage.setItem(QADR_LAYOUT_MODE_KEY, 'map-only');
+  return 'map-only';
+}
 
 export type { CountryBriefSignals } from '@/app/app-context';
 
@@ -175,6 +194,7 @@ export class App {
     const el = document.getElementById(containerId);
     if (!el) throw new Error(`Container ${containerId} not found`);
     el.dataset.qadrShell = 'analytical-workbench';
+    el.dataset.qadrLayoutMode = resolveInitialLayoutMode();
     el.classList.add('qadr-root-shell');
 
     const PANEL_ORDER_KEY = 'panel-order';

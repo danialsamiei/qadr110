@@ -3635,6 +3635,94 @@ body {
   }
 }
 
+/* ============================================================
+   QADR Map-Only Layout
+   Hide all chrome/panels while keeping the map and right-click
+   interactions alive so the UI can be rebuilt from a clean slate.
+   Use ?workspace=full to restore the full shell.
+   ============================================================ */
+#app[data-qadr-shell="analytical-workbench"][data-qadr-layout-mode="map-only"] {
+  background: #02070d;
+}
+
+#app[data-qadr-shell="analytical-workbench"][data-qadr-layout-mode="map-only"] .tauri-titlebar,
+#app[data-qadr-shell="analytical-workbench"][data-qadr-layout-mode="map-only"] .header,
+#app[data-qadr-shell="analytical-workbench"][data-qadr-layout-mode="map-only"] .qadr-command-rail,
+#app[data-qadr-shell="analytical-workbench"][data-qadr-layout-mode="map-only"] .qadr-workbench-topbar,
+#app[data-qadr-shell="analytical-workbench"][data-qadr-layout-mode="map-only"] .qadr-report-sheet-stack,
+#app[data-qadr-shell="analytical-workbench"][data-qadr-layout-mode="map-only"] .qadr-evidence-drawer,
+#app[data-qadr-shell="analytical-workbench"][data-qadr-layout-mode="map-only"] .site-footer,
+#app[data-qadr-shell="analytical-workbench"][data-qadr-layout-mode="map-only"] .qadr-panel-overlay,
+#app[data-qadr-shell="analytical-workbench"][data-qadr-layout-mode="map-only"] .search-mobile-fab,
+#app[data-qadr-shell="analytical-workbench"][data-qadr-layout-mode="map-only"] .map-section .panel-header,
+#app[data-qadr-shell="analytical-workbench"][data-qadr-layout-mode="map-only"] .map-resize-handle,
+#app[data-qadr-shell="analytical-workbench"][data-qadr-layout-mode="map-only"] .tv-exit-btn {
+  display: none !important;
+}
+
+#app[data-qadr-shell="analytical-workbench"][data-qadr-layout-mode="map-only"] .qadr-workbench-shell,
+#app[data-qadr-shell="analytical-workbench"][data-qadr-layout-mode="map-only"] .qadr-workbench-main,
+#app[data-qadr-shell="analytical-workbench"][data-qadr-layout-mode="map-only"] .qadr-workbench-stage,
+#app[data-qadr-shell="analytical-workbench"][data-qadr-layout-mode="map-only"] .qadr-workbench-canvas,
+#app[data-qadr-shell="analytical-workbench"][data-qadr-layout-mode="map-only"] .main-content {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+}
+
+#app[data-qadr-shell="analytical-workbench"][data-qadr-layout-mode="map-only"] .qadr-workbench-shell,
+#app[data-qadr-shell="analytical-workbench"][data-qadr-layout-mode="map-only"] .qadr-workbench-main,
+#app[data-qadr-shell="analytical-workbench"][data-qadr-layout-mode="map-only"] .qadr-workbench-stage,
+#app[data-qadr-shell="analytical-workbench"][data-qadr-layout-mode="map-only"] .qadr-workbench-canvas,
+#app[data-qadr-shell="analytical-workbench"][data-qadr-layout-mode="map-only"] .main-content {
+  overflow: hidden;
+  gap: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: #02070d;
+}
+
+#app[data-qadr-shell="analytical-workbench"][data-qadr-layout-mode="map-only"] .qadr-workbench-shell {
+  margin: 0;
+}
+
+#app[data-qadr-shell="analytical-workbench"][data-qadr-layout-mode="map-only"] .map-section {
+  flex: 1 1 auto;
+  width: 100vw;
+  height: 100vh;
+  min-height: 100vh;
+  max-height: 100vh;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: #02070d;
+}
+
+#app[data-qadr-shell="analytical-workbench"][data-qadr-layout-mode="map-only"] .map-section.pinned {
+  position: relative;
+  top: auto;
+}
+
+#app[data-qadr-shell="analytical-workbench"][data-qadr-layout-mode="map-only"] .map-section .map-container,
+#app[data-qadr-shell="analytical-workbench"][data-qadr-layout-mode="map-only"] .map-wrapper,
+#app[data-qadr-shell="analytical-workbench"][data-qadr-layout-mode="map-only"] .map-shell,
+#app[data-qadr-shell="analytical-workbench"][data-qadr-layout-mode="map-only"] .deckgl-map-root,
+#app[data-qadr-shell="analytical-workbench"][data-qadr-layout-mode="map-only"] .deckgl-canvas-wrapper,
+#app[data-qadr-shell="analytical-workbench"][data-qadr-layout-mode="map-only"] .maplibregl-map,
+#app[data-qadr-shell="analytical-workbench"][data-qadr-layout-mode="map-only"] .maplibregl-canvas-container,
+#app[data-qadr-shell="analytical-workbench"][data-qadr-layout-mode="map-only"] .deckgl-overlay {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0;
+  min-height: 0;
+}
+
 .live-news-manage-available-header {
   display: flex;
   justify-content: space-between;
