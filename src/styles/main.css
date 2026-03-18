@@ -2781,10 +2781,14 @@ body {
 #app[data-qadr-shell="analytical-workbench"] .qadr-prompt-intel-panel {
   position: absolute;
   inset-block-start: 12px;
-  inset-inline-start: 12px;
+  inset-inline-start: auto;
+  inset-inline-end: 12px;
   inline-size: min(380px, calc(100% - 24px));
   z-index: 24;
   pointer-events: none;
+  transition:
+    inline-size var(--qadr-motion-fast, 160ms ease),
+    inset var(--qadr-motion-fast, 160ms ease);
 }
 
 #app[data-qadr-shell="analytical-workbench"] .qadr-prompt-intel-shell {
@@ -2976,14 +2980,48 @@ body {
 }
 
 #app[data-qadr-shell="analytical-workbench"] .qadr-prompt-intel-panel.is-collapsed .qadr-prompt-intel-shell {
-  padding-block-end: 10px;
+  align-items: center;
+  padding: 12px 10px;
+  gap: var(--qadr-space-3);
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-prompt-intel-panel.is-collapsed {
+  inline-size: 80px;
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-prompt-intel-panel.is-collapsed .qadr-prompt-intel-header {
+  flex-direction: column;
+  justify-content: center;
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-prompt-intel-panel.is-collapsed .qadr-prompt-intel-heading {
+  align-items: center;
+  text-align: center;
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-prompt-intel-panel.is-collapsed .qadr-prompt-intel-kicker {
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-prompt-intel-panel.is-collapsed .qadr-prompt-intel-actions {
+  flex-direction: column;
+}
+
+#app[data-qadr-shell="analytical-workbench"] .qadr-prompt-intel-panel.is-collapsed .qadr-prompt-intel-heading strong,
+#app[data-qadr-shell="analytical-workbench"] .qadr-prompt-intel-panel.is-collapsed .qadr-prompt-intel-anchor,
+#app[data-qadr-shell="analytical-workbench"] .qadr-prompt-intel-panel.is-collapsed .qadr-prompt-intel-meta {
+  display: none;
 }
 
 @media (max-width: 1024px) {
   #app[data-qadr-shell="analytical-workbench"] .qadr-prompt-intel-panel {
-    inset-block-start: auto;
-    inset-block-end: 12px;
-    inline-size: min(420px, calc(100% - 24px));
+    inset-block-start: 12px;
+    inset-block-end: auto;
+    inset-inline-end: 12px;
+    inline-size: min(340px, calc(100% - 24px));
   }
 
   #app[data-qadr-shell="analytical-workbench"] .qadr-prompt-intel-list {

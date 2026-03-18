@@ -216,9 +216,13 @@ export const PROMPT_SUGGESTION_TEMPLATES: CandidateTemplate[] = [
 
 function loadCollapsed(): boolean {
   try {
-    return localStorage.getItem(COLLAPSED_KEY) === '1';
+    const stored = localStorage.getItem(COLLAPSED_KEY);
+    if (stored === null) {
+      return true;
+    }
+    return stored === '1';
   } catch {
-    return false;
+    return true;
   }
 }
 
@@ -769,7 +773,7 @@ export class PromptSuggestionEngine implements AppModule {
           </div>
           <div class="qadr-prompt-intel-actions">
             <button type="button" class="qadr-prompt-intel-icon" data-prompt-intel-action="refresh" aria-label="بازآوری">⟳</button>
-            <button type="button" class="qadr-prompt-intel-icon" data-prompt-intel-action="toggle" aria-expanded="${this.collapsed ? 'false' : 'true'}" aria-controls="qadrPromptIntelList">${this.collapsed ? '▾' : '▴'}</button>
+            <button type="button" class="qadr-prompt-intel-icon" data-prompt-intel-action="toggle" aria-label="${this.collapsed ? 'باز کردن پیشنهادهای هوشمند' : 'جمع کردن پیشنهادهای هوشمند'}" aria-expanded="${this.collapsed ? 'false' : 'true'}" aria-controls="qadrPromptIntelList">${this.collapsed ? '‹' : '›'}</button>
           </div>
         </div>
         <div class="qadr-prompt-intel-meta">
