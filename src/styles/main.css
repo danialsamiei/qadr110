@@ -15267,67 +15267,76 @@ a.prediction-link:hover {
 /* deck.gl Layer Toggles */
 .deckgl-layer-toggles {
   position: absolute;
-  bottom: 10px;
-  left: 10px;
-  z-index: 100;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  max-width: 260px;
-  max-height: 50vh;
+  top: 16px;
+  bottom: 16px;
+  left: 16px;
+  z-index: 140;
+  width: 248px;
+  max-width: min(248px, calc(100vw - 32px));
+  background: rgba(7, 11, 18, 0.86);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 22px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(18px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   flex-wrap: nowrap;
+  direction: rtl;
+  transition: width 0.22s ease, transform 0.22s ease, opacity 0.22s ease;
+}
+
+.deckgl-layer-toggles.is-collapsed {
+  width: 76px;
 }
 
 .deckgl-layer-toggles .toggle-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 10px;
-  border-bottom: 1px solid var(--border);
-  font-size: 10px;
-  font-weight: bold;
-  color: var(--text-dim);
-  text-transform: uppercase;
-  letter-spacing: 1px;
+  gap: 8px;
+  padding: 14px 14px 10px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(226, 232, 240, 0.88);
   flex-shrink: 0;
 }
 
 .deckgl-layer-toggles .toggle-collapse {
-  background: none;
-  border: none;
-  color: var(--text-dim);
+  appearance: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(226, 232, 240, 0.9);
   cursor: pointer;
-  font-size: 10px;
+  font-size: 13px;
 }
 
 .deckgl-layer-toggles .toggle-list {
-  padding: 4px;
+  padding: 10px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 6px;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
-}
-
-.deckgl-layer-toggles .toggle-list.collapsed {
-  display: none;
+  max-height: none !important;
 }
 
 .deckgl-layer-toggles .layer-search {
-  width: calc(100% - 16px);
-  margin: 4px 8px;
-  padding: 4px 8px;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.15);
-  border-radius: 4px;
+  width: calc(100% - 24px);
+  margin: 10px 12px 0;
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 14px;
   color: inherit;
-  font-size: 11px;
+  font-size: 12px;
   font-family: inherit;
   outline: none;
 }
@@ -15335,28 +15344,37 @@ a.prediction-link:hover {
   color: rgba(255,255,255,0.4);
 }
 .deckgl-layer-toggles .layer-search:focus {
-  border-color: rgba(255,255,255,0.3);
-  background: rgba(255,255,255,0.12);
+  border-color: rgba(96, 165, 250, 0.65);
+  background: rgba(255,255,255,0.08);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
 }
 
 .deckgl-layer-toggles .layer-toggle {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 8px;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 12px;
   cursor: pointer;
-  border-radius: 3px;
-  border: 1px solid transparent;
-  background: var(--bg);
-  transition: background 0.15s ease, border-color 0.15s ease;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.04);
+  background: rgba(255,255,255,0.02);
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
   position: relative;
-  font-size: 10px;
-  text-transform: uppercase;
+  font-size: 11px;
   color: var(--text);
 }
 
 .deckgl-layer-toggles .layer-toggle:hover {
-  background: var(--bg);
+  background: rgba(255,255,255,0.05);
+  border-color: rgba(96, 165, 250, 0.18);
+  transform: translateX(-1px);
+}
+
+.deckgl-layer-toggles .layer-toggle.active,
+.deckgl-layer-toggles .layer-toggle:has(input[type="checkbox"]:checked) {
+  background: rgba(59, 130, 246, 0.14);
+  border-color: rgba(96, 165, 250, 0.45);
 }
 
 .deckgl-layer-toggles .layer-toggle.zoom-hidden .toggle-label {
@@ -15406,10 +15424,10 @@ a.prediction-link:hover {
 }
 
 .deckgl-layer-toggles .toggle-icon {
-  font-size: 12px;
-  width: 16px;
-  height: 16px;
-  min-width: 16px;
+  font-size: 18px;
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -15418,10 +15436,9 @@ a.prediction-link:hover {
 }
 
 .deckgl-layer-toggles .toggle-label {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--text);
-  letter-spacing: 0.5px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -15438,6 +15455,36 @@ a.prediction-link:hover {
 
 .deckgl-layer-toggles .layer-toggle.has-data {
   border-color: rgba(68, 255, 136, 0.2);
+}
+
+.deckgl-layer-toggles.is-collapsed .toggle-header {
+  justify-content: center;
+  padding: 14px 10px 8px;
+}
+
+.deckgl-layer-toggles.is-collapsed .toggle-header span,
+.deckgl-layer-toggles.is-collapsed .layer-help-btn,
+.deckgl-layer-toggles.is-collapsed .layer-search,
+.deckgl-layer-toggles.is-collapsed .toggle-label,
+.deckgl-layer-toggles.is-collapsed .layer-toggle input[type="checkbox"],
+.deckgl-layer-toggles.is-collapsed .map-author-badge {
+  display: none !important;
+}
+
+.deckgl-layer-toggles.is-collapsed .toggle-list {
+  padding-inline: 8px;
+}
+
+.deckgl-layer-toggles.is-collapsed .layer-toggle {
+  justify-content: center;
+  padding: 10px;
+}
+
+.deckgl-layer-toggles.is-collapsed .toggle-icon {
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  font-size: 20px;
 }
 
 /* Pro early-access banner */

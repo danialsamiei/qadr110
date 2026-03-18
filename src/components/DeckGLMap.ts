@@ -4039,6 +4039,7 @@ export class DeckGLMap {
   private createLayerToggles(): void {
     const toggles = document.createElement('div');
     toggles.className = 'layer-toggles deckgl-layer-toggles';
+    const collapseStorageKey = 'qadr110-layer-sidebar-collapsed';
 
     const layerDefs = getLayersForVariant((SITE_VARIANT || 'full') as MapVariant, 'flat');
     const _wmKey = getSecretState('QADR110_API_KEY').present;
@@ -4061,7 +4062,7 @@ export class DeckGLMap {
           const isLocked = premium === 'locked' && !_wmKey;
           const isEnhanced = premium === 'enhanced' && !_wmKey;
           return `
-          <label class="layer-toggle${isLocked ? ' layer-toggle-locked' : ''}" data-layer="${key}">
+          <label class="layer-toggle${isLocked ? ' layer-toggle-locked' : ''}" data-layer="${key}" title="${label}">
             <input type="checkbox" ${this.state.layers[key as keyof MapLayers] ? 'checked' : ''}${isLocked ? ' disabled' : ''}>
             <span class="toggle-icon">${icon}</span>
             <span class="toggle-label">${label}${isLocked ? ' \uD83D\uDD12' : ''}${isEnhanced ? ' <span class="layer-pro-badge">PRO</span>' : ''}</span>
@@ -4116,11 +4117,19 @@ export class DeckGLMap {
     bindLayerSearch(toggles);
     const searchEl = toggles.querySelector('.layer-search') as HTMLElement | null;
 
+    const syncCollapsedState = (collapsed: boolean): void => {
+      toggles.classList.toggle('is-collapsed', collapsed);
+      toggles.setAttribute('data-collapsed', collapsed ? '1' : '0');
+      if (searchEl) searchEl.toggleAttribute('hidden', collapsed);
+      if (collapseBtn) collapseBtn.innerHTML = collapsed ? '&#9654;' : '&#9664;';
+      localStorage.setItem(collapseStorageKey, collapsed ? '1' : '0');
+    };
+
     collapseBtn?.addEventListener('click', () => {
-      toggleList?.classList.toggle('collapsed');
-      if (searchEl) searchEl.style.display = toggleList?.classList.contains('collapsed') ? 'none' : '';
-      if (collapseBtn) collapseBtn.innerHTML = toggleList?.classList.contains('collapsed') ? '&#9654;' : '&#9660;';
+      syncCollapsedState(!toggles.classList.contains('is-collapsed'));
     });
+
+    syncCollapsedState(localStorage.getItem(collapseStorageKey) === '1');
   }
 
   /** Show layer help popup explaining each layer */

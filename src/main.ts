@@ -4,6 +4,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import * as Sentry from '@sentry/browser';
 import { inject } from '@vercel/analytics';
 import { App } from './App';
+import { showAccessGate } from './services/web-auth';
 import { installUtmInterceptor } from './utils/utm';
 
 const sentryDsn = import.meta.env.VITE_SENTRY_DSN?.trim();
@@ -321,50 +322,6 @@ function shouldEnableVercelAnalytics(): boolean {
 
   const hostname = location.hostname.toLowerCase();
   return hostname.endsWith('.vercel.app');
-}
-
-function showAccessGate(): Promise<boolean> {
-  const key = 'qadr110-auth-ok';
-  if (sessionStorage.getItem(key) === '1') return Promise.resolve(true);
-
-  return new Promise((resolve) => {
-    const overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:100000;background:#05070b;display:flex;align-items:center;justify-content:center;padding:20px;';
-    overlay.innerHTML = `
-      <div style="width:min(460px,100%);background:#0f1720;border:1px solid #223244;border-radius:14px;padding:18px;color:#e5edf5;direction:rtl;text-align:right;font-family:inherit;">
-        <h2 style="margin:0 0 10px;font-size:20px;">ورود به QADR110</h2>
-        <p style="margin:0 0 14px;color:#9fb3c8;line-height:1.8">برای مشاهده سامانه نام کاربری و رمز عبور را وارد کنید.</p>
-        <label style="display:block;margin-bottom:8px">نام کاربری</label>
-        <input id="qadr-user" style="width:100%;padding:10px;border-radius:8px;border:1px solid #34495e;background:#0b1118;color:#fff;margin-bottom:10px" />
-        <label style="display:block;margin-bottom:8px">رمز عبور</label>
-        <input id="qadr-pass" type="password" style="width:100%;padding:10px;border-radius:8px;border:1px solid #34495e;background:#0b1118;color:#fff;margin-bottom:12px" />
-        <button id="qadr-submit" style="width:100%;padding:10px;border-radius:8px;border:0;background:#0ea5e9;color:#03121a;font-weight:700;cursor:pointer">ورود</button>
-        <div id="qadr-error" style="margin-top:10px;color:#fca5a5;min-height:20px"></div>
-      </div>
-    `;
-    document.body.appendChild(overlay);
-    const userInput = overlay.querySelector<HTMLInputElement>('#qadr-user')!;
-    const passInput = overlay.querySelector<HTMLInputElement>('#qadr-pass')!;
-    const submitBtn = overlay.querySelector<HTMLButtonElement>('#qadr-submit')!;
-    const errEl = overlay.querySelector<HTMLElement>('#qadr-error')!;
-
-    const attempt = (): void => {
-      const ok = userInput.value.trim() === 'Hojjat' && passInput.value === 'Mojtaba';
-      if (!ok) {
-        errEl.textContent = 'اطلاعات ورود صحیح نیست.';
-        return;
-      }
-      sessionStorage.setItem(key, '1');
-      overlay.remove();
-      resolve(true);
-    };
-
-    submitBtn.addEventListener('click', attempt);
-    passInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') attempt();
-    });
-    userInput.focus();
-  });
 }
 
 async function bootstrapApplication(): Promise<void> {

@@ -129,67 +129,70 @@
     <!-- Theme: apply stored preference before first paint to prevent FOUC -->
     <script>(function(){try{var h=location.hostname;var v;if(h.startsWith('happy.'))v='happy';else if(h.startsWith('tech.'))v='tech';else if(h.startsWith('finance.'))v='finance';if(!v&&(h==='localhost'||h==='127.0.0.1'||'__TAURI_INTERNALS__' in window))v=localStorage.getItem('qadr110-variant')||localStorage.getItem('worldmonitor-variant');if(v)document.documentElement.dataset.variant=v;else document.documentElement.removeAttribute('data-variant');var t=localStorage.getItem('qadr110-theme')||localStorage.getItem('worldmonitor-theme');if(t==='dark'||t==='light'){document.documentElement.dataset.theme=t;}else if(v==='happy'){document.documentElement.dataset.theme='light';}}catch(e){}document.documentElement.classList.add('no-transition');})()</script>
 
-    <!-- Critical CSS: inline skeleton visible before JS boots -->
+    <!-- Critical CSS: boot overlay visible before JS boots -->
     <style>
-      /* ---------- skeleton shell (dark default) ---------- */
-      .skeleton-shell{display:flex;flex-direction:column;height:100vh;background:#0a0a0a;font-family:'Vazirmatn','Tajawal','Geeza Pro','Tahoma','Segoe UI',system-ui,sans-serif;overflow:hidden}
-      .skeleton-header{display:flex;align-items:center;justify-content:space-between;height:40px;padding:8px 16px;background:#141414;border-bottom:1px solid #2a2a2a;flex-shrink:0}
-      .skeleton-header-left{display:flex;align-items:center;gap:12px}
-      .skeleton-header-right{display:flex;align-items:center;gap:12px}
-      .skeleton-pill{height:24px;border-radius:4px;background:#1e1e1e}
-      .skeleton-dot{width:8px;height:8px;border-radius:50%;background:#0f5040}
-      .skeleton-main{flex:1;display:flex;flex-direction:column;overflow:hidden;background:#0a0a0a}
-      .skeleton-map{height:50vh;min-height:200px;border:1px solid #2a2a2a;background:#020a08;display:flex;flex-direction:column;flex-shrink:0}
-      .skeleton-map-bar{height:32px;display:flex;align-items:center;padding:0 12px;background:#141414;border-bottom:1px solid #2a2a2a}
-      .skeleton-map-body{flex:1;position:relative;overflow:hidden}
-      .skeleton-map-body::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 60% 50% at 50% 50%,#0a2a20 0%,#020a08 100%);opacity:.5}
-      .skeleton-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:4px;padding:4px;align-content:start}
-      .skeleton-panel{height:320px;background:#141414;border:1px solid #2a2a2a;border-radius:0;display:flex;flex-direction:column}
-      .skeleton-panel-header{height:36px;display:flex;align-items:center;padding:0 12px;border-bottom:1px solid #1a1a1a}
-      .skeleton-panel-body{flex:1;padding:12px;display:flex;flex-direction:column;gap:10px}
-      .skeleton-line{height:14px;border-radius:4px;background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.1) 50%,rgba(255,255,255,.05) 75%);background-size:200% 100%;animation:skel-shimmer 1.5s infinite}
-      .skeleton-line.w75{width:75%}.skeleton-line.w60{width:60%}.skeleton-line.w50{width:50%}.skeleton-line.w85{width:85%}.skeleton-line.w40{width:40%}
-
-      @keyframes skel-shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
-
-      /* ---------- skeleton shell (light theme) ---------- */
-      [data-theme="light"] .skeleton-shell{background:#f8f9fa}
-      [data-theme="light"] .skeleton-header{background:#fff;border-bottom-color:#d4d4d4}
-      [data-theme="light"] .skeleton-pill{background:#f0f0f0}
-      [data-theme="light"] .skeleton-dot{background:#16a34a}
-      [data-theme="light"] .skeleton-main{background:#f8f9fa}
-      [data-theme="light"] .skeleton-map{border-color:#d4d4d4;background:#e8f0f8}
-      [data-theme="light"] .skeleton-map-bar{background:#fff;border-bottom-color:#d4d4d4}
-      [data-theme="light"] .skeleton-map-body::after{background:radial-gradient(ellipse 60% 50% at 50% 50%,#b0c8d8 0%,#e8f0f8 100%)}
-      [data-theme="light"] .skeleton-panel{background:#fff;border-color:#d4d4d4}
-      [data-theme="light"] .skeleton-panel-header{border-bottom-color:#e8e8e8}
-      [data-theme="light"] .skeleton-line{background:linear-gradient(90deg,rgba(0,0,0,.04) 25%,rgba(0,0,0,.08) 50%,rgba(0,0,0,.04) 75%);background-size:200% 100%;animation:skel-shimmer 1.5s infinite}
-
-      /* ---------- skeleton shell (happy variant — light) ---------- */
-      [data-variant="happy"] .skeleton-shell{background:#FAFAF5;font-family:'Vazirmatn','Tajawal','Nunito',system-ui,sans-serif}
-      [data-variant="happy"] .skeleton-header{background:#FFFFFF;border-bottom-color:#DDD9CF}
-      [data-variant="happy"] .skeleton-pill{background:#F2EFE8;border-radius:8px}
-      [data-variant="happy"] .skeleton-dot{background:#6B8F5E}
-      [data-variant="happy"] .skeleton-main{background:#FAFAF5}
-      [data-variant="happy"] .skeleton-map{border-color:#DDD9CF;background:#D4E6EC;border-radius:14px}
-      [data-variant="happy"] .skeleton-map-bar{background:#FFFFFF;border-bottom-color:#DDD9CF}
-      [data-variant="happy"] .skeleton-map-body::after{background:radial-gradient(ellipse 60% 50% at 50% 50%,#B9CDA8 0%,#D4E6EC 100%);opacity:.3}
-      [data-variant="happy"] .skeleton-panel{background:#FFFFFF;border-color:#DDD9CF;border-radius:14px}
-      [data-variant="happy"] .skeleton-panel-header{border-bottom-color:#EBE8E0}
-      [data-variant="happy"] .skeleton-line{background:linear-gradient(90deg,rgba(107,143,94,.06) 25%,rgba(107,143,94,.12) 50%,rgba(107,143,94,.06) 75%);background-size:200% 100%;animation:skel-shimmer 1.5s infinite}
-
-      /* ---------- skeleton shell (happy variant — dark) ---------- */
-      [data-variant="happy"][data-theme="dark"] .skeleton-shell{background:#1A2332}
-      [data-variant="happy"][data-theme="dark"] .skeleton-header{background:#222E3E;border-bottom-color:#344050}
-      [data-variant="happy"][data-theme="dark"] .skeleton-pill{background:#2A3848}
-      [data-variant="happy"][data-theme="dark"] .skeleton-dot{background:#8BAF7A}
-      [data-variant="happy"][data-theme="dark"] .skeleton-main{background:#1A2332}
-      [data-variant="happy"][data-theme="dark"] .skeleton-map{border-color:#344050;background:#16202E}
-      [data-variant="happy"][data-theme="dark"] .skeleton-map-bar{background:#222E3E;border-bottom-color:#344050}
-      [data-variant="happy"][data-theme="dark"] .skeleton-map-body::after{background:radial-gradient(ellipse 60% 50% at 50% 50%,#2D4035 0%,#16202E 100%);opacity:.3}
-      [data-variant="happy"][data-theme="dark"] .skeleton-panel{background:#222E3E;border-color:#344050}
-      [data-variant="happy"][data-theme="dark"] .skeleton-panel-header{border-bottom-color:#283545}
-      [data-variant="happy"][data-theme="dark"] .skeleton-line{background:linear-gradient(90deg,rgba(139,175,122,.05) 25%,rgba(139,175,122,.10) 50%,rgba(139,175,122,.05) 75%);background-size:200% 100%;animation:skel-shimmer 1.5s infinite}
+      html,body{height:100%}
+      body{margin:0;background:#05070b;color:#eff6ff;font-family:'Vazirmatn','Tajawal','Geeza Pro','Tahoma','Segoe UI',system-ui,sans-serif}
+      #app{min-height:100vh}
+      .qadr-boot-overlay{position:fixed;inset:0;z-index:120000;display:flex;align-items:center;justify-content:center;background:
+        radial-gradient(circle at 50% 18%,rgba(255,255,255,.08),transparent 40%),
+        linear-gradient(180deg,#04060a 0%,#05070b 100%);
+        overflow:hidden}
+      .qadr-boot-overlay::before{content:'';position:absolute;inset:0;background:
+        linear-gradient(90deg,rgba(255,255,255,.02),transparent 32%,transparent 68%,rgba(255,255,255,.02)),
+        repeating-linear-gradient(180deg,transparent 0,transparent 23px,rgba(255,255,255,.02) 24px);
+        opacity:.45;pointer-events:none}
+      .qadr-boot-loader{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;width:min(88vw,980px);padding:48px 24px 36px;transition:opacity .45s ease,transform .45s ease}
+      .qadr-boot-worldmap{position:relative;width:min(86vw,900px);aspect-ratio:2.05/1;filter:drop-shadow(0 32px 80px rgba(0,0,0,.45))}
+      .qadr-boot-worldmap svg{width:100%;height:100%;display:block}
+      .qadr-boot-map-shape{fill:rgba(255,255,255,.05);stroke:rgba(255,255,255,.28);stroke-width:1.4;stroke-linejoin:round;stroke-linecap:round;stroke-dasharray:1200;stroke-dashoffset:1200;animation:qadrBootDraw 2s ease forwards}
+      .qadr-boot-map-shape:nth-child(2){animation-delay:.12s}
+      .qadr-boot-map-shape:nth-child(3){animation-delay:.24s}
+      .qadr-boot-map-shape:nth-child(4){animation-delay:.36s}
+      .qadr-boot-map-shape:nth-child(5){animation-delay:.48s}
+      .qadr-boot-map-shape:nth-child(6){animation-delay:.6s}
+      .qadr-boot-worldmap::after{content:'';position:absolute;inset:-12% -10%;background:linear-gradient(90deg,rgba(5,7,11,1) 0%,rgba(5,7,11,.88) 16%,rgba(255,255,255,.16) 48%,rgba(5,7,11,.4) 70%,rgba(5,7,11,1) 100%);mix-blend-mode:screen;filter:blur(20px);transform:translateX(-110%);animation:qadrBootSweep 2.35s ease-in-out infinite}
+      .qadr-boot-worldmap::before{content:'';position:absolute;inset:8% 6%;background:radial-gradient(circle at 50% 50%,rgba(255,255,255,.18),transparent 58%);filter:blur(42px);opacity:.22}
+      .qadr-boot-progress{position:absolute;left:50%;bottom:7vh;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:8px;min-width:180px;text-align:center}
+      #qadr-boot-progress-value{font-size:30px;font-weight:800;letter-spacing:.08em;color:#f8fafc;text-shadow:0 0 18px rgba(255,255,255,.12)}
+      #qadr-boot-status-text{font-size:12px;color:rgba(255,255,255,.62);letter-spacing:.08em}
+      .qadr-auth-shell{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;opacity:0;pointer-events:none;transform:translateY(18px);transition:opacity .32s ease,transform .32s ease}
+      .qadr-auth-card{width:min(520px,100%);padding:28px;border-radius:24px;background:rgba(9,12,18,.84);border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(18px);box-shadow:0 30px 80px rgba(0,0,0,.48);direction:rtl;text-align:right}
+      .qadr-auth-card--enroll{width:min(640px,100%)}
+      .qadr-auth-card__eyebrow{font-size:11px;font-weight:700;letter-spacing:.18em;color:rgba(255,255,255,.52);text-transform:uppercase;margin-bottom:10px}
+      .qadr-auth-card__title{margin:0 0 10px;font-size:28px;line-height:1.4;color:#f8fafc}
+      .qadr-auth-card__subtitle{margin:0 0 20px;color:rgba(255,255,255,.68);line-height:1.95;font-size:13px}
+      .qadr-auth-field{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+      .qadr-auth-field span{font-size:12px;color:#dbeafe}
+      .qadr-auth-field input{width:100%;padding:13px 15px;border-radius:14px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);color:#fff;font:inherit;outline:none}
+      .qadr-auth-field input:focus{border-color:rgba(59,130,246,.8);box-shadow:0 0 0 4px rgba(59,130,246,.12)}
+      .qadr-auth-checks{display:grid;gap:10px;margin:16px 0 20px}
+      .qadr-auth-check{display:flex;align-items:flex-start;gap:10px;font-size:12px;color:rgba(255,255,255,.78)}
+      .qadr-auth-check input{margin-top:2px}
+      .qadr-auth-submit,.qadr-auth-link-btn{appearance:none;border:0;border-radius:14px;padding:12px 16px;font:inherit;cursor:pointer}
+      .qadr-auth-submit{width:100%;background:linear-gradient(90deg,#60a5fa,#3b82f6);color:#08111c;font-weight:800}
+      .qadr-auth-submit[data-busy="1"]{opacity:.7;cursor:progress}
+      .qadr-auth-actions{display:flex;gap:10px;align-items:center}
+      .qadr-auth-actions .qadr-auth-submit{flex:1}
+      .qadr-auth-link-btn{background:rgba(255,255,255,.05);color:#dbeafe}
+      .qadr-auth-error{min-height:22px;margin-top:12px;color:#fca5a5;font-size:12px}
+      .qadr-auth-enroll{display:grid;grid-template-columns:minmax(180px,220px) 1fr;gap:18px;align-items:center;margin:10px 0 18px}
+      .qadr-auth-qr-wrap{display:flex;align-items:center;justify-content:center;padding:14px;border-radius:20px;background:#05070b;border:1px solid rgba(255,255,255,.08)}
+      .qadr-auth-qr{width:100%;max-width:200px;height:auto;image-rendering:pixelated}
+      .qadr-auth-secret{display:flex;flex-direction:column;gap:8px}
+      .qadr-auth-secret__label{font-size:11px;letter-spacing:.14em;color:rgba(255,255,255,.48)}
+      .qadr-auth-secret__value{display:block;padding:14px;border-radius:16px;background:rgba(255,255,255,.04);color:#f8fafc;font-size:15px;line-height:1.8;word-break:break-word}
+      .qadr-boot-overlay.is-auth-visible .qadr-boot-loader{opacity:.22;transform:scale(.97)}
+      .qadr-boot-overlay.is-auth-visible .qadr-auth-shell{opacity:1;pointer-events:auto;transform:translateY(0)}
+      .qadr-boot-overlay.is-complete{opacity:0;pointer-events:none;transition:opacity .24s ease}
+      @keyframes qadrBootDraw{0%{stroke-dashoffset:1200;opacity:.08}40%{opacity:.5}100%{stroke-dashoffset:0;opacity:1}}
+      @keyframes qadrBootSweep{0%{transform:translateX(-115%)}55%{transform:translateX(-10%)}100%{transform:translateX(112%)}}
+      @media (max-width: 720px){
+        .qadr-boot-loader{width:min(94vw,980px);padding-inline:14px}
+        .qadr-auth-card{padding:22px;border-radius:20px}
+        .qadr-auth-card__title{font-size:24px}
+        .qadr-auth-enroll{grid-template-columns:1fr}
+      }
     </style>
 
     <!-- Preconnect: map tiles + assets -->
@@ -202,39 +205,26 @@
     <link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,300;0,400;0,600;0,700;1,400&family=Tajawal:wght@200;300;400;500;700;800;900&display=swap" rel="stylesheet">
   </head>
   <body>
-    <div id="app">
-      <!-- Pre-render skeleton: visible instantly, replaced when JS calls renderLayout() -->
-      <div class="skeleton-shell" aria-hidden="true">
-        <div class="skeleton-header">
-          <div class="skeleton-header-left">
-            <div class="skeleton-pill" style="width:120px"></div>
-            <div class="skeleton-pill" style="width:72px"></div>
-            <div class="skeleton-dot"></div>
-          </div>
-          <div class="skeleton-header-right">
-            <div class="skeleton-pill" style="width:80px"></div>
-            <div class="skeleton-pill" style="width:28px;height:28px"></div>
-            <div class="skeleton-pill" style="width:64px"></div>
-          </div>
+    <div id="qadr-boot-overlay" class="qadr-boot-overlay" data-stage="loading" aria-live="polite">
+      <div class="qadr-boot-loader" aria-hidden="true">
+        <div class="qadr-boot-worldmap">
+          <svg viewBox="0 0 1000 490" role="img" aria-label="World map loading">
+            <path class="qadr-boot-map-shape" d="M72 165l48-30 66-10 38 16 46-8 44 28 25 38-11 35-39 25-46 5-39-18-23-31-41-6-53 20-34-14-18-31z" />
+            <path class="qadr-boot-map-shape" d="M305 252l27-12 25 17 20 44 6 53-11 58-22 38-33-2-12-40 8-42-14-45-8-40z" />
+            <path class="qadr-boot-map-shape" d="M420 148l44-26 108-12 98 13 72 30 38 42-6 28-41 5-36-15-57 12-31 34-37 15-54-18-28 14-27 31-42-6-17-27 7-44 34-40z" />
+            <path class="qadr-boot-map-shape" d="M610 300l32-10 37 20 42 3 30 20 15 31-12 33-38 11-41-5-28-17-19-30z" />
+            <path class="qadr-boot-map-shape" d="M782 188l34-24 57-6 53 19 20 34-20 23-44 6-18 32-42 18-38-9-17-31z" />
+            <path class="qadr-boot-map-shape" d="M848 344l42-14 45 9 17 30-20 24-40 8-32-14-18-22z" />
+          </svg>
         </div>
-        <div class="skeleton-main">
-          <div class="skeleton-map">
-            <div class="skeleton-map-bar">
-              <div class="skeleton-pill" style="width:48px;height:16px"></div>
-            </div>
-            <div class="skeleton-map-body"></div>
-          </div>
-          <div class="skeleton-grid">
-            <div class="skeleton-panel"><div class="skeleton-panel-header"><div class="skeleton-pill" style="width:80px;height:14px"></div></div><div class="skeleton-panel-body"><div class="skeleton-line w85"></div><div class="skeleton-line w75"></div><div class="skeleton-line w60"></div><div class="skeleton-line"></div><div class="skeleton-line w50"></div><div class="skeleton-line w75"></div></div></div>
-            <div class="skeleton-panel"><div class="skeleton-panel-header"><div class="skeleton-pill" style="width:64px;height:14px"></div></div><div class="skeleton-panel-body"><div class="skeleton-line w75"></div><div class="skeleton-line"></div><div class="skeleton-line w60"></div><div class="skeleton-line w85"></div><div class="skeleton-line w40"></div><div class="skeleton-line w75"></div></div></div>
-            <div class="skeleton-panel"><div class="skeleton-panel-header"><div class="skeleton-pill" style="width:96px;height:14px"></div></div><div class="skeleton-panel-body"><div class="skeleton-line"></div><div class="skeleton-line w60"></div><div class="skeleton-line w85"></div><div class="skeleton-line w50"></div><div class="skeleton-line w75"></div><div class="skeleton-line w40"></div></div></div>
-            <div class="skeleton-panel"><div class="skeleton-panel-header"><div class="skeleton-pill" style="width:72px;height:14px"></div></div><div class="skeleton-panel-body"><div class="skeleton-line w60"></div><div class="skeleton-line w85"></div><div class="skeleton-line w75"></div><div class="skeleton-line"></div><div class="skeleton-line w50"></div><div class="skeleton-line w60"></div></div></div>
-            <div class="skeleton-panel"><div class="skeleton-panel-header"><div class="skeleton-pill" style="width:88px;height:14px"></div></div><div class="skeleton-panel-body"><div class="skeleton-line w85"></div><div class="skeleton-line w50"></div><div class="skeleton-line w75"></div><div class="skeleton-line w60"></div><div class="skeleton-line"></div><div class="skeleton-line w40"></div></div></div>
-            <div class="skeleton-panel"><div class="skeleton-panel-header"><div class="skeleton-pill" style="width:56px;height:14px"></div></div><div class="skeleton-panel-body"><div class="skeleton-line w75"></div><div class="skeleton-line w60"></div><div class="skeleton-line"></div><div class="skeleton-line w85"></div><div class="skeleton-line w50"></div><div class="skeleton-line w75"></div></div></div>
-          </div>
+        <div class="qadr-boot-progress">
+          <div id="qadr-boot-progress-value">0%</div>
+          <div id="qadr-boot-status-text">در حال آماده‌سازی محیط تحلیلی...</div>
         </div>
       </div>
+      <div id="qadr-auth-shell" class="qadr-auth-shell" hidden></div>
     </div>
+    <div id="app"></div>
     <aside id="country-deep-dive-panel" class="country-deep-dive" aria-label="هوش کشور" aria-hidden="true">
       <div class="country-deep-dive-shell">
         <button id="deep-dive-close" class="panel-close" aria-label="بستن">×</button>

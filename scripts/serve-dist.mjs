@@ -4,6 +4,7 @@ import path from 'node:path';
 import { Readable } from 'node:stream';
 import { pathToFileURL } from 'node:url';
 import { tsImport } from 'tsx/esm/api';
+import { handleAuthRequest } from './shared/web-auth.mjs';
 
 const distDir = path.resolve(process.cwd(), process.env.DIST_DIR || 'dist');
 const predictDistDir = path.resolve(process.cwd(), process.env.PREDICT_DIST_DIR || 'predict/frontend/dist');
@@ -338,6 +339,26 @@ const server = http.createServer(async (req, res) => {
   const predictHostRequest = isPredictHost(req.headers.host);
 
   try {
+    if (!predictHostRequest && (routePathname === '/api/auth' || routePathname.startsWith('/api/auth/'))) {
+      const protocolHeader = Array.isArray(req.headers['x-forwarded-proto'])
+        ? req.headers['x-forwarded-proto'][0]
+        : req.headers['x-forwarded-proto'];
+      const protocol = (protocolHeader || 'https').split(',')[0]?.trim() || 'https';
+      const requestHeaders = copyHeaders(req.headers);
+      const requestBody = await readRequestBody(req);
+      const authRequest = new Request(`${protocol}://${req.headers.host || 'localhost'}${pathname}${url.search}`, {
+        method,
+        headers: requestHeaders,
+        body: requestBody?.length ? requestBody : undefined,
+        duplex: requestBody?.length ? 'half' : undefined,
+      });
+      const authResponse = await handleAuthRequest(req, authRequest);
+      if (authResponse instanceof Response) {
+        await writeFetchResponse(req, res, authResponse);
+        return;
+      }
+    }
+
     if (!predictHostRequest && (routePathname === '/api' || routePathname.startsWith('/api/'))) {
       const handled = await maybeHandleLocalApiRequest(req, res, routePathname, url);
       if (handled) {

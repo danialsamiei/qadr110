@@ -1400,6 +1400,7 @@ export class GlobeMap {
   private createLayerToggles(): void {
     const layerDefs = getLayersForVariant((SITE_VARIANT || 'full') as MapVariant, 'globe');
     const _wmKey = getSecretState('QADR110_API_KEY').present;
+    const collapseStorageKey = 'qadr110-layer-sidebar-collapsed';
     const layers = layerDefs.map(def => ({
       key: def.key,
       label: resolveLayerLabel(def, t),
@@ -1422,7 +1423,7 @@ export class GlobeMap {
           const isLocked = premium === 'locked' && !_wmKey;
           const isEnhanced = premium === 'enhanced' && !_wmKey;
           return `
-          <label class="layer-toggle${isLocked ? ' layer-toggle-locked' : ''}" data-layer="${key}">
+          <label class="layer-toggle${isLocked ? ' layer-toggle-locked' : ''}" data-layer="${key}" title="${label}">
             <input type="checkbox" ${this.layers[key] ? 'checked' : ''}${isLocked ? ' disabled' : ''}>
             <span class="toggle-icon">${icon}</span>
             <span class="toggle-label">${label}${isLocked ? ' \uD83D\uDD12' : ''}${isEnhanced ? ' <span class="layer-pro-badge">PRO</span>' : ''}</span>
@@ -1454,13 +1455,17 @@ export class GlobeMap {
 
     const collapseBtn = el.querySelector('.toggle-collapse');
     const list = el.querySelector('.toggle-list') as HTMLElement | null;
-    let collapsed = false;
+    const syncCollapsedState = (collapsed: boolean): void => {
+      el.classList.toggle('is-collapsed', collapsed);
+      el.setAttribute('data-collapsed', collapsed ? '1' : '0');
+      if (searchEl) searchEl.toggleAttribute('hidden', collapsed);
+      if (collapseBtn) (collapseBtn as HTMLElement).innerHTML = collapsed ? '&#9654;' : '&#9664;';
+      localStorage.setItem(collapseStorageKey, collapsed ? '1' : '0');
+    };
     collapseBtn?.addEventListener('click', () => {
-      collapsed = !collapsed;
-      if (list) list.style.display = collapsed ? 'none' : '';
-      if (searchEl) searchEl.style.display = collapsed ? 'none' : '';
-      if (collapseBtn) (collapseBtn as HTMLElement).innerHTML = collapsed ? '&#9654;' : '&#9660;';
+      syncCollapsedState(!el.classList.contains('is-collapsed'));
     });
+    syncCollapsedState(localStorage.getItem(collapseStorageKey) === '1');
 
     // Intercept wheel on layer panel — scroll list, don't zoom globe
     el.addEventListener('wheel', (e) => {
