@@ -3,13 +3,21 @@ export interface FloatingWindowPosition {
   y: number;
 }
 
+export interface FloatingWindowSize {
+  width: number;
+  height: number;
+}
+
 export interface FloatingWindowStoredState {
   position: FloatingWindowPosition | null;
+  size?: FloatingWindowSize | null;
 }
 
 export interface FloatingWindowClampOptions {
   padding?: number;
   bottomInset?: number;
+  minWidth?: number;
+  minHeight?: number;
 }
 
 export function loadFloatingWindowState(
@@ -23,9 +31,12 @@ export function loadFloatingWindowState(
       position: parsed?.position && Number.isFinite(parsed.position.x) && Number.isFinite(parsed.position.y)
         ? parsed.position
         : null,
+      size: parsed?.size && Number.isFinite(parsed.size.width) && Number.isFinite(parsed.size.height)
+        ? parsed.size
+        : null,
     };
   } catch {
-    return { position: null };
+    return { position: null, size: null };
   }
 }
 
@@ -51,6 +62,24 @@ export function clampFloatingWindowPosition(
   return {
     x: Math.min(maxX, Math.max(padding, position.x)),
     y: Math.min(maxY, Math.max(padding, position.y)),
+  };
+}
+
+export function clampFloatingWindowSize(
+  containerRect: DOMRect,
+  width: number,
+  height: number,
+  options: FloatingWindowClampOptions = {},
+): FloatingWindowSize {
+  const padding = options.padding ?? 12;
+  const bottomInset = options.bottomInset ?? 76;
+  const minWidth = options.minWidth ?? 320;
+  const minHeight = options.minHeight ?? 220;
+  const maxWidth = Math.max(minWidth, containerRect.width - padding * 2);
+  const maxHeight = Math.max(minHeight, containerRect.height - bottomInset - padding);
+  return {
+    width: Math.min(maxWidth, Math.max(minWidth, width)),
+    height: Math.min(maxHeight, Math.max(minHeight, height)),
   };
 }
 

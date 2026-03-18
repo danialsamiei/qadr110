@@ -23,10 +23,12 @@ import { debounce } from '@/utils';
 import {
   attachFloatingWindowDrag,
   clampFloatingWindowPosition,
+  clampFloatingWindowSize,
   loadFloatingWindowState,
   pickFloatingWindowPosition,
   saveFloatingWindowState,
   type FloatingWindowPosition,
+  type FloatingWindowSize,
 } from '@/services/qadr-floating-window';
 import {
   getDesktopWindow,
@@ -480,7 +482,9 @@ export class ScenarioMapOverlay implements AppModule {
   private unsubscribeState: (() => void) | null = null;
   private unsubscribeWindowState: (() => void) | null = null;
   private dragCleanup: (() => void) | null = null;
+  private resizeObserver: ResizeObserver | null = null;
   private windowPosition = loadFloatingWindowState(WINDOW_STORAGE_KEY).position;
+  private windowSize = loadFloatingWindowState(WINDOW_STORAGE_KEY).size ?? null;
 
   constructor(private readonly ctx: AppContext) {
     this.refreshDebounced = debounce(() => this.refresh(), 180);
@@ -514,6 +518,8 @@ export class ScenarioMapOverlay implements AppModule {
     this.refreshDebounced.cancel();
     this.dragCleanup?.();
     this.dragCleanup = null;
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = null;
     this.panelEl?.remove();
     this.panelEl = null;
   }
@@ -785,7 +791,48 @@ export class ScenarioMapOverlay implements AppModule {
 
   private persistWindowPosition(position: FloatingWindowPosition): void {
     this.windowPosition = position;
-    saveFloatingWindowState(WINDOW_STORAGE_KEY, { position });
+    saveFloatingWindowState(WINDOW_STORAGE_KEY, { position, size: this.windowSize });
+  }
+
+  private persistWindowSize(size: FloatingWindowSize | null): void {
+    this.windowSize = size;
+    saveFloatingWindowState(WINDOW_STORAGE_KEY, { position: this.windowPosition, size });
+  }
+
+  private attachResizeObserver(card: HTMLElement): void {
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = null;
+    if (typeof ResizeObserver === 'undefined') return;
+    this.resizeObserver = new ResizeObserver(() => {
+      if (!this.panelEl) return;
+      window.requestAnimationFrame(() => {
+        if (!this.panelEl || !card.isConnected) return;
+        const hostRect = this.panelEl.getBoundingClientRect();
+        const nextSize = clampFloatingWindowSize(hostRect, card.offsetWidth, card.offsetHeight, {
+          bottomInset: 92,
+          minWidth: 340,
+          minHeight: 240,
+        });
+        if (!this.windowSize
+          || Math.abs(this.windowSize.width - nextSize.width) > 1
+          || Math.abs(this.windowSize.height - nextSize.height) > 1) {
+          this.persistWindowSize(nextSize);
+          card.style.width = `${Math.round(nextSize.width)}px`;
+          card.style.height = `${Math.round(nextSize.height)}px`;
+        }
+        const currentPosition = this.windowPosition ?? {
+          x: Number.parseFloat(card.style.left || '16') || 16,
+          y: Number.parseFloat(card.style.top || '16') || 16,
+        };
+        const nextPosition = clampFloatingWindowPosition(hostRect, nextSize.width, nextSize.height, currentPosition, {
+          bottomInset: 92,
+        });
+        this.persistWindowPosition(nextPosition);
+        card.style.left = `${Math.round(nextPosition.x)}px`;
+        card.style.top = `${Math.round(nextPosition.y)}px`;
+      });
+    });
+    this.resizeObserver.observe(card);
   }
 
   private resolveCardPosition(card: HTMLElement): FloatingWindowPosition {
@@ -823,6 +870,24 @@ export class ScenarioMapOverlay implements AppModule {
     const card = this.panelEl.querySelector<HTMLElement>('.qadr-scenario-map-card');
     const header = this.panelEl.querySelector<HTMLElement>('.qadr-scenario-map-header');
     if (!card || !header) return;
+    const hostRect = this.panelEl.getBoundingClientRect();
+    if (this.windowSize) {
+      const clampedSize = clampFloatingWindowSize(hostRect, this.windowSize.width, this.windowSize.height, {
+        bottomInset: 92,
+        minWidth: 340,
+        minHeight: 240,
+      });
+      if (!this.windowSize
+        || this.windowSize.width !== clampedSize.width
+        || this.windowSize.height !== clampedSize.height) {
+        this.persistWindowSize(clampedSize);
+      }
+      card.style.width = `${Math.round(clampedSize.width)}px`;
+      card.style.height = `${Math.round(clampedSize.height)}px`;
+    } else {
+      card.style.removeProperty('width');
+      card.style.removeProperty('height');
+    }
     const position = this.resolveCardPosition(card);
     this.persistWindowPosition(position);
     card.style.left = `${Math.round(position.x)}px`;
@@ -842,6 +907,7 @@ export class ScenarioMapOverlay implements AppModule {
       () => this.windowPosition ?? position,
       { bottomInset: 92 },
     );
+    this.attachResizeObserver(card);
   }
 
   private render(): void {

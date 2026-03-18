@@ -1120,11 +1120,10 @@ canvas,
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  min-height: 62px;
+  min-height: 56px;
   padding: 8px 16px;
   border-top: 1px solid var(--border);
-  background: rgba(10, 14, 24, 0.96);
-  backdrop-filter: blur(10px);
+  background: rgba(8, 12, 20, 0.98);
   position: sticky;
   bottom: 0;
   z-index: 40;
@@ -1198,7 +1197,7 @@ canvas,
   max-width: 220px;
   min-width: 0;
   padding: 9px 12px;
-  border-radius: 999px;
+  border-radius: 4px;
 }
 
 .qadr-window-taskbar-chip-label {
@@ -1212,7 +1211,7 @@ canvas,
 .qadr-window-taskbar-close {
   width: 28px;
   height: 28px;
-  border-radius: 999px;
+  border-radius: 4px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1235,7 +1234,7 @@ canvas,
 .qadr-window-clock-btn {
   min-height: 42px;
   padding: 8px 12px;
-  border-radius: 8px;
+  border-radius: 4px;
   text-align: right;
 }
 
@@ -1266,8 +1265,8 @@ canvas,
   padding: 8px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(10, 14, 24, 0.98);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
-  border-radius: 8px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
 }
 
 .qadr-window-launcher-menu {
@@ -1282,7 +1281,7 @@ canvas,
 .qadr-window-clock-item {
   width: 100%;
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: 4px;
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 10px;
@@ -15610,7 +15609,7 @@ a.prediction-link:hover {
   background: var(--bg);
   padding: 8px 12px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 4px;
 }
 
 .deckgl-time-slider .time-options {
@@ -19783,9 +19782,9 @@ body.has-breaking-alert .panels-grid {
   gap: 10px;
   background: var(--panel-bg, #141414);
   border: 1px solid var(--border, #2a2a2a);
-  border-radius: 8px;
+  border-radius: 6px;
   padding: 8px 8px 8px 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
 }
 
 .cw-dot {
@@ -20231,18 +20230,23 @@ body.has-breaking-alert .panels-grid {
   gap: 0.75rem;
   min-width: 18rem;
   padding: 0.95rem 1rem;
-  border-radius: 8px;
+  border-radius: 6px;
   border: 1px solid rgba(122, 141, 164, 0.25);
   background:
     linear-gradient(180deg, rgba(13, 20, 33, 0.96), rgba(8, 14, 25, 0.94)),
     rgba(8, 14, 25, 0.94);
-  box-shadow: 0 20px 50px rgba(3, 8, 20, 0.34);
+  box-shadow: 0 12px 28px rgba(3, 8, 20, 0.24);
   color: var(--qadr-color-text, #f8fafc);
-  backdrop-filter: blur(16px);
+  backdrop-filter: blur(8px);
   box-sizing: border-box;
   max-width: min(28rem, calc(100vw - 2rem));
+  max-height: min(32rem, calc(100vh - 6rem));
+  min-height: 14rem;
   position: absolute;
   cursor: default;
+  resize: both;
+  overflow: auto;
+  scrollbar-width: thin;
 }
 
 .qadr-map-aware-card.empty {
@@ -20276,7 +20280,7 @@ body.has-breaking-alert .panels-grid {
 .qadr-scenario-window-controls button {
   inline-size: 28px;
   block-size: 28px;
-  border-radius: 4px;
+  border-radius: 3px;
   border: 1px solid rgba(148, 163, 184, 0.24);
   background: rgba(15, 23, 42, 0.92);
   color: rgba(248, 250, 252, 0.92);
@@ -20353,7 +20357,7 @@ body.has-breaking-alert .panels-grid {
   border: 1px solid rgba(56, 189, 248, 0.28);
   background: rgba(15, 23, 42, 0.92);
   color: rgba(224, 242, 254, 0.96);
-  border-radius: 999px;
+  border-radius: 4px;
   padding: 0.45rem 0.8rem;
   font: inherit;
   font-size: 0.78rem;
@@ -20474,17 +20478,22 @@ body.has-breaking-alert .panels-grid {
   display: grid;
   gap: 0.75rem;
   padding: 1rem;
-  border-radius: 8px;
+  border-radius: 6px;
   border: 1px solid rgba(122, 141, 164, 0.22);
   background:
     linear-gradient(180deg, rgba(10, 14, 25, 0.94), rgba(7, 11, 20, 0.92)),
     rgba(7, 11, 20, 0.92);
-  box-shadow: 0 20px 60px rgba(2, 6, 23, 0.36);
-  backdrop-filter: blur(16px);
+  box-shadow: 0 12px 30px rgba(2, 6, 23, 0.24);
+  backdrop-filter: blur(8px);
   color: #f8fafc;
   box-sizing: border-box;
   max-width: calc(100vw - 2rem);
+  max-height: min(34rem, calc(100vh - 6rem));
+  min-height: 15rem;
   cursor: default;
+  resize: both;
+  overflow: auto;
+  scrollbar-width: thin;
 }
 
 .qadr-scenario-map-card.empty {
@@ -20529,7 +20538,7 @@ body.has-breaking-alert .panels-grid {
 .qadr-scenario-evidence-list button,
 .qadr-scenario-entities span,
 .qadr-scenario-clusters article {
-  border-radius: 999px;
+  border-radius: 4px;
   border: 1px solid rgba(94, 234, 212, 0.18);
   background: rgba(15, 23, 42, 0.88);
   color: #e2e8f0;
@@ -20614,4 +20623,5 @@ body.has-breaking-alert .panels-grid {
 
 #app[data-ui-direction="rtl"] button[type="button"] {
   text-align: right;
+  justify-content: flex-start;
 }
