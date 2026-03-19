@@ -2801,8 +2801,12 @@ export class PanelLayoutManager implements AppModule {
     if (!this.ctx.initialUrlState || !this.ctx.map) return;
 
     const { view, zoom, lat, lon, timeRange, layers } = this.ctx.initialUrlState;
+    const hasExplicitCenter = lat !== undefined && lon !== undefined;
 
-    if (view) {
+    // Shared URLs with an explicit lat/lon should replay the exact viewport.
+    // Calling setView() first would animate to the preset and overwrite the
+    // requested center after auth/bootstrap completes.
+    if (view && !hasExplicitCenter) {
       this.ctx.map.setView(view);
     }
 
@@ -2816,7 +2820,7 @@ export class PanelLayoutManager implements AppModule {
       this.ctx.map.setLayers(layers);
     }
 
-    if (lat !== undefined && lon !== undefined) {
+    if (hasExplicitCenter) {
       const effectiveZoom = zoom ?? this.ctx.map.getState().zoom;
       this.ctx.map.setCenter(lat, lon, effectiveZoom);
     } else if (!view && zoom !== undefined) {
