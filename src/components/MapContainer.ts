@@ -383,6 +383,13 @@ export class MapContainer {
     }
   }
 
+  public setWorldCopies(enabled: boolean): void {
+    if (this.useGlobe) return;
+    if (this.useDeckGL) {
+      this.deckGLMap?.setRenderWorldCopies(enabled);
+    }
+  }
+
   public getCenter(): { lat: number; lon: number } | null {
     if (this.useGlobe) return this.globeMap?.getCenter() ?? null;
     if (this.useDeckGL) return this.deckGLMap?.getCenter() ?? null;

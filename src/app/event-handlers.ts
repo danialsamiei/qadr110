@@ -542,6 +542,9 @@ export class EventHandlerManager implements AppModule {
     if (!this.ctx.map) return;
 
     this.ctx.map.onStateChanged(() => {
+      if (this.shouldDeferInitialUrlSync()) {
+        return;
+      }
       this.debouncedUrlSync();
       const regionSelect = document.getElementById('regionSelect') as HTMLSelectElement;
       if (regionSelect && this.ctx.map) {
@@ -551,7 +554,9 @@ export class EventHandlerManager implements AppModule {
         }
       }
     });
-    this.debouncedUrlSync();
+    if (!this.shouldDeferInitialUrlSync()) {
+      this.debouncedUrlSync();
+    }
   }
 
   syncUrlState(): void {
@@ -574,6 +579,23 @@ export class EventHandlerManager implements AppModule {
       country: isCountryVisible ? (briefPage?.getCode() ?? undefined) : undefined,
       expanded: isCountryVisible && briefPage?.getIsMaximized?.() ? true : undefined,
     });
+  }
+
+  private shouldDeferInitialUrlSync(): boolean {
+    if (!this.ctx.map) return false;
+    const initial = this.ctx.initialUrlState;
+    if (!initial || this.ctx.initialLoadComplete) return false;
+    if (initial.lat === undefined || initial.lon === undefined) return false;
+
+    const center = this.ctx.map.getCenter();
+    if (!center) return true;
+
+    const latDrift = Math.abs(center.lat - initial.lat);
+    const lonDrift = Math.abs(center.lon - initial.lon);
+    const requestedZoom = initial.zoom ?? this.ctx.map.getState().zoom;
+    const zoomDrift = Math.abs(this.ctx.map.getState().zoom - requestedZoom);
+
+    return latDrift > 0.05 || lonDrift > 0.05 || zoomDrift > 0.05;
   }
 
   private async copyToClipboard(text: string): Promise<void> {

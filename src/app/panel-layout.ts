@@ -2376,8 +2376,17 @@ export class PanelLayoutManager implements AppModule {
     if (!this.ctx.initialUrlState || !this.ctx.map) return;
 
     const { view, zoom, lat, lon, timeRange, layers } = this.ctx.initialUrlState;
+    const hasExplicitCenter = lat !== undefined && lon !== undefined;
+    const applyExactViewport = (): void => {
+      if (lat === undefined || lon === undefined || !this.ctx.map) return;
+      const effectiveZoom = zoom ?? this.ctx.map.getState().zoom;
+      if (effectiveZoom <= 2) {
+        this.ctx.map.setWorldCopies(true);
+      }
+      this.ctx.map.setCenter(lat, lon, effectiveZoom);
+    };
 
-    if (view) {
+    if (view && !hasExplicitCenter) {
       this.ctx.map.setView(view);
     }
 
@@ -2391,9 +2400,14 @@ export class PanelLayoutManager implements AppModule {
       this.ctx.map.setLayers(layers);
     }
 
-    if (lat !== undefined && lon !== undefined) {
-      const effectiveZoom = zoom ?? this.ctx.map.getState().zoom;
-      if (effectiveZoom > 2) this.ctx.map.setCenter(lat, lon, zoom);
+    if (hasExplicitCenter) {
+      applyExactViewport();
+      // DeckGL/MapLibre may still complete an internal preset/global flyTo during
+      // the first render tick. Re-apply the exact shared viewport once bootstrap
+      // settles so post-auth deep links remain stable.
+      window.setTimeout(() => {
+        applyExactViewport();
+      }, 900);
     } else if (!view && zoom !== undefined) {
       this.ctx.map.setZoom(zoom);
     }

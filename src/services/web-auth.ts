@@ -57,6 +57,7 @@ type AuthViewState = {
 
 const REMEMBERED_USERNAME_KEY = 'qadr110-auth-remembered-username';
 const LEGACY_ACCESS_KEY = 'qadr110-auth-ok';
+const PENDING_URL_KEY = 'qadr110-auth-pending-url';
 
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -79,6 +80,29 @@ function rememberUsername(username: string, enabled: boolean): void {
 
 function getRememberedUsername(): string {
   return localStorage.getItem(REMEMBERED_USERNAME_KEY) || '';
+}
+
+function captureRequestedUrl(): void {
+  try {
+    const relativeUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    sessionStorage.setItem(PENDING_URL_KEY, relativeUrl);
+  } catch {
+    // ignore storage failures
+  }
+}
+
+function restoreRequestedUrl(): void {
+  try {
+    const requested = sessionStorage.getItem(PENDING_URL_KEY);
+    if (!requested) return;
+    const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    if (requested !== current) {
+      history.replaceState(null, '', requested);
+    }
+    sessionStorage.removeItem(PENDING_URL_KEY);
+  } catch {
+    // ignore history/storage failures
+  }
 }
 
 function ensureBootOverlay(): {
@@ -293,6 +317,7 @@ function wireBackButton(authShell: HTMLElement, onBack: () => void): void {
 
 export async function showAccessGate(): Promise<boolean> {
   const { overlay, authShell, progressText, statusText } = ensureBootOverlay();
+  captureRequestedUrl();
   const viewState: AuthViewState = {
     challengeId: null,
     currentUsername: getRememberedUsername(),
@@ -329,6 +354,7 @@ export async function showAccessGate(): Promise<boolean> {
   await wait(220);
 
   if (session?.authenticated) {
+    restoreRequestedUrl();
     setBootStage(overlay, 'done');
     await wait(260);
     overlay.remove();
@@ -343,6 +369,7 @@ export async function showAccessGate(): Promise<boolean> {
   if (fallbackMode) {
     const allowed = await fallbackLegacyLogin(authShell, viewState);
     if (allowed) {
+      restoreRequestedUrl();
       setBootStage(overlay, 'done');
       await wait(220);
       overlay.remove();
@@ -386,6 +413,7 @@ export async function showAccessGate(): Promise<boolean> {
         });
 
         if (response.ok && response.status === 'authenticated') {
+          restoreRequestedUrl();
           setBootStage(overlay, 'done');
           await wait(220);
           overlay.remove();
@@ -443,6 +471,7 @@ export async function showAccessGate(): Promise<boolean> {
           showInlineError(authShell, response.error);
           return;
         }
+        restoreRequestedUrl();
         setBootStage(overlay, 'done');
         await wait(220);
         overlay.remove();
@@ -483,6 +512,7 @@ export async function showAccessGate(): Promise<boolean> {
           showInlineError(authShell, response.error);
           return;
         }
+        restoreRequestedUrl();
         setBootStage(overlay, 'done');
         await wait(220);
         overlay.remove();

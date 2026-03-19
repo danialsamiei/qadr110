@@ -4467,6 +4467,10 @@ export class DeckGLMap {
     }
   }
 
+  public setRenderWorldCopies(enabled: boolean): void {
+    this.maplibreMap?.setRenderWorldCopies(enabled);
+  }
+
   public fitCountry(code: string): void {
     const bbox = getCountryBbox(code);
     if (!bbox || !this.maplibreMap) return;
