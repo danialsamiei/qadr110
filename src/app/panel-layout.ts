@@ -2822,6 +2822,9 @@ export class PanelLayoutManager implements AppModule {
 
     if (hasExplicitCenter) {
       const effectiveZoom = zoom ?? this.ctx.map.getState().zoom;
+      if (effectiveZoom <= 2) {
+        this.ctx.map.setWorldCopies(true);
+      }
       this.ctx.map.setCenter(lat, lon, effectiveZoom);
     } else if (!view && zoom !== undefined) {
       this.ctx.map.setZoom(zoom);
