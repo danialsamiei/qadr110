@@ -5,6 +5,7 @@ import * as Sentry from '@sentry/browser';
 import { inject } from '@vercel/analytics';
 import { App } from './App';
 import { showAccessGate } from './services/web-auth';
+import { isKnownQadrAppHostname, stripPort } from './utils/host-routing';
 import { installUtmInterceptor } from './utils/utm';
 
 const sentryDsn = import.meta.env.VITE_SENTRY_DSN?.trim();
@@ -13,7 +14,7 @@ const sentryDsn = import.meta.env.VITE_SENTRY_DSN?.trim();
 Sentry.init({
   dsn: sentryDsn || undefined,
   release: `qadr110@${__APP_VERSION__}`,
-  environment: location.hostname === 'qadr.alefba.dev' ? 'production'
+  environment: isKnownQadrAppHostname(stripPort(location.hostname)) ? 'production'
     : location.hostname.includes('vercel.app') ? 'preview'
     : 'development',
   enabled: Boolean(sentryDsn) && !location.hostname.startsWith('localhost') && !('__TAURI_INTERNALS__' in window),

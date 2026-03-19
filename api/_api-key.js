@@ -1,18 +1,10 @@
+import { isAllowedBrowserOrigin, isAllowedDesktopOrigin } from './_host.js';
+
 const DESKTOP_ORIGIN_PATTERNS = [
   /^https?:\/\/tauri\.localhost(:\d+)?$/,
   /^https?:\/\/[a-z0-9-]+\.tauri\.localhost(:\d+)?$/i,
   /^tauri:\/\/localhost$/,
   /^asset:\/\/localhost$/,
-];
-
-const BROWSER_ORIGIN_PATTERNS = [
-  /^https:\/\/(.*\.)?qadr\.alefba\.dev$/,
-  /^https:\/\/qadr110-[a-z0-9-]+\.vercel\.app$/,
-  /^https:\/\/qadr-[a-z0-9-]+\.vercel\.app$/,
-  ...(process.env.NODE_ENV === 'production' ? [] : [
-    /^https?:\/\/localhost(:\d+)?$/,
-    /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
-  ]),
 ];
 
 function getValidKeys() {
@@ -23,11 +15,11 @@ function getValidKeys() {
 }
 
 function isDesktopOrigin(origin) {
-  return Boolean(origin) && DESKTOP_ORIGIN_PATTERNS.some(p => p.test(origin));
+  return isAllowedDesktopOrigin(origin) || Boolean(origin) && DESKTOP_ORIGIN_PATTERNS.some(p => p.test(origin));
 }
 
 function isTrustedBrowserOrigin(origin) {
-  return Boolean(origin) && BROWSER_ORIGIN_PATTERNS.some(p => p.test(origin));
+  return isAllowedBrowserOrigin(origin);
 }
 
 function extractOriginFromReferer(referer) {
@@ -54,7 +46,7 @@ export function validateApiKey(req, options = {}) {
     return { valid: true, required: true };
   }
 
-  // Trusted browser origin (qadr.alefba.dev, Vercel previews, localhost dev) — no key needed
+  // Trusted browser origin (public host, national host, direct IP, previews, localhost dev) — no key needed
   if (isTrustedBrowserOrigin(origin)) {
     if (forceKey && !key) {
       return { valid: false, required: true, error: 'API key required' };

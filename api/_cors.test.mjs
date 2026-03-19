@@ -10,6 +10,14 @@ function makeRequest(origin) {
   return new Request('https://qadr.alefba.dev/api/test', { headers });
 }
 
+function makeHostRequest(url, origin = null) {
+  const headers = new Headers();
+  if (origin !== null) {
+    headers.set('origin', origin);
+  }
+  return new Request(url, { headers });
+}
+
 test('allows desktop Tauri origins', () => {
   const origins = [
     'https://tauri.localhost',
@@ -32,6 +40,20 @@ test('rejects unrelated external origins', () => {
   assert.equal(isDisallowedOrigin(req), true);
   const cors = getCorsHeaders(req);
   assert.equal(cors['Access-Control-Allow-Origin'], 'https://qadr.alefba.dev');
+});
+
+test('allows national-domain browser origins', () => {
+  const req = makeHostRequest('http://qadr.gantor.ir/api/test', 'http://qadr.gantor.ir');
+  assert.equal(isDisallowedOrigin(req), false);
+  const cors = getCorsHeaders(req);
+  assert.equal(cors['Access-Control-Allow-Origin'], 'http://qadr.gantor.ir');
+});
+
+test('falls back to request host origin for national host requests', () => {
+  const req = makeHostRequest('http://qadr.gantor.ir/api/test', 'https://evil.example.com');
+  assert.equal(isDisallowedOrigin(req), true);
+  const cors = getCorsHeaders(req);
+  assert.equal(cors['Access-Control-Allow-Origin'], 'http://qadr.gantor.ir');
 });
 
 test('requests without origin remain allowed', () => {

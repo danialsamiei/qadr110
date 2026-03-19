@@ -6,6 +6,10 @@ function makeRequest(query = '') {
   return new Request(`https://qadr.alefba.dev/api/youtube/embed${query}`);
 }
 
+function makeHostRequest(hostUrl, query = '') {
+  return new Request(`${hostUrl}/api/youtube/embed${query}`);
+}
+
 test('rejects missing or invalid video ids', async () => {
   const missing = await handler(makeRequest());
   assert.equal(missing.status, 400);
@@ -26,6 +30,13 @@ test('returns embeddable html for valid video id', async () => {
   assert.equal(html.includes('mute:1'), true);
   assert.equal(html.includes('origin:"https://qadr.alefba.dev"'), true);
   assert.equal(html.includes('postMessage'), true);
+});
+
+test('defaults embed origin to the incoming national host', async () => {
+  const response = await handler(makeHostRequest('http://qadr.gantor.ir', '?videoId=iEpJwprxDdk'));
+  const html = await response.text();
+  assert.equal(html.includes('origin:"http://qadr.gantor.ir"'), true);
+  assert.match(html, /parentOrigin="http:\/\/qadr\.gantor\.ir"/);
 });
 
 test('accepts custom origin parameter', async () => {

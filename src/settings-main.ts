@@ -26,7 +26,14 @@ import {
   type RuntimeFeatureId,
   type RuntimeSecretKey,
 } from '@/services/runtime-config';
-import { getApiBaseUrl, isDesktopRuntime, resolveLocalApiPort, startSmartPollLoop, type SmartPollLoopHandle } from '@/services/runtime';
+import {
+  getApiBaseUrl,
+  getCanonicalAppOrigin,
+  isDesktopRuntime,
+  resolveLocalApiPort,
+  startSmartPollLoop,
+  type SmartPollLoopHandle,
+} from '@/services/runtime';
 import { tryInvokeTauri } from '@/services/tauri-bridge';
 import { openExternalUrl } from '@/services/desktop-opener';
 import { prepareDesktopShellState } from '@/services/desktop-shell-store';
@@ -271,7 +278,7 @@ function initOverviewListeners(area: HTMLElement): void {
   });
 
   area.querySelector('[data-qadr-open-pro]')?.addEventListener('click', () => {
-    const url = 'https://qadr.alefba.dev/pro';
+    const url = `${getCanonicalAppOrigin()}/pro`;
     void openExternalUrl(url);
   });
 

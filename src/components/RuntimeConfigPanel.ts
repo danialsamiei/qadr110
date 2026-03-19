@@ -18,6 +18,7 @@ import {
 import { openExternalUrl } from '@/services/desktop-opener';
 import { escapeHtml } from '@/utils/sanitize';
 import { isDesktopRuntime } from '@/services/runtime';
+import { getCanonicalAppOrigin } from '@/services/runtime';
 import { t } from '@/services/i18n';
 import { trackFeatureToggle } from '@/services/analytics';
 import { SIGNUP_URLS, PLAINTEXT_KEYS, MASKED_SENTINEL } from '@/services/settings-constants';
@@ -343,7 +344,7 @@ export class RuntimeConfigPanel extends Panel {
 
     if (this.mode === 'alert') {
       this.content.querySelector<HTMLButtonElement>('[data-early-access]')?.addEventListener('click', () => {
-        const url = 'https://qadr.alefba.dev/pro';
+        const url = `${getCanonicalAppOrigin()}/pro`;
         if (isDesktopRuntime()) {
           void openExternalUrl(url);
         } else {

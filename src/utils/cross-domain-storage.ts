@@ -1,8 +1,9 @@
-const COOKIE_DOMAIN = '.qadr.alefba.dev';
+import { getCookieDomainForCurrentHost, isKnownQadrAppHostname } from '@/utils/host-routing';
+
 const MAX_AGE_SECONDS = 365 * 24 * 60 * 60;
 
 function usesCookies(): boolean {
-  return location.hostname.endsWith('qadr.alefba.dev');
+  return isKnownQadrAppHostname(location.hostname) && Boolean(getCookieDomainForCurrentHost());
 }
 
 export function getDismissed(key: string): boolean {
@@ -13,8 +14,9 @@ export function getDismissed(key: string): boolean {
 }
 
 export function setDismissed(key: string): void {
-  if (usesCookies()) {
-    document.cookie = `${key}=1; domain=${COOKIE_DOMAIN}; path=/; max-age=${MAX_AGE_SECONDS}; SameSite=Lax; Secure`;
+  const cookieDomain = getCookieDomainForCurrentHost();
+  if (usesCookies() && cookieDomain) {
+    document.cookie = `${key}=1; domain=${cookieDomain}; path=/; max-age=${MAX_AGE_SECONDS}; SameSite=Lax; Secure`;
   }
   localStorage.setItem(key, '1');
 }

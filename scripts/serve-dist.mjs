@@ -1,5 +1,5 @@
 import http from 'node:http';
-import { createReadStream, existsSync, statSync } from 'node:fs';
+import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { Readable } from 'node:stream';
 import { pathToFileURL } from 'node:url';
@@ -13,6 +13,11 @@ const apiDir = path.resolve(process.cwd(), 'api');
 const port = Number.parseInt(process.env.PORT || process.argv[2] || '3000', 10);
 const host = process.env.HOST || '0.0.0.0';
 const localApiModuleCache = new Map();
+const QADR_PUBLIC_ORIGIN = 'https://qadr.alefba.dev';
+const QADR_PUBLIC_HOST = 'qadr.alefba.dev';
+const QADR_NATIONAL_HOST = 'qadr.gantor.ir';
+const QADR_DIRECT_IP = '5.235.208.128';
+const HOST_REWRITTEN_TEXT_EXTENSIONS = new Set(['.html', '.xml']);
 
 const LOCAL_EDGE_API_ROUTES = new Map([
   ['/api/ais-snapshot', 'ais-snapshot.js'],
@@ -85,6 +90,51 @@ function isPredictHost(hostHeader) {
   return hostName === 'predict.alefba.dev';
 }
 
+function stripPort(hostHeader = '') {
+  return hostHeader.split(':')[0].trim().toLowerCase().replace(/\.$/, '');
+}
+
+function isKnownAppHost(hostHeader = '') {
+  const hostName = stripPort(hostHeader);
+  return hostName === QADR_PUBLIC_HOST
+    || hostName === QADR_NATIONAL_HOST
+    || hostName === QADR_DIRECT_IP
+    || hostName === 'localhost'
+    || hostName === '127.0.0.1';
+}
+
+function getRequestProtocol(req) {
+  const protocolHeader = Array.isArray(req.headers['x-forwarded-proto'])
+    ? req.headers['x-forwarded-proto'][0]
+    : req.headers['x-forwarded-proto'];
+  const forwarded = (protocolHeader || '').split(',')[0]?.trim().toLowerCase();
+  if (forwarded === 'http' || forwarded === 'https') {
+    return forwarded;
+  }
+  return req.socket.encrypted ? 'https' : 'http';
+}
+
+function getRequestOrigin(req) {
+  const hostHeader = req.headers.host || QADR_PUBLIC_HOST;
+  const protocol = getRequestProtocol(req);
+  return `${protocol}://${hostHeader}`;
+}
+
+function getHostAwareOrigin(req) {
+  const hostHeader = req.headers.host || '';
+  if (isKnownAppHost(hostHeader)) {
+    return getRequestOrigin(req);
+  }
+  return QADR_PUBLIC_ORIGIN;
+}
+
+function rewriteHostAwareText(source, req) {
+  const origin = getHostAwareOrigin(req).replace(/\/$/, '');
+  return source
+    .replaceAll('https://maps.qadr.alefba.dev', origin)
+    .replaceAll('https://qadr.alefba.dev', origin);
+}
+
 function shouldFallbackToIndex(cleanPath) {
   return !path.posix.extname(cleanPath) || cleanPath.endsWith('/');
 }
@@ -142,6 +192,19 @@ function sendStaticFile(req, res, filePath) {
   const extname = path.extname(filePath).toLowerCase();
   res.setHeader('Content-Type', mimeTypes[extname] || 'application/octet-stream');
   setCacheHeaders(res, extname);
+
+  const baseName = path.basename(filePath).toLowerCase();
+  if (HOST_REWRITTEN_TEXT_EXTENSIONS.has(extname) || baseName === 'robots.txt') {
+    const text = rewriteHostAwareText(readFileSync(filePath, 'utf8'), req);
+    if ((req.method || 'GET') === 'HEAD') {
+      res.writeHead(200);
+      res.end();
+      return;
+    }
+    res.writeHead(200);
+    res.end(text);
+    return;
+  }
 
   if ((req.method || 'GET') === 'HEAD') {
     res.writeHead(200);

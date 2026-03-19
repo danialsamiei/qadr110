@@ -12,8 +12,8 @@
 <script setup>
 import { APP_BRAND, APP_TAGLINE, RETURN_TO_QADR_LABEL } from './brand'
 
-const qadrHref = typeof window !== 'undefined' && window.location.pathname.startsWith('/predict')
-  ? '/'
+const qadrHref = typeof window !== 'undefined'
+  ? `${window.location.origin}/`
   : 'https://qadr.alefba.dev/'
 </script>
 

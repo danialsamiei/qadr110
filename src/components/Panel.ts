@@ -6,6 +6,7 @@ import { h, replaceChildren, safeHtml } from '../utils/dom-utils';
 import { trackPanelResized } from '@/services/analytics';
 import { getAiFlowSettings } from '@/services/ai-flow-settings';
 import { getSecretState } from '@/services/runtime-config';
+import { getCanonicalAppOrigin } from '@/services/runtime';
 
 export interface PanelOptions {
   id: string;
@@ -772,9 +773,9 @@ export class Panel {
 
     const ctaBtn = h('button', { type: 'button', className: 'panel-locked-cta' }, t('premium.joinWaitlist'));
     if (isDesktopRuntime()) {
-      ctaBtn.addEventListener('click', () => void openExternalUrl('https://qadr.alefba.dev/pro'));
+      ctaBtn.addEventListener('click', () => void openExternalUrl(`${getCanonicalAppOrigin()}/pro`));
     } else {
-      ctaBtn.addEventListener('click', () => window.open('https://qadr.alefba.dev/pro', '_blank'));
+      ctaBtn.addEventListener('click', () => window.open(`${getCanonicalAppOrigin()}/pro`, '_blank'));
     }
     lockedChildren.push(ctaBtn);
 

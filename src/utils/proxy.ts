@@ -1,5 +1,6 @@
 import { isDesktopRuntime, toApiUrl, toRuntimeUrl } from '../services/runtime';
 import { getPersistentCache, setPersistentCache } from '../services/persistent-cache';
+import { QADR_PUBLIC_HOST } from './host-routing';
 
 type ProxyEnv = Record<string, string | boolean | undefined>;
 
@@ -21,6 +22,10 @@ const RESPONSE_CACHE_PREFIX = 'api-response:';
 // RSS proxy: route directly to Railway relay via Cloudflare CDN when enabled.
 // Feature flag controls rollout; default off for safe staged deployment.
 const RSS_DIRECT_TO_RELAY = proxyEnv.VITE_RSS_DIRECT_TO_RELAY === 'true';
+const shouldUsePublicRssRelay = () => (
+  typeof window !== 'undefined'
+  && window.location?.hostname?.toLowerCase() === QADR_PUBLIC_HOST
+);
 const RSS_PROXY_BASE = isDev
   ? '' // Dev uses Vite's rssProxyPlugin
   : RSS_DIRECT_TO_RELAY
@@ -29,7 +34,7 @@ const RSS_PROXY_BASE = isDev
 
 export function rssProxyUrl(feedUrl: string): string {
   if (isDesktopRuntime()) return proxyUrl(feedUrl);
-  if (RSS_PROXY_BASE) {
+  if (RSS_PROXY_BASE && shouldUsePublicRssRelay()) {
     return `${RSS_PROXY_BASE}/rss?url=${encodeURIComponent(feedUrl)}`;
   }
   return `/api/rss-proxy?url=${encodeURIComponent(feedUrl)}`;

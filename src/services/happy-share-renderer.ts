@@ -6,6 +6,7 @@
 import type { NewsItem } from '@/types';
 import type { HappyContentCategory } from '@/services/positive-classifier';
 import { HAPPY_CATEGORY_LABELS } from '@/services/positive-classifier';
+import { QADR_PUBLIC_HOST, stripPort } from '@/utils/host-routing';
 
 const SIZE = 1080;
 const PAD = 80;
@@ -176,7 +177,10 @@ export async function renderHappyShareCard(item: NewsItem): Promise<HTMLCanvasEl
 
   ctx.font = '400 22px Nunito, system-ui, sans-serif';
   ctx.fillStyle = '#A0AEC0';
-  ctx.fillText('happy.qadr.alefba.dev', PAD, brandY + 34);
+  const brandHost = typeof window !== 'undefined' && window.location?.host
+    ? stripPort(window.location.host)
+    : `happy.${QADR_PUBLIC_HOST}`;
+  ctx.fillText(brandHost, PAD, brandY + 34);
 
   return canvas;
 }

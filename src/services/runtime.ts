@@ -1,4 +1,14 @@
 import { SITE_VARIANT } from '@/config/variant';
+import {
+  QADR_DIRECT_IP,
+  QADR_NATIONAL_HOST,
+  QADR_PUBLIC_API_HOST,
+  QADR_PUBLIC_HOST,
+  QADR_PUBLIC_ORIGIN,
+  getCurrentAppOrigin,
+  isKnownQadrAppHostname,
+  stripPort,
+} from '@/utils/host-routing';
 
 type RuntimeEnv = Record<string, string | boolean | undefined>;
 
@@ -135,17 +145,12 @@ export function getApiBaseUrl(): string {
 }
 
 function isQadrWebHost(hostname: string): boolean {
-  return hostname === 'qadr.alefba.dev'
-    || hostname.endsWith('.qadr.alefba.dev');
+  return isKnownQadrAppHostname(hostname);
 }
 
 export function getConfiguredWebApiBaseUrl(): string {
-  if (WS_API_URL) {
-    return normalizeBaseUrl(WS_API_URL);
-  }
-
   if (typeof window === 'undefined') {
-    return '';
+    return DEFAULT_WEB_API_URL ? normalizeBaseUrl(DEFAULT_WEB_API_URL) : '';
   }
 
   if (isDesktopRuntime()) {
@@ -153,19 +158,27 @@ export function getConfiguredWebApiBaseUrl(): string {
   }
 
   const hostname = window.location?.hostname ?? '';
-  if (!isQadrWebHost(hostname)) {
-    return '';
+  if (isQadrWebHost(hostname)) {
+    return normalizeBaseUrl(getCurrentAppOrigin(QADR_PUBLIC_ORIGIN));
   }
 
-  return DEFAULT_WEB_API_URL;
+  if (WS_API_URL) {
+    return normalizeBaseUrl(WS_API_URL);
+  }
+
+  return DEFAULT_WEB_API_URL ? normalizeBaseUrl(DEFAULT_WEB_API_URL) : '';
 }
 
 export function getCanonicalApiOrigin(): string {
-  if (typeof window !== 'undefined' && window.location?.origin) {
-    return getConfiguredWebApiBaseUrl() || window.location.origin;
+  if (typeof window !== 'undefined') {
+    return getConfiguredWebApiBaseUrl() || getCurrentAppOrigin(QADR_PUBLIC_ORIGIN);
   }
 
-  return getConfiguredWebApiBaseUrl() || 'https://qadr.alefba.dev';
+  return getConfiguredWebApiBaseUrl() || QADR_PUBLIC_ORIGIN;
+}
+
+export function getCanonicalAppOrigin(): string {
+  return getCanonicalApiOrigin();
 }
 
 export function getRemoteApiBaseUrl(): string {
@@ -183,7 +196,7 @@ export function getRemoteApiBaseUrl(): string {
   if (fromHosts) return fromHosts;
 
   // Desktop builds may not set VITE_WS_API_URL; default to production.
-  if (isDesktopRuntime()) return 'https://qadr.alefba.dev';
+  if (isDesktopRuntime()) return QADR_PUBLIC_ORIGIN;
   return '';
 }
 
@@ -227,8 +240,10 @@ function extractHostnames(...urls: (string | undefined)[]): string[] {
 }
 
 const APP_HOSTS = new Set([
-  'qadr.alefba.dev',
-  'api.alefba.dev',
+  QADR_PUBLIC_HOST,
+  QADR_NATIONAL_HOST,
+  QADR_DIRECT_IP,
+  QADR_PUBLIC_API_HOST,
   'localhost',
   '127.0.0.1',
   ...extractHostnames(WS_API_URL, readEnvString('VITE_WS_RELAY_URL')),
@@ -237,8 +252,11 @@ const APP_HOSTS = new Set([
 function isAppOriginUrl(urlStr: string): boolean {
   try {
     const u = new URL(urlStr);
-    const host = u.hostname;
-    return APP_HOSTS.has(host) || host.endsWith('.qadr.alefba.dev') || host.endsWith('.alefba.dev');
+    const host = stripPort(u.hostname);
+    return APP_HOSTS.has(host)
+      || host.endsWith(`.${QADR_PUBLIC_HOST}`)
+      || host.endsWith(`.${QADR_NATIONAL_HOST}`)
+      || host.endsWith('.alefba.dev');
   } catch {
     return false;
   }

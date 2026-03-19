@@ -1,5 +1,7 @@
 export const config = { runtime: 'edge' };
 
+import { getDefaultAllowedOrigin, isAllowedBrowserOrigin, isAllowedDesktopOrigin } from '../_host.js';
+
 function parseFlag(value, fallback = '1') {
   if (value === '0' || value === '1') return value;
   return fallback;
@@ -10,23 +12,17 @@ function sanitizeVideoId(value) {
   return /^[A-Za-z0-9_-]{11}$/.test(value) ? value : null;
 }
 
-const ALLOWED_ORIGINS = [
-  /^https:\/\/qadr\.alefba\.dev$/,
-  /^https:\/\/qadr110-[a-z0-9-]+\.vercel\.app$/,
-  /^https:\/\/qadr-[a-z0-9-]+\.vercel\.app$/,
-  /^https?:\/\/localhost(:\d+)?$/,
-  /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
-  /^tauri:\/\/localhost$/,
-];
+function isAllowedOrigin(origin) {
+  return isAllowedBrowserOrigin(origin) || isAllowedDesktopOrigin(origin);
+}
 
-const ALLOWED_PARENT_ORIGINS = [
-  ...ALLOWED_ORIGINS,
-  // tauri://localhost is already covered via ALLOWED_ORIGINS spread above.
-  /^https?:\/\/tauri\.localhost$/,
-  /^https?:\/\/[a-z0-9-]+\.tauri\.localhost$/,
-];
+function isAllowedParentOrigin(origin) {
+  return isAllowedOrigin(origin)
+    || /^https?:\/\/tauri\.localhost$/i.test(origin)
+    || /^https?:\/\/[a-z0-9-]+\.tauri\.localhost$/i.test(origin);
+}
 
-function sanitizeAllowedOrigin(raw, fallback, allowList = ALLOWED_ORIGINS) {
+function sanitizeAllowedOrigin(raw, fallback, validator = isAllowedOrigin) {
   if (!raw) return fallback;
   try {
     const parsed = new URL(raw);
@@ -34,17 +30,17 @@ function sanitizeAllowedOrigin(raw, fallback, allowList = ALLOWED_ORIGINS) {
       return fallback;
     }
     const origin = parsed.origin !== 'null' ? parsed.origin : raw;
-    if (allowList.some(p => p.test(origin))) return origin;
+    if (validator(origin)) return origin;
   } catch { /* invalid URL */ }
   return fallback;
 }
 
-function sanitizeOrigin(raw) {
-  return sanitizeAllowedOrigin(raw, 'https://qadr.alefba.dev', ALLOWED_ORIGINS);
+function sanitizeOrigin(raw, fallback) {
+  return sanitizeAllowedOrigin(raw, fallback, isAllowedOrigin);
 }
 
 function sanitizeParentOrigin(raw, fallback) {
-  return sanitizeAllowedOrigin(raw, fallback, ALLOWED_PARENT_ORIGINS);
+  return sanitizeAllowedOrigin(raw, fallback, isAllowedParentOrigin);
 }
 
 export default async function handler(request) {
@@ -62,7 +58,8 @@ export default async function handler(request) {
   const mute = parseFlag(url.searchParams.get('mute'), '1');
   const vq = ['small', 'medium', 'large', 'hd720', 'hd1080'].includes(url.searchParams.get('vq') || '') ? url.searchParams.get('vq') : '';
 
-  const origin = sanitizeOrigin(url.searchParams.get('origin'));
+  const requestOrigin = getDefaultAllowedOrigin(request);
+  const origin = sanitizeOrigin(url.searchParams.get('origin'), requestOrigin);
   const parentOrigin = sanitizeParentOrigin(url.searchParams.get('parentOrigin'), origin);
 
   const embedSrc = new URL(`https://www.youtube.com/embed/${videoId}`);

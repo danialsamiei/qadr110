@@ -1,22 +1,12 @@
-const ALLOWED_ORIGIN_PATTERNS = [
-  /^https:\/\/qadr\.alefba\.dev$/,
-  /^https:\/\/qadr110-[a-z0-9-]+\.vercel\.app$/,
-  /^https:\/\/qadr-[a-z0-9-]+\.vercel\.app$/,
-  /^https?:\/\/localhost(:\d+)?$/,
-  /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
-  /^https?:\/\/tauri\.localhost(:\d+)?$/,
-  /^https?:\/\/[a-z0-9-]+\.tauri\.localhost(:\d+)?$/i,
-  /^tauri:\/\/localhost$/,
-  /^asset:\/\/localhost$/,
-];
+import { getDefaultAllowedOrigin, isAllowedBrowserOrigin, isAllowedDesktopOrigin } from './_host.js';
 
 function isAllowedOrigin(origin) {
-  return Boolean(origin) && ALLOWED_ORIGIN_PATTERNS.some((pattern) => pattern.test(origin));
+  return isAllowedBrowserOrigin(origin) || isAllowedDesktopOrigin(origin);
 }
 
 export function getCorsHeaders(req, methods = 'GET, OPTIONS') {
   const origin = req.headers.get('origin') || '';
-  const allowOrigin = isAllowedOrigin(origin) ? origin : 'https://qadr.alefba.dev';
+  const allowOrigin = isAllowedOrigin(origin) ? origin : getDefaultAllowedOrigin(req);
   return {
     'Access-Control-Allow-Origin': allowOrigin,
     'Access-Control-Allow-Methods': methods,

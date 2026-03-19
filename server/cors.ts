@@ -7,6 +7,8 @@
 
 const PRODUCTION_PATTERNS: RegExp[] = [
   /^https:\/\/(.*\.)?qadr\.alefba\.dev$/,
+  /^https?:\/\/(.*\.)?qadr\.gantor\.ir$/i,
+  /^https?:\/\/5\.235\.208\.128(?::\d+)?$/i,
   /^https:\/\/qadr110-[a-z0-9-]+\.vercel\.app$/,
   /^https:\/\/qadr-[a-z0-9-]+\.vercel\.app$/,
   /^https?:\/\/tauri\.localhost(:\d+)?$/,
@@ -29,9 +31,21 @@ function isAllowedOrigin(origin: string): boolean {
   return Boolean(origin) && ALLOWED_ORIGIN_PATTERNS.some((pattern) => pattern.test(origin));
 }
 
+function getDefaultAllowedOrigin(req: Request): string {
+  try {
+    const url = new URL(req.url);
+    if (isAllowedOrigin(url.origin)) {
+      return url.origin;
+    }
+  } catch {
+    // ignore malformed request URLs
+  }
+  return 'https://qadr.alefba.dev';
+}
+
 export function getCorsHeaders(req: Request): Record<string, string> {
   const origin = req.headers.get('origin') || '';
-  const allowOrigin = isAllowedOrigin(origin) ? origin : 'https://qadr.alefba.dev';
+  const allowOrigin = isAllowedOrigin(origin) ? origin : getDefaultAllowedOrigin(req);
   return {
     'Access-Control-Allow-Origin': allowOrigin,
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',

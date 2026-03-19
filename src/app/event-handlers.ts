@@ -29,6 +29,7 @@ import {
   DEFAULT_PANELS,
 } from '@/config';
 import { VARIANT_META } from '@/config/variant-meta';
+import { buildHostAwareUrl, isKnownQadrOrigin } from '@/utils/host-routing';
 import {
   saveSnapshot,
   initAisStream,
@@ -740,7 +741,10 @@ export class EventHandlerManager implements AppModule {
       return;
     }
 
-    const target = options.href || VARIANT_META[variant]?.url;
+    let target = options.href || VARIANT_META[variant]?.url;
+    if (!options.isLocalDev && (!target || isKnownQadrOrigin(target))) {
+      target = buildHostAwareUrl('/');
+    }
     if (target) window.location.href = target;
   }
 

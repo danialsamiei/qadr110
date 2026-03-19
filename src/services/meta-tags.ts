@@ -1,6 +1,6 @@
 import { SITE_VARIANT } from '@/config/variant';
 import { VARIANT_META } from '@/config/variant-meta';
-import { getCanonicalApiOrigin } from '@/services/runtime';
+import { getCanonicalApiOrigin, getCanonicalAppOrigin } from '@/services/runtime';
 
 interface StoryMeta {
   countryCode: string;
@@ -12,7 +12,7 @@ interface StoryMeta {
 }
 
 const variantMeta = VARIANT_META[SITE_VARIANT] ?? VARIANT_META.full;
-const BASE_URL = variantMeta.url.replace(/\/$/, '');
+const BASE_URL = getCanonicalAppOrigin();
 const API_ORIGIN = getCanonicalApiOrigin();
 const DEFAULT_IMAGE = `${BASE_URL}/favico/${SITE_VARIANT === 'full' ? '' : SITE_VARIANT + '/'}og-image.png`;
 
